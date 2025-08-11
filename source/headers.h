@@ -9,3 +9,5 @@
 #include <cmath>
 #include <limits>
 #include <set>
+#include <memory>
+#include <cassert>
