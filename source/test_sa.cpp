@@ -7,8 +7,11 @@ int main() {
     GeneralizedSuffixAutomaton gsa;
 
     // Add some sample strings with IDs 1,2,3
+    std::cout << "Insert 'banana'." << std::endl;
     gsa.add_string(1, "banana");
+    std::cout << "Insert 'bandana'." << std::endl;
     gsa.add_string(2, "bandana");
+    std::cout << "Insert 'ananas'." << std::endl;
     gsa.add_string(3, "ananas");
 
     auto print_res = [](const std::string &pat, const std::vector<int> &res){
@@ -26,7 +29,38 @@ int main() {
     print_res("anas", gsa.query("anas"));   // ananas(3)
     print_res("xyz", gsa.query("xyz"));     // empty
 
-    // gsa.print();
+    gsa.print();
+
+    // Extra tests
+    std::cout << "Performing extra tests..." << std::endl;
+    gsa.clear();
+    std::vector<std::string> data;
+    for (int i = 0; i < 100; i++) {
+        std::string s = "";
+        for (int j = 0; j < 100; j++) {
+            s += rand() % 26 + '0';
+        }
+        data.emplace_back(s);
+        gsa.add_string(i, s);
+    }
+    for (int i = 0; i < 100; i++) {
+        std::string s = "";
+        for (int j = 0; j < 3; j++) {
+            s += rand() % 26 + '0';
+        }
+        std::vector<int> std;
+        for (int j = 0; j < 100; j++) {
+            if (data[j].find(s) != std::string::npos) {
+                std.emplace_back(j);
+            }
+        }
+        auto res = gsa.query(s);
+        assert(std.size() == res.size());
+        for (int j = 0; j < std.size(); j++) {
+            assert(std[j] == res[j]);
+        }
+    }
+    std::cout << "Extra tests passed!" << std::endl;
 
     return 0;
 }
