@@ -12,4 +12,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Create executable
 add_executable(sa_test source/test_sa.cpp source/sa.h source/sa.cpp)
-add_executable(nsw_test source/test_nsw.cpp source/nsw.h)
+add_executable(nsw_test source/test_nsw.cpp source/nsw.h source/nsw.cpp)

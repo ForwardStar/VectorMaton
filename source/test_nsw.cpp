@@ -13,12 +13,14 @@ int main() {
         {1.0, 2.0, 3.0},
         {4.0, 5.0, 6.0},
         {7.0, 8.0, 9.0},
-        {10.0, 11.0, 12.0}
+        {10.0, 11.0, 12.0},
+        {13.0, 14.0, 15.0}
     };
-    nsw.initGraph(vecs);
 
-    // Insert a new vector
-    nsw.insert({13.0, 14.0, 15.0});
+    for (int i = 0; i < vecs.size(); i++) {
+        vec.emplace_back(vecs[i]);
+        nsw.insert(i);
+    }
 
     // Search for k=2 nearest neighbors
     std::vector<float> query = {2.0, 3.0, 4.0};
@@ -27,7 +29,7 @@ int main() {
     // Print results
     std::cout << "Nearest neighbors to {" << query[0] << ", " << query[1] << ", " << query[2] << "}:\n";
     for (const auto& p : neighbors) {
-        std::cout << "Distance: " << nsw.distance(nsw.getVector(p), query) << ", Index: " << p << "\n";
+        std::cout << "Distance: " << nsw.distance(vec[p], query) << ", Index: " << p << "\n";
     }
 
     return 0;

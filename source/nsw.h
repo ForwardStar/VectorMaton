@@ -5,12 +5,14 @@
 
 #include "headers.h"
 
+extern std::vector<std::vector<float>> vec;
+
 class NSW {
 private:
     struct Node {
-        std::vector<float> vec;
+        int id;
         std::vector<int> neighbors;
-        Node(const std::vector<float>& v) : vec(v) {}
+        Node(int _id) : id(_id) {}
     };
 
     std::vector<Node> nodes;
@@ -18,86 +20,10 @@ private:
     int efConstruction;
 
     // Greedy search to find candidate nodes
-    std::vector<int> greedySearch(int entry, const std::vector<float>& q, int ef) const {
-        std::unordered_set<int> visited = {entry};
-        std::priority_queue<std::pair<float, int>> C;
-        C.emplace(-distance(nodes[entry].vec, q), entry);
-        std::priority_queue<std::pair<float, int>> W;
-        W.emplace(distance(nodes[entry].vec, q), entry);
-
-        while (!C.empty()) {
-            // Find the nearest node in C to query q
-            int u = C.top().second;
-            C.pop();
-
-            // Find the farthest node in W from query q
-            int f = W.top().second;
-
-            // Termination condition
-            if (distance(nodes[u].vec, q) > distance(nodes[f].vec, q)) {
-                break;
-            }
-
-            // Process neighbors of u
-            for (int v : nodes[u].neighbors) {
-                if (visited.find(v) == visited.end()) {
-                    visited.insert(v);
-                    float distVQ = distance(nodes[v].vec, q);
-                    float distFQ = distance(nodes[f].vec, q);
-                    if (distVQ < distFQ || W.size() < static_cast<size_t>(ef)) {
-                        C.emplace(-distance(nodes[v].vec, q), v);
-                        W.emplace(distance(nodes[v].vec, q), v);
-                        // Update f if W size exceeds ef
-                        if (W.size() > static_cast<size_t>(ef)) {
-                            W.pop();
-                        }
-                    }
-                }
-            }
-        }
-
-        std::vector<int> results;
-        while (!W.empty()) {
-            results.emplace_back(W.top().second);
-            W.pop();
-        }
-        std::reverse(results.begin(), results.end());
-        return results;
-    }
+    std::vector<int> greedySearch(int entry, const std::vector<float>& q, int ef) const;
 
     // Prune candidates to keep the closest M nodes
-    std::vector<int> prune(const std::vector<int>& C, int u, int M) const {
-        if (C.empty() || M <= 0) {
-            return {};
-        }
-
-        // Sort nodes in C by distance to u
-        std::vector<std::pair<float, int>> distNodes;
-        for (int v : C) {
-            distNodes.emplace_back(distance(nodes[u].vec, nodes[v].vec), v);
-        }
-        std::sort(distNodes.begin(), distNodes.end());
-
-        std::vector<int> R;
-
-        for (const auto& dn : distNodes) {
-            int v = dn.second;
-            bool add = true;
-            for (int w : R) {
-                if (distance(nodes[v].vec, nodes[w].vec) < dn.first) {
-                    add = false;
-                    break;
-                }
-            }
-            if (add) {
-                R.push_back(v);
-                if (R.size() == static_cast<size_t>(M)) {
-                    break;
-                }
-            }
-        }
-        return R;
-    }
+    std::vector<int> prune(const std::vector<int>& C, int u, int M) const;
 
 public:
     NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon) {}
@@ -112,26 +38,14 @@ public:
         return std::sqrt(dist);
     }
 
-    // Get a vector by its index
-    std::vector<float> getVector(int i) {
-        return nodes[i].vec;
-    }
-
-    // Initialize NSW graph with a list of vectors
-    void initGraph(const std::vector<std::vector<float>>& vecs) {
-        for (auto v : vecs) {
-            insert(v);
-        }
-    }
-
     // Insert a new vector into the NSW graph
-    void insert(const std::vector<float>& vec) {
-        nodes.emplace_back(vec);
+    void insert(int id) {
+        nodes.emplace_back(id);
         if (nodes.empty()) {
             return;
         }
         int entry = 0, newNodeIdx = nodes.size() - 1;
-        std::vector<int> C = greedySearch(entry, vec, efConstruction);
+        std::vector<int> C = greedySearch(entry, vec[id], efConstruction);
         std::vector<int> NG = prune(C, newNodeIdx, M);
         for (int v : NG) {
             nodes[newNodeIdx].neighbors.emplace_back(v);
