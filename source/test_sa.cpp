@@ -30,15 +30,16 @@ int main() {
     print_res("xyz", gsa.query("xyz"));     // empty
 
     gsa.print();
+    std::cout << "Total number of string IDs in GSA: " << gsa.size_tot() << std::endl;
 
     // Extra tests
     std::cout << "Performing extra tests..." << std::endl;
     gsa.clear();
     std::vector<std::string> data;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
         std::string s = "";
-        for (int j = 0; j < 100; j++) {
-            s += rand() % 26 + '0';
+        for (int j = 0; j < 1000; j++) {
+            s += rand() % 26 + 'a';
         }
         data.emplace_back(s);
         gsa.add_string(i, s);
@@ -46,10 +47,10 @@ int main() {
     for (int i = 0; i < 100; i++) {
         std::string s = "";
         for (int j = 0; j < 3; j++) {
-            s += rand() % 26 + '0';
+            s += rand() % 26 + 'a';
         }
         std::vector<int> std;
-        for (int j = 0; j < 100; j++) {
+        for (int j = 0; j < data.size(); j++) {
             if (data[j].find(s) != std::string::npos) {
                 std.emplace_back(j);
             }
@@ -61,6 +62,8 @@ int main() {
         }
     }
     std::cout << "Extra tests passed!" << std::endl;
+    std::cout << "Total number of string IDs in GSA: " << gsa.size_tot() << std::endl;
+    std::cout << "Total op count: " << gsa.op_count << std::endl;
 
     return 0;
 }

@@ -7,6 +7,9 @@
 
 class GeneralizedSuffixAutomaton {
 public:
+    // Used to track #operations during id propagation (reflects time complexity)
+    int op_count = 0;
+
     GeneralizedSuffixAutomaton();
 
     // Add a new string with integer ID 'id'. This will index all substrings of s
@@ -19,8 +22,11 @@ public:
     // Complexity: O(|p| + k) where k = number of returned IDs.
     std::vector<int> query(const std::string &p) const;
 
-    // The number of states (reflecting space consumption).
+    // The number of states (reflecting space consumption of GSA).
     int size();
+
+    // The number of total ids of states (reflecting total space consumption).
+    int size_tot();
 
     // Clear all data (start fresh).
     void clear();
@@ -37,9 +43,7 @@ private:
     };
     std::vector<State> st;
     int last;
-    void sa_extend(char c);
-    void propagate_ids(); // propagate per-state id lists along suffix links
-    bool ids_propagated;
+    void sa_extend(char c, int id);
 };
 
 #endif // SA_H

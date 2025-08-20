@@ -7,7 +7,6 @@ GeneralizedSuffixAutomaton::GeneralizedSuffixAutomaton() {
     st.emplace_back(); // state 0 = initial
     st[0].link = -1;
     last = 0;
-    ids_propagated = true;
 }
 
 int GeneralizedSuffixAutomaton::size() {
@@ -15,14 +14,48 @@ int GeneralizedSuffixAutomaton::size() {
 }
 
 void GeneralizedSuffixAutomaton::clear() {
+    op_count = 0;
     st.clear();
     st.emplace_back();
     st[0].link = -1;
     last = 0;
-    ids_propagated = true;
 }
 
-void GeneralizedSuffixAutomaton::sa_extend(char c) {
+void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
+    if (st[last].next.count(c)) {
+        int x = st[last].next[c];
+        if (st[x].len == st[last].len + 1) {
+            last = x;
+        }
+        else {
+            // Clone st[last].next[c]
+            int cur = (int)st.size();
+            st.emplace_back();
+            st[cur].len = st[last].len + 1;
+            st[cur].next = st[x].next; // copy map
+            st[cur].link = st[x].link;
+            for (auto old_id : st[x].ids) { // copy ids
+                op_count++;
+                st[cur].ids.emplace_back(old_id);
+            }
+            int p = last;
+            while (p != -1 && st[p].next[c] == x) {
+                st[p].next[c] = cur;
+                p = st[p].link;
+            }
+            st[x].link = cur;
+            last = cur;
+        }
+
+        // Propagate IDs
+        int p = last;
+        while (p != -1) {
+            op_count++;
+            if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+            p = st[p].link;
+        }
+        return;
+    }
     int cur = (int)st.size();
     st.emplace_back();
     st[cur].len = st[last].len + 1;
@@ -45,7 +78,10 @@ void GeneralizedSuffixAutomaton::sa_extend(char c) {
             st[clone].len = st[p].len + 1;
             st[clone].next = st[q].next; // copy map
             st[clone].link = st[q].link;
-            // copied ids will be handled during propagation, so leave ids empty for now
+            for (auto old_id : st[q].ids) { // copy ids
+                op_count++;
+                st[clone].ids.emplace_back(old_id);
+            }
 
             while (p != -1 && st[p].next[c] == q) {
                 st[p].next[c] = clone;
@@ -54,67 +90,24 @@ void GeneralizedSuffixAutomaton::sa_extend(char c) {
             st[q].link = st[cur].link = clone;
         }
     }
+
     last = cur;
-    ids_propagated = false;
+    p = last;
+    while (p != -1) {
+        op_count++;
+        if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+        p = st[p].link;
+    }
 }
 
 void GeneralizedSuffixAutomaton::add_string(int id, const std::string &s) {
     // We'll add characters of s by extending the automaton while resetting 'last' at the start
     // so the string is added as a separate sequence (avoiding cross-string suffixes).
     last = 0;
+    st[0].ids.emplace_back(id);
     for (char c : s) {
-        sa_extend(c);
-        // mark this end-state with the string id
-        if (st[last].ids.empty() || st[last].ids.back() != id) {
-            st[last].ids.push_back(id);
-        }
+        sa_extend(c, id);
     }
-    // After adding a string, we propagate IDs along suffix links so every state stores
-    // all string IDs that have occurrences in that state's substrings.
-    propagate_ids();
-}
-
-void GeneralizedSuffixAutomaton::propagate_ids() {
-    if (ids_propagated) return;
-    // Bucket states by length for radix-like ordering
-    int maxlen = 0;
-    for (const auto &s : st) if (s.len > maxlen) maxlen = s.len;
-    std::vector<int> cnt(maxlen + 1);
-    for (const auto &s : st) cnt[s.len]++;
-    for (int i = 1; i <= maxlen; ++i) cnt[i] += cnt[i-1];
-    std::vector<int> order(st.size());
-    for (int i = (int)st.size()-1; i >= 0; --i) {
-        order[--cnt[st[i].len]] = i;
-    }
-    // Propagate IDs from longer to shorter (i.e., along suffix links)
-    // To avoid repeated duplicates, we'll merge vectors and keep unique ids.
-    for (int idx = (int)order.size()-1; idx >= 0; --idx) {
-        int v = order[idx];
-        int p = st[v].link;
-        if (p != -1 && !st[v].ids.empty()) {
-            // merge st[v].ids into st[p].ids maintaining uniqueness
-            // Use unordered_set temporarily only if the sizes suggest it's beneficial.
-            // We'll do an efficient merge by inserting into a set built from p.ids if needed.
-            if (st[p].ids.empty()) {
-                st[p].ids = st[v].ids;
-            } else {
-                // Merge two sorted-unique-ish lists: neither guaranteed sorted; use set merge
-                std::unordered_set<int> merged;
-                merged.reserve(st[p].ids.size() + st[v].ids.size());
-                for (int x : st[p].ids) merged.insert(x);
-                for (int x : st[v].ids) merged.insert(x);
-                st[p].ids.assign(merged.begin(), merged.end());
-            }
-        }
-    }
-    // Optionally sort the id vectors for deterministic output
-    for (auto &s : st) {
-        if (!s.ids.empty()) {
-            std::sort(s.ids.begin(), s.ids.end());
-            s.ids.erase(std::unique(s.ids.begin(), s.ids.end()), s.ids.end());
-        }
-    }
-    ids_propagated = true;
 }
 
 std::vector<int> GeneralizedSuffixAutomaton::query(const std::string &p) const {
@@ -127,6 +120,14 @@ std::vector<int> GeneralizedSuffixAutomaton::query(const std::string &p) const {
     // v is the state representing all end positions of strings that contain p
     // return its stored IDs
     return st[v].ids;
+}
+
+int GeneralizedSuffixAutomaton::size_tot() {
+    int tot_size = 0;
+    for (size_t i = 0; i < st.size(); ++i) {
+        tot_size += st[i].ids.size();
+    }
+    return tot_size;
 }
 
 void GeneralizedSuffixAutomaton::print() const {
