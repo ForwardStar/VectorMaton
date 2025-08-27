@@ -7,8 +7,16 @@
 
 class GeneralizedSuffixAutomaton {
 public:
-    // Used to track #operations during id propagation (reflects time complexity)
-    int op_count = 0;
+    struct State {
+        int len = 0;
+        int link = -1;
+        std::unordered_map<char, int> next;
+        std::vector<int> ids;
+    };
+    std::vector<State> st;
+
+    // Record which states are affected after inserting a string.
+    std::vector<int> affected_states;
 
     GeneralizedSuffixAutomaton();
 
@@ -17,10 +25,10 @@ public:
     // Complexity: O(|s|) amortized.
     void add_string(int id, const std::string &s);
 
-    // Query which string IDs contain pattern p.
-    // Returns a vector<int> of IDs (unique, unordered).
-    // Complexity: O(|p| + k) where k = number of returned IDs.
-    std::vector<int> query(const std::string &p) const;
+    // Query which state that pattern p ends.
+    // Returns the state id.
+    // Complexity: O(|p|).
+    int query(const std::string &p) const;
 
     // The number of states (reflecting space consumption of GSA).
     int size();
@@ -35,13 +43,6 @@ public:
     void print() const;
 
 private:
-    struct State {
-        int len = 0;
-        int link = -1;
-        std::unordered_map<char,int> next;
-        std::vector<int> ids;
-    };
-    std::vector<State> st;
     int last;
     void sa_extend(char c, int id);
 };

@@ -2,8 +2,6 @@
 
 #include "nsw.h"
 
-std::vector<std::vector<float>> vec;
-
 std::vector<int> NSW::greedySearch(int entry, const std::vector<float>& q, int ef) const {
     std::unordered_set<int> visited = {entry};
     std::priority_queue<std::pair<float, int>> C;

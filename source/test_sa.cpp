@@ -14,7 +14,9 @@ int main() {
     std::cout << "Insert 'ananas'." << std::endl;
     gsa.add_string(3, "ananas");
 
-    auto print_res = [](const std::string &pat, const std::vector<int> &res){
+    auto print_res = [](GeneralizedSuffixAutomaton* gsa, std::string pat, int id){
+        std::vector<int> res = {};
+        if (id != -1) res = gsa->st[id].ids;
         std::cout << "Query \"" << pat << "\" -> {";
         for (size_t i=0;i<res.size();++i) {
             std::cout << res[i];
@@ -23,11 +25,11 @@ int main() {
         std::cout << "}\n";
     };
 
-    print_res("ana", gsa.query("ana"));     // should appear in banana(1) and ananas(3) and bandana(2)
-    print_res("ban", gsa.query("ban"));     // banana(1), bandana(2)
-    print_res("nana", gsa.query("nana"));   // banana(1), ananas(3)
-    print_res("anas", gsa.query("anas"));   // ananas(3)
-    print_res("xyz", gsa.query("xyz"));     // empty
+    print_res(&gsa, "ana", gsa.query("ana"));     // should appear in banana(1) and ananas(3) and bandana(2)
+    print_res(&gsa, "ban", gsa.query("ban"));     // banana(1), bandana(2)
+    print_res(&gsa, "nana", gsa.query("nana"));   // banana(1), ananas(3)
+    print_res(&gsa, "anas", gsa.query("anas"));   // ananas(3)
+    print_res(&gsa, "xyz", gsa.query("xyz"));     // empty
 
     gsa.print();
     std::cout << "Total number of string IDs in GSA: " << gsa.size_tot() << std::endl;
@@ -55,7 +57,7 @@ int main() {
                 std.emplace_back(j);
             }
         }
-        auto res = gsa.query(s);
+        auto& res = gsa.st[gsa.query(s)].ids;
         assert(std.size() == res.size());
         for (int j = 0; j < std.size(); j++) {
             assert(std[j] == res[j]);
@@ -63,7 +65,6 @@ int main() {
     }
     std::cout << "Extra tests passed!" << std::endl;
     std::cout << "Total number of string IDs in GSA: " << gsa.size_tot() << std::endl;
-    std::cout << "Total op count: " << gsa.op_count << std::endl;
 
     return 0;
 }

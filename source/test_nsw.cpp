@@ -5,9 +5,6 @@
 
 // Example usage
 int main() {
-    // Create an NSW instance
-    NSW nsw(16, 200);
-
     // Initialize with sample vectors
     std::vector<std::vector<float>> vecs = {
         {1.0, 2.0, 3.0},
@@ -17,19 +14,20 @@ int main() {
         {13.0, 14.0, 15.0}
     };
 
+    // Create an NSW instance
+    NSW nsw(vecs, 16, 200);
     for (int i = 0; i < vecs.size(); i++) {
-        vec.emplace_back(vecs[i]);
         nsw.insert(i);
     }
 
     // Search for k=2 nearest neighbors
     std::vector<float> query = {2.0, 3.0, 4.0};
-    auto neighbors = nsw.searchKNN(query, 2, 10);
+    auto neighbors = nsw.searchKNN(query, 2);
 
     // Print results
     std::cout << "Nearest neighbors to {" << query[0] << ", " << query[1] << ", " << query[2] << "}:\n";
     for (const auto& p : neighbors) {
-        std::cout << "Distance: " << nsw.distance(vec[p], query) << ", Index: " << p << "\n";
+        std::cout << "Distance: " << nsw.distance(vecs[p], query) << ", Index: " << p << "\n";
     }
 
     return 0;

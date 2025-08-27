@@ -5,10 +5,10 @@
 
 #include "headers.h"
 
-extern std::vector<std::vector<float>> vec;
-
 class NSW {
 private:
+    std::vector<std::vector<float>> &vec;
+
     struct Node {
         int id;
         std::vector<int> neighbors;
@@ -26,7 +26,7 @@ private:
     std::vector<int> prune(const std::vector<int>& C, int u, int M) const;
 
 public:
-    NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon) {}
+    NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
 
     // Calculate Euclidean distance between two vectors
     float distance(const std::vector<float>& a, const std::vector<float>& b) const {
@@ -57,12 +57,12 @@ public:
     }
 
     // Search for k nearest neighbors of a query vector
-    std::vector<int> searchKNN(const std::vector<float>& q, int k, int ef = 10) const {
+    std::vector<int> searchKNN(const std::vector<float>& q, int k = 10) const {
         if (nodes.empty()) {
             return {};
         }
         int entry = 0;
-        return greedySearch(entry, q, ef);
+        return greedySearch(entry, q, k);
     }
 };
 

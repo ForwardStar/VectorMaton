@@ -14,7 +14,6 @@ int GeneralizedSuffixAutomaton::size() {
 }
 
 void GeneralizedSuffixAutomaton::clear() {
-    op_count = 0;
     st.clear();
     st.emplace_back();
     st[0].link = -1;
@@ -34,8 +33,8 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
             st[cur].len = st[last].len + 1;
             st[cur].next = st[x].next; // copy map
             st[cur].link = st[x].link;
+            affected_states.emplace_back(cur);
             for (auto old_id : st[x].ids) { // copy ids
-                op_count++;
                 st[cur].ids.emplace_back(old_id);
             }
             int p = last;
@@ -50,8 +49,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
         // Propagate IDs
         int p = last;
         while (p != -1) {
-            op_count++;
-            if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+            if (st[p].ids.empty() || st[p].ids.back() != id) affected_states.emplace_back(p), st[p].ids.emplace_back(id); else break;
             p = st[p].link;
         }
         return;
@@ -78,8 +76,8 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
             st[clone].len = st[p].len + 1;
             st[clone].next = st[q].next; // copy map
             st[clone].link = st[q].link;
+            affected_states.emplace_back(clone);
             for (auto old_id : st[q].ids) { // copy ids
-                op_count++;
                 st[clone].ids.emplace_back(old_id);
             }
 
@@ -94,8 +92,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
     last = cur;
     p = last;
     while (p != -1) {
-        op_count++;
-        if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+        if (st[p].ids.empty() || st[p].ids.back() != id) affected_states.emplace_back(p), st[p].ids.emplace_back(id); else break;
         p = st[p].link;
     }
 }
@@ -103,6 +100,8 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
 void GeneralizedSuffixAutomaton::add_string(int id, const std::string &s) {
     // We'll add characters of s by extending the automaton while resetting 'last' at the start
     // so the string is added as a separate sequence (avoiding cross-string suffixes).
+    affected_states.clear();
+    affected_states.emplace_back(0);
     last = 0;
     st[0].ids.emplace_back(id);
     for (char c : s) {
@@ -110,16 +109,16 @@ void GeneralizedSuffixAutomaton::add_string(int id, const std::string &s) {
     }
 }
 
-std::vector<int> GeneralizedSuffixAutomaton::query(const std::string &p) const {
+int GeneralizedSuffixAutomaton::query(const std::string &p) const {
     int v = 0;
     for (char c : p) {
         auto it = st[v].next.find(c);
-        if (it == st[v].next.end()) return {};
+        if (it == st[v].next.end()) return -1;
         v = it->second;
     }
     // v is the state representing all end positions of strings that contain p
     // return its stored IDs
-    return st[v].ids;
+    return v;
 }
 
 int GeneralizedSuffixAutomaton::size_tot() {
