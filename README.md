@@ -1,0 +1,58 @@
+# Substring-ANN
+An elegant vector database that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return kNNs. The query results will contain data that involves the queried string as a substring, and its vector is a k-nearest neighbor of the queried vector under the substring constraint.
+
+Example:
+- In bioinformatics, each protein can be represented by (𝑠,𝑣), where 𝑠 is its amino acid sequence (e.g., Leu-Ser-Met) and 𝑣 is its 2D or 3D structural embedding (e.g., AlphaFold embeddings);
+
+- Query: searching the most similar protein structure containing a specific motif (i.e., a substring of amino acid sequence).
+
+
+# Compile and run
+We developed and tested this vector database under ``GCC 10.5.0`` with ``O3`` optimization. To compile the codes, simply run:
+```sh
+mkdir build && cd build
+cmake ..
+make
+```
+
+This will generate executable files ``nsw_test``, ``sa_test`` and ``db_test``. In particular, ``db_test`` corresponds to ``source/test_vector_db.cpp``, which provides a demo on how to use the vector database.
+
+# APIs
+Refer to ``source/test_vector_db.cpp`` as a demo example.
+
+Include the header file:
+```cpp
+#include "substring-ANN/source/vector_db.h"
+```
+
+Initiate a vector DB instance:
+```cpp
+VectorDB db;
+```
+
+Insert a vector with its associated string (possibly empty, which is then in line with the basic vector database with no substring query support):
+```cpp
+// Interface
+// int insert(const std::vector<float>& vec, const std::string &s);
+
+// Example
+int id = db.insert({1.0, 2.0, 3.0}, "banana"); // automatically generate a unique `id` for the data
+```
+
+Remove data:
+```cpp
+// Interface
+// void remove(int id);
+
+// Example
+db.remove(0);
+```
+
+Query the kNNs of a vector with a substring constraint:
+```cpp
+// Interface
+// std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k);
+
+// Example
+std::vector<int> res = db.query({9.0, 10.0, 11.0}, "ana", 2) // `res` contains the data `id`s of the queried result
+```
