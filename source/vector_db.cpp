@@ -6,7 +6,6 @@ int VectorDB::insert(const std::vector<float>& vec, const std::string &s) {
     vecs.emplace_back(vec);
     for (auto i : gsa.affected_states) {
         if (i < nsws.size()) {
-            std::cout << i << std::endl;
             nsws[i].insert(gsa.st[i].ids.back());
         }
     }
@@ -16,6 +15,7 @@ int VectorDB::insert(const std::vector<float>& vec, const std::string &s) {
             nsws.back().insert(id);
         }
     }
+    return strs.size() - 1;
 }
 
 void VectorDB::remove(int id) {
