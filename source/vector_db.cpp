@@ -1,17 +1,18 @@
 #include "vector_db.h"
 
 int VectorDB::insert(const std::vector<float>& vec, const std::string &s) {
-    sa.add_string(strs.size(), s);
+    gsa.add_string(strs.size(), s);
     strs.emplace_back(s);
     vecs.emplace_back(vec);
-    for (auto i : sa.affected_states) {
+    for (auto i : gsa.affected_states) {
         if (i < nsws.size()) {
-            nsws[i].insert(sa.st[i].ids.back());
+            std::cout << i << std::endl;
+            nsws[i].insert(gsa.st[i].ids.back());
         }
     }
-    for (int i = nsws.size(); i < sa.st.size(); i++) {
+    for (int i = nsws.size(); i < gsa.st.size(); i++) {
         nsws.emplace_back(NSW(vecs));
-        for (auto id : sa.st[i].ids) {
+        for (auto id : gsa.st[i].ids) {
             nsws.back().insert(id);
         }
     }
@@ -22,7 +23,7 @@ void VectorDB::remove(int id) {
 }
 
 std::vector<int> VectorDB::query(const std::vector<float>& vec, const std::string &s, int k) {
-    int i = sa.query(s);
+    int i = gsa.query(s);
     if (i == -1) return {};
     return nsws[i].searchKNN(vec, k);
 }

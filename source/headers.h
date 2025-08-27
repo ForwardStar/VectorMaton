@@ -1,3 +1,6 @@
+#ifndef HEADER_H
+#define HEADER_H
+
 #include <iostream>
 #include <unordered_map>
 #include <map>
@@ -11,3 +14,5 @@
 #include <set>
 #include <memory>
 #include <cassert>
+
+#endif

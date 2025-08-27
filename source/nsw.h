@@ -7,6 +7,7 @@
 
 class NSW {
 private:
+    std::vector<std::vector<float>> vec_materialized = {}; // Local vectors
     std::vector<std::vector<float>> &vec;
 
     struct Node {
@@ -26,6 +27,7 @@ private:
     std::vector<int> prune(const std::vector<int>& C, int u, int M) const;
 
 public:
+    NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_materialized) {}
     NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
 
     // Calculate Euclidean distance between two vectors

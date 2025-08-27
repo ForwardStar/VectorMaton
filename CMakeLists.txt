@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SuffixTreeProject CXX)
 
 # Enable optimization
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # Set C++ standard (C++17 or later is required for modern features)
 set(CMAKE_CXX_STANDARD 17)
