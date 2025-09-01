@@ -59,7 +59,7 @@ if not os.path.exists("datasets/code_search_net"):
     log.info("Downloading and generating CodeSearchNet dataset...")
     start = time.perf_counter()
     # Load dataset
-    dataset = load_dataset("code_search_net", "python", trust_remote_code=True)
+    dataset = load_dataset("code_search_net", trust_remote_code=True)
     log.info(f"Dataset loaded. Size = {dataset['train'].num_rows} entries.")
     # Convert dataset to required format
     with open("datasets/code_search_net/vectors.txt", "w") as vec_file, open("datasets/code_search_net/strings.txt", "w") as str_file:
