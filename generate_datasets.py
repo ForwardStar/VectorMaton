@@ -63,14 +63,15 @@ if not os.path.exists("datasets/code_search_net"):
     log.info(f"Dataset loaded. Size = {dataset['train'].num_rows} entries.")
     # Convert dataset to required format
     with open("datasets/code_search_net/vectors.txt", "w") as vec_file, open("datasets/code_search_net/strings.txt", "w") as str_file:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
-        model = AutoModel.from_pretrained("microsoft/codebert-base")
+        model = AutoModel.from_pretrained("microsoft/codebert-base").to(device)
         for item in dataset['train']:
             s = item['func_name']
             code = item['func_code_string']
-            inputs = tokenizer(code, return_tensors="pt", truncation=True, max_length=512)
+            inputs = tokenizer(code, return_tensors="pt", truncation=True, max_length=512).to(device)
             with torch.no_grad():
-                v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).numpy()
+                v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
             str_file.write(s + "\n")
             vec_file.write(" ".join(map(str, v)) + "\n")
     log.info("CodeSearchNet dataset downloaded and processed!")
