@@ -8,7 +8,7 @@ class Baseline {
     private:
         std::vector<std::vector<float>> vecs;
         std::vector<std::string> strs;
-        NSW nsw;
+        NSW* nsw = nullptr;
 
     public:
         int insert(const std::vector<float>& vec, const std::string &s);
@@ -16,7 +16,9 @@ class Baseline {
         std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k);
         
         Baseline() {};
-        ~Baseline() {};
+        ~Baseline() {
+            delete nsw;
+        };
 };
 
 #endif
