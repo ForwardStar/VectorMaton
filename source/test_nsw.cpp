@@ -13,6 +13,10 @@ int main() {
         {10.0, 11.0, 12.0},
         {13.0, 14.0, 15.0}
     };
+    std::cout << "Vectors:" << std::endl;
+    for (const auto& vec : vecs) {
+        std::cout << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << "}" << std::endl;
+    }
 
     // Create an NSW instance
     NSW nsw(vecs, 16, 200);
@@ -25,9 +29,9 @@ int main() {
     auto neighbors = nsw.searchKNN(query, 2);
 
     // Print results
-    std::cout << "Nearest neighbors to {" << query[0] << ", " << query[1] << ", " << query[2] << "}:\n";
+    std::cout << "Nearest 2 neighbors to {" << query[0] << ", " << query[1] << ", " << query[2] << "}:\n";
     for (const auto& p : neighbors) {
-        std::cout << "Distance: " << nsw.distance(vecs[p], query) << ", Index: " << p << "\n";
+        std::cout << "Distance: " << distance(vecs[p], query) << ", Index: " << p << "\n";
     }
 
     return 0;

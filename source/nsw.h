@@ -30,16 +30,6 @@ public:
     NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_materialized) {}
     NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
 
-    // Calculate Euclidean distance between two vectors
-    float distance(const std::vector<float>& a, const std::vector<float>& b) const {
-        float dist = 0.0;
-        for (size_t i = 0; i < a.size(); ++i) {
-            float diff = a[i] - b[i];
-            dist += diff * diff;
-        }
-        return std::sqrt(dist);
-    }
-
     // Insert a new vector into the NSW graph
     void insert(int id) {
         nodes.emplace_back(id);
