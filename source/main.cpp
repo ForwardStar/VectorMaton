@@ -46,8 +46,11 @@ public:
         (stream_arg(ss, std::forward<Args>(args)), ...);
 
         std::lock_guard<std::mutex> lk(mutex_);
-        std::cout << make_header(msg_level) << ss.str()
-                  << " (" << file << ":" << line << ")" << std::endl;
+        std::cout << make_header(msg_level) << ss.str();
+        if (msg_level == Level::DEBUG || msg_level == Level::ERROR) {
+            std::cout << " (" << file << ":" << line << ")";
+        }
+        std::cout << std::endl;
     }
 
     template <typename... Args> void debug(const char* f, int l, Args&&... a) { log(Level::DEBUG, f, l, std::forward<Args>(a)...); }
@@ -56,7 +59,7 @@ public:
     template <typename... Args> void error(const char* f, int l, Args&&... a) { log(Level::ERROR, f, l, std::forward<Args>(a)...); }
 
 private:
-    Logger() : level_(Level::DEBUG) {}
+    Logger() : level_(Level::INFO) {}
 
     std::string make_header(Level lvl) {
         using namespace std::chrono;
@@ -103,13 +106,27 @@ private:
 #define LOG_ERROR(...) Logger::instance().error(__FILE__, __LINE__, __VA_ARGS__)
 
 int main(int argc, char * argv[]) {
-    if (argc != 8) {
+    if (argc < 8) {
         LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>");
         return 1;
     }
 
+    if (argc > 8) {
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]) == "--debug") {
+                Logger::instance().set_level(Logger::Level::DEBUG);
+                LOG_DEBUG("Debug mode enabled");
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+    }
+
     // Read strings
-    LOG_INFO("String data file: {}", argv[1]);
+    LOG_DEBUG("String data file: ", argv[1]);
     std::vector<std::string> strings;
     std::ifstream f_strings(argv[1]);
     std::string s;
@@ -118,7 +135,7 @@ int main(int argc, char * argv[]) {
     }
 
     // Read vectors
-    LOG_INFO("Vector data file: {}", argv[2]);
+    LOG_DEBUG("Vector data file: ", argv[2]);
     std::vector<std::vector<float>> vectors;
     std::ifstream f_vectors(argv[2]);
     std::string line;
@@ -132,28 +149,38 @@ int main(int argc, char * argv[]) {
         vectors.push_back(vec);
     }
 
-    LOG_INFO("Number of strings: {}", strings.size());
-    LOG_INFO("Number of vectors: {}", vectors.size());
+    // Log the number of strings and vectors
+    LOG_DEBUG("Number of strings: ", strings.size());
+    LOG_DEBUG("Number of vectors: ", vectors.size());
     if (strings.size() != vectors.size()) {
         LOG_WARN("Mismatched number of strings and vectors: aligning their sizes");
         size_t min_size = std::min(strings.size(), vectors.size());
         strings.resize(min_size);
         vectors.resize(min_size);
-        LOG_INFO("Number of strings: {}", strings.size());
-        LOG_INFO("Number of vectors: {}", vectors.size());
+        LOG_DEBUG("Number of strings: ", strings.size());
+        LOG_DEBUG("Number of vectors: ", vectors.size());
+    }
+
+    // Log vector dimensions
+    LOG_DEBUG("Vector dimension: ", vectors[0].size());
+    for (int i = 1; i < vectors.size(); i++) {
+        if (vectors[i].size() != vectors[0].size()) {
+            LOG_ERROR("Inconsistent vector dimensions at index ", i, "expected ", vectors[0].size(), "got ", vectors[i].size());
+            return 1;
+        }
     }
     
     // Read queries
-    LOG_INFO("Query data file (string): {}", argv[3]);
+    LOG_DEBUG("Query data file (string): ", argv[3]);
     std::vector<std::string> queried_strings;
     std::ifstream f_queried_strings(argv[3]);
     while (f_queried_strings >> s) {
         queried_strings.emplace_back(s);
     }
-    LOG_INFO("Query data file (vector): {}", argv[4]);
+    LOG_DEBUG("Query data file (vector): ", argv[4]);
     std::vector<std::vector<float>> queried_vectors;
     std::ifstream f_queried_vectors(argv[4]);
-    while (f_queried_vectors >> line) {
+    while (std::getline(f_queried_vectors, line)) {
         std::istringstream iss(line);
         std::vector<float> vec;
         float value;
@@ -162,45 +189,52 @@ int main(int argc, char * argv[]) {
         }
         queried_vectors.push_back(vec);
     }
-    LOG_INFO("Query data file (k): {}", argv[5]);
+    LOG_DEBUG("Query data file (k): ", argv[5]);
     std::vector<int> queried_k;
     std::ifstream f_queried_k(argv[5]);
     int k;
     while (f_queried_k >> k) {
         queried_k.emplace_back(k);
     }
-    LOG_INFO("Number of query strings: {}", queried_strings.size());
-    LOG_INFO("Number of query vectors: {}", queried_vectors.size());
-    LOG_INFO("Number of query ks: {}", queried_k.size());
+    LOG_DEBUG("Number of query strings: ", queried_strings.size());
+    LOG_DEBUG("Number of query vectors: ", queried_vectors.size());
+    LOG_DEBUG("Number of query ks: ", queried_k.size());
     if (queried_strings.size() != queried_vectors.size() || queried_strings.size() != queried_k.size()) {
         LOG_WARN("Mismatched number of query strings, vectors, and ks: aligning their sizes");
         size_t min_size = std::min({queried_strings.size(), queried_vectors.size(), queried_k.size()});
         queried_strings.resize(min_size);
         queried_vectors.resize(min_size);
         queried_k.resize(min_size);
-        LOG_INFO("Number of query strings: {}", queried_strings.size());
-        LOG_INFO("Number of query vectors: {}", queried_vectors.size());
-        LOG_INFO("Number of query ks: {}", queried_k.size());
+        LOG_DEBUG("Number of query strings: ", queried_strings.size());
+        LOG_DEBUG("Number of query vectors: ", queried_vectors.size());
+        LOG_DEBUG("Number of query ks: ", queried_k.size());
+    }
+
+    for (int i = 0; i < queried_vectors.size(); i++) {
+        if (queried_vectors[i].size() != vectors[0].size()) {
+            LOG_ERROR("Inconsistent query vector dimensions at index ", i, ": expected ", vectors[0].size(), ", got ", queried_vectors[i].size());
+            return 1;
+        }
     }
 
     if (std::strcmp(argv[argc - 1], "Exact") == 0) {
         LOG_INFO("Using Exact search");
         ExactSearch es;
-        LOG_INFO("Inserting strings and vectors into ExactSearch");
+        LOG_DEBUG("Inserting strings and vectors into ExactSearch");
         unsigned long long start_time = currentTime();
         for (size_t i = 0; i < strings.size(); ++i) {
             es.insert(vectors[i], strings[i]);
         }
-        LOG_INFO("ExactSearch insertion took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Processing queries");
+        LOG_INFO("ExactSearch insertion took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
             auto res = es.query(queried_vectors[i], queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("ExactSearch query processing took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Writing results to {}", argv[6]);
+        LOG_INFO("ExactSearch query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {
             for (const auto& id : res) {
@@ -213,21 +247,21 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "Baseline") == 0) {
         LOG_INFO("Using Baseline search");
         Baseline bs;
-        LOG_INFO("Inserting strings and vectors into Baseline");
+        LOG_DEBUG("Inserting strings and vectors into Baseline");
         unsigned long long start_time = currentTime();
         for (size_t i = 0; i < strings.size(); ++i) {
             bs.insert(vectors[i], strings[i]);
         }
-        LOG_INFO("Baseline insertion took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Processing queries");
+        LOG_INFO("Baseline insertion took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
             auto res = bs.query(queried_vectors[i], queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("Baseline query processing took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Writing results to {}", argv[6]);
+        LOG_INFO("Baseline query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {
             for (const auto& id : res) {
@@ -240,21 +274,21 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorDB") == 0) {
         LOG_INFO("Using VectorDB search");
         VectorDB vdb;
-        LOG_INFO("Inserting strings and vectors into VectorDB");
+        LOG_DEBUG("Inserting strings and vectors into VectorDB");
         unsigned long long start_time = currentTime();
         for (size_t i = 0; i < strings.size(); ++i) {
             vdb.insert(vectors[i], strings[i]);
         }
-        LOG_INFO("VectorDB insertion took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Processing queries");
+        LOG_INFO("VectorDB insertion took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
             auto res = vdb.query(queried_vectors[i], queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("VectorDB query processing took {}", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Writing results to {}", argv[6]);
+        LOG_INFO("VectorDB query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {
             for (const auto& id : res) {

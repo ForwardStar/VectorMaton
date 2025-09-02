@@ -6,5 +6,6 @@ suffix_tree_test
 nsw_test
 sa_test
 db_test
+main
 build
 datasets
