@@ -19,7 +19,7 @@ std::vector<int> Baseline::query(const std::vector<float>& vec, const std::strin
     int amplification = 2; // To improve recall, search for more candidates
     while (results.size() < k) {
         auto tmp = nsw->searchKNN(vec, k * amplification); // Get more candidates to improve recall
-        for (int id : tmp) {
+        for (uint32_t id : tmp) {
             if (strs[id].find(s) != std::string::npos) {
                 results.push_back(id);
             }

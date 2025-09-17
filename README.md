@@ -16,7 +16,7 @@ Example query:
 - This gives a substring constraint "ATP"; therefore, only data containing "ATP" as a substring will be considered.
 
 # Compile and run
-Parts of the project depends on ``openssl``. Install on Ubuntu:
+Parts of the project depend on ``openssl``. Install on Ubuntu:
 ```sh
 sudo apt-get install libssl-dev
 ```
@@ -35,7 +35,7 @@ The ``main`` is our experimental program. Run with:
 ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>
 ```
 
-To show debug message, add ``--debug`` option when executing the ``main`` program.
+To show debug messages, add ``--debug`` option when executing the ``main`` program.
 
 # Computing recall
 To compute the average recall, run:
