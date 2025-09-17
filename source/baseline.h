@@ -13,7 +13,7 @@ class Baseline {
     public:
         int insert(const std::vector<float>& vec, const std::string &s);
         void remove(int id);
-        std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k);
+        std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k, int threshold=2048);
         
         Baseline() {};
         ~Baseline() {

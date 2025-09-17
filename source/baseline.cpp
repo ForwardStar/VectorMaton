@@ -14,7 +14,7 @@ void Baseline::remove(int id) {
     // Work in progress
 }
 
-std::vector<int> Baseline::query(const std::vector<float>& vec, const std::string &s, int k) {
+std::vector<int> Baseline::query(const std::vector<float>& vec, const std::string &s, int k, int threshold) {
     std::vector<int> results;
     int amplification = 2; // To improve recall, search for more candidates
     while (results.size() < k) {
@@ -29,7 +29,7 @@ std::vector<int> Baseline::query(const std::vector<float>& vec, const std::strin
             }
         }
         amplification *= 2; // Double the amplification factor
-        if (amplification > 32) { // Avoid too large amplification
+        if (amplification > threshold) { // Avoid too large amplification
             break;
         }
     }

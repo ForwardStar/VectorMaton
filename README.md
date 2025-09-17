@@ -35,7 +35,7 @@ The ``main`` is our experimental program. Run with:
 ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>
 ```
 
-To show debug messages, add ``--debug`` option when executing the ``main`` program.
+To show debug messages, add ``--debug`` option when executing the ``main`` program. To limit the number of vectors and strings inserted, add ``--data-size=<n>`` to only select the first n vectors and strings of the data file.
 
 # Computing recall
 To compute the average recall, run:

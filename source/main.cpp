@@ -111,11 +111,24 @@ int main(int argc, char * argv[]) {
         return 1;
     }
 
+    int data_size = 1000000000; // default: no limit
+    // Parse optional arguments
     if (argc > 8) {
         for (int i = 0; i < argc; i++) {
             if (std::string(argv[i]) == "--debug") {
                 Logger::instance().set_level(Logger::Level::DEBUG);
                 LOG_DEBUG("Debug mode enabled");
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--data-size=") == 0) {
+                data_size = std::stoi(std::string(argv[i]).substr(12));
+                LOG_DEBUG("Data size limit set to ", data_size);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -132,6 +145,9 @@ int main(int argc, char * argv[]) {
     std::string s;
     while (f_strings >> s) {
         strings.emplace_back(s);
+        if (strings.size() >= data_size) {
+            break;
+        }
     }
 
     // Read vectors
@@ -147,6 +163,9 @@ int main(int argc, char * argv[]) {
             vec.push_back(value);
         }
         vectors.push_back(vec);
+        if (vectors.size() >= data_size) {
+            break;
+        }
     }
 
     // Log the number of strings and vectors
