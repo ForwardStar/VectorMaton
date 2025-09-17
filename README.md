@@ -35,6 +35,8 @@ The ``main`` is our experimental program. Run with:
 ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>
 ```
 
+To show debug message, add ``--debug`` option when executing the ``main`` program.
+
 # Computing recall
 To compute the average recall, run:
 ```sh
