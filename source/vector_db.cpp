@@ -12,7 +12,7 @@ void VectorDB::build() {
     int i = 0, ten_percent = gsa.st.size() / 10;
     for (int i = gsa.st.size() - 1; i >= 0; i--) {
         if (i % ten_percent == 0) {
-            LOG_INFO("Building NSW for state ", gsa.st.size() - i, "/", gsa.st.size());
+            LOG_DEBUG("Building NSW for state ", gsa.st.size() - i, "/", gsa.st.size());
         }
         auto& st = gsa.st[i];
         st.hash_value = sethash::sha256_hash(st.ids);
