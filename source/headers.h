@@ -19,8 +19,10 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <mutex>
+#include <numeric>
 #include <chrono>
 #include <ctime>
 #include <iomanip>

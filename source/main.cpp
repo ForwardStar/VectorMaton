@@ -68,6 +68,7 @@ int main(int argc, char * argv[]) {
 
     // Log the number of strings and vectors
     LOG_DEBUG("Number of strings: ", strings.size());
+    LOG_DEBUG("Total length of strings: ", std::accumulate(strings.begin(), strings.end(), 0, [](int sum, const std::string& str) { return sum + str.size(); }));
     LOG_DEBUG("Number of vectors: ", vectors.size());
     if (strings.size() != vectors.size()) {
         LOG_WARN("Mismatched number of strings and vectors: aligning their sizes");
