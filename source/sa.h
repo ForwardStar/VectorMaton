@@ -4,6 +4,7 @@
 #define SA_H
 
 #include "headers.h"
+#include "set_hash.h"
 
 class GeneralizedSuffixAutomaton {
 public:
@@ -11,7 +12,8 @@ public:
         int len = 0;
         int link = -1;
         std::unordered_map<char, int> next;
-        std::vector<int> ids;
+        std::vector<uint32_t> ids;
+        std::string hash_value;
     };
     std::vector<State> st;
 
@@ -23,7 +25,7 @@ public:
     // Add a new string with integer ID 'id'. This will index all substrings of s
     // so future queries will return 'id' if a queried substring appears in s.
     // Complexity: O(|s|) amortized.
-    void add_string(int id, const std::string &s);
+    void add_string(uint32_t id, const std::string &s);
 
     // Query which state that pattern p ends.
     // Returns the state id.
@@ -44,7 +46,7 @@ public:
 
 private:
     int last;
-    void sa_extend(char c, int id);
+    void sa_extend(char c, uint32_t id);
 };
 
 #endif // SA_H

@@ -20,7 +20,7 @@ void GeneralizedSuffixAutomaton::clear() {
     last = 0;
 }
 
-void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
+void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
     if (st[last].next.count(c)) {
         int x = st[last].next[c];
         if (st[x].len == st[last].len + 1) {
@@ -97,7 +97,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, int id) {
     }
 }
 
-void GeneralizedSuffixAutomaton::add_string(int id, const std::string &s) {
+void GeneralizedSuffixAutomaton::add_string(uint32_t id, const std::string &s) {
     // We'll add characters of s by extending the automaton while resetting 'last' at the start
     // so the string is added as a separate sequence (avoiding cross-string suffixes).
     affected_states.clear();

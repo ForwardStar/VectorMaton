@@ -17,6 +17,7 @@
 #include <set>
 #include <memory>
 #include <cassert>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <mutex>

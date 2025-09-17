@@ -7,19 +7,6 @@
 
 class NSW {
 private:
-    std::vector<std::vector<float>> vec_materialized = {}; // Local vectors
-    std::vector<std::vector<float>> &vec;
-
-    struct Node {
-        int id;
-        std::vector<int> neighbors;
-        Node(int _id) : id(_id) {}
-    };
-
-    std::vector<Node> nodes;
-    int M;
-    int efConstruction;
-
     // Greedy search to find candidate nodes
     std::vector<int> greedySearch(int entry, const std::vector<float>& q, int ef) const;
 
@@ -27,8 +14,29 @@ private:
     std::vector<int> prune(const std::vector<int>& C, int u, int M) const;
 
 public:
+    struct Node {
+        int id;
+        std::vector<int> neighbors;
+        Node(int _id) : id(_id) {}
+    };
+
+    std::vector<std::vector<float>> vec_materialized = {}; // Local vectors
+    std::vector<std::vector<float>> &vec;
+    std::vector<Node> nodes;
+
+    int M;
+    int efConstruction;
+
     NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_materialized) {}
     NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
+    NSW(NSW &other) : vec(other.vec) {
+        for (size_t i = 0; i < other.nodes.size(); i++) {
+            nodes.emplace_back(other.nodes[i].id);
+            nodes[i].neighbors = std::move(other.nodes[i].neighbors);
+        }
+        M = other.M;
+        efConstruction = other.efConstruction;
+    }
 
     // Insert a new vector into the NSW graph
     void insert(int id) {

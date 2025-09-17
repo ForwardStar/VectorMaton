@@ -280,6 +280,10 @@ int main(int argc, char * argv[]) {
             vdb.insert(vectors[i], strings[i]);
         }
         LOG_INFO("VectorDB insertion took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Building VectorDB indices");
+        start_time = currentTime();
+        vdb.build();
+        LOG_INFO("VectorDB building took ", timeFormatting(currentTime() - start_time).str());
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;

@@ -15,7 +15,7 @@ int main() {
     gsa.add_string(3, "ananas");
 
     auto print_res = [](GeneralizedSuffixAutomaton* gsa, std::string pat, int id){
-        std::vector<int> res = {};
+        std::vector<uint32_t> res = {};
         if (id != -1) res = gsa->st[id].ids;
         std::cout << "Query \"" << pat << "\" -> {";
         for (size_t i=0;i<res.size();++i) {

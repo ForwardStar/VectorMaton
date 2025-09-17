@@ -4,18 +4,21 @@ int VectorDB::insert(const std::vector<float>& vec, const std::string &s) {
     gsa.add_string(strs.size(), s);
     strs.emplace_back(s);
     vecs.emplace_back(vec);
-    for (auto i : gsa.affected_states) {
-        if (i < nsws.size()) {
-            nsws[i].insert(gsa.st[i].ids.back());
-        }
-    }
-    for (int i = nsws.size(); i < gsa.st.size(); i++) {
-        nsws.emplace_back(NSW(vecs));
-        for (auto id : gsa.st[i].ids) {
-            nsws.back().insert(id);
-        }
-    }
     return strs.size() - 1;
+}
+
+void VectorDB::build() {
+    nsws.clear();
+    for (auto& st : gsa.st) {
+        st.hash_value = sethash::sha256_hash(st.ids);
+        if (nsws.find(st.hash_value) == nsws.end()) {
+            auto tmp = new NSW(vecs);
+            nsws[st.hash_value] = tmp;
+            for (uint32_t id : st.ids) {
+                tmp->insert(id);
+            }
+        }
+    }
 }
 
 void VectorDB::remove(int id) {
@@ -25,5 +28,5 @@ void VectorDB::remove(int id) {
 std::vector<int> VectorDB::query(const std::vector<float>& vec, const std::string &s, int k) {
     int i = gsa.query(s);
     if (i == -1) return {};
-    return nsws[i].searchKNN(vec, k);
+    return nsws[gsa.st[i].hash_value]->searchKNN(vec, k);
 }

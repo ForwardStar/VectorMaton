@@ -16,6 +16,11 @@ Example query:
 - This gives a substring constraint "ATP"; therefore, only data containing "ATP" as a substring will be considered.
 
 # Compile and run
+Parts of the project depends on ``openssl``. Install on Ubuntu:
+```sh
+sudo apt-get install libssl-dev
+```
+
 We developed and tested this vector database under ``GCC 10.5.0`` with ``O3`` optimization. To compile the codes, simply run:
 ```sh
 mkdir build && cd build
@@ -28,6 +33,12 @@ This will generate executable files ``nsw_test``, ``sa_test``, ``db_test`` and `
 The ``main`` is our experimental program. Run with:
 ```sh
 ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>
+```
+
+# Computing recall
+To compute the average recall, run:
+```sh
+python3 compute_recall.py <exact_output_file> <actual_output_file>
 ```
 
 # Datasets
