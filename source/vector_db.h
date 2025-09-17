@@ -7,13 +7,12 @@
 #include "set_hash.h"
 
 class VectorDB {
-    private:
+    public:
         std::vector<std::vector<float>> vecs;
         std::vector<std::string> strs;
-        std::unordered_map<std::string, NSW*> nsws;
         GeneralizedSuffixAutomaton gsa;
+        std::unordered_map<std::string, NSW*> nsws;
 
-    public:
         int insert(const std::vector<float>& vec, const std::string &s);
         void build(); // Build NSWs for all states in GSA
         void remove(int id);

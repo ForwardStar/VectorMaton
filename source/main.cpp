@@ -198,6 +198,7 @@ int main(int argc, char * argv[]) {
             vdb.insert(vectors[i], strings[i]);
         }
         LOG_INFO("VectorDB insertion took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
         LOG_INFO("Building VectorDB indices");
         start_time = currentTime();
         vdb.build();
