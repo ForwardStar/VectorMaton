@@ -83,6 +83,15 @@ Insert a vector with its associated string (possibly empty, which is then in lin
 int id = db.insert({1.0, 2.0, 3.0}, "banana"); // automatically generate a unique `id` for the data
 ```
 
+Build an index for the vector database:
+```cpp
+// Interface
+// void build();
+
+// Example
+db.build(); // will build NSW graphs
+```
+
 Remove data:
 ```cpp
 // Interface
