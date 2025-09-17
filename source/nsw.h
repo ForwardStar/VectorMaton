@@ -15,9 +15,10 @@ private:
 
 public:
     struct Node {
-        int id;
+        int id = -1;
         std::vector<int> neighbors;
         Node(int _id) : id(_id) {}
+        Node() {}
     };
 
     std::vector<std::vector<float>> vec_materialized = {}; // Local vectors
@@ -30,9 +31,11 @@ public:
     NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_materialized) {}
     NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
     NSW(NSW &other) : vec(other.vec) {
+        nodes.resize(other.nodes.size());
         for (size_t i = 0; i < other.nodes.size(); i++) {
-            nodes.emplace_back(other.nodes[i].id);
-            nodes[i].neighbors = std::move(other.nodes[i].neighbors);
+            nodes[i].id = other.nodes[i].id;
+            nodes[i].neighbors.resize(other.nodes[i].neighbors.size());
+            std::move(other.nodes[i].neighbors.begin(), other.nodes[i].neighbors.end(), nodes[i].neighbors.begin());
         }
         M = other.M;
         efConstruction = other.efConstruction;

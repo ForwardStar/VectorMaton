@@ -14,6 +14,8 @@ int main() {
     std::cout << "Inserting {13.0, 14.0, 15.0} associated with 'na'." << std::endl;
     db.insert({13.0, 14.0, 15.0}, "na");
 
+    db.build();
+
     auto print_res = [](const std::vector<int>& res){
         std::cout << "Result: {";
         for (size_t i=0;i<res.size();++i) {
