@@ -13,7 +13,7 @@ public:
         int link = -1;
         std::unordered_map<char, int> next;
         std::vector<uint32_t> ids;
-        std::string hash_value;
+        std::string hash_value = "";
     };
     std::vector<State> st;
 
