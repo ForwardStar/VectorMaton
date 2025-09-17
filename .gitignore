@@ -9,3 +9,4 @@ db_test
 main
 build
 datasets
+*.txt
