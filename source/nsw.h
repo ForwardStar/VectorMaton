@@ -44,7 +44,7 @@ public:
     // Insert a new vector into the NSW graph
     void insert(int id) {
         nodes.emplace_back(id);
-        if (nodes.empty()) {
+        if (nodes.size() == 1) {
             return;
         }
         int entry = 0, newNodeIdx = nodes.size() - 1;
