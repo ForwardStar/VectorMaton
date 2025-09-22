@@ -31,10 +31,10 @@ std::vector<int> NSW::greedySearch(int entry, const std::vector<float>& q, int e
                 if (distVQ < distFQ || W.size() < static_cast<size_t>(ef)) {
                     C.emplace(-distance(vec[nodes[v].id], q), v);
                     W.emplace(distance(vec[nodes[v].id], q), v);
-                    // Update f if W size exceeds ef
-                    if (W.size() > static_cast<size_t>(ef)) {
-                        W.pop();
-                    }
+                }
+                // Update f if W size exceeds ef
+                if (W.size() > static_cast<size_t>(ef)) {
+                    W.pop();
                 }
             }
         }

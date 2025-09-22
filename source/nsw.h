@@ -28,8 +28,8 @@ public:
     int M;
     int efConstruction;
 
-    NSW(int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_materialized) {}
-    NSW(std::vector<std::vector<float>> &vec_data, int m = 16, int efCon = 200) : M(m), efConstruction(efCon), vec(vec_data) {}
+    NSW(int m = 32, int efCon = 400) : M(m), efConstruction(efCon), vec(vec_materialized) {}
+    NSW(std::vector<std::vector<float>> &vec_data, int m = 32, int efCon = 400) : M(m), efConstruction(efCon), vec(vec_data) {}
     NSW(NSW &other) : vec(other.vec) {
         nodes.resize(other.nodes.size());
         for (size_t i = 0; i < other.nodes.size(); i++) {
@@ -51,12 +51,14 @@ public:
         std::vector<int> C = greedySearch(entry, vec[id], efConstruction);
         std::vector<int> NG = prune(C, newNodeIdx, M);
         for (int v : NG) {
+            std::cout << nodes[v].id << " ";
             nodes[newNodeIdx].neighbors.emplace_back(v);
             nodes[v].neighbors.emplace_back(newNodeIdx);
             if (nodes[v].neighbors.size() > static_cast<size_t>(M)) {
                 nodes[v].neighbors = prune(nodes[v].neighbors, v, M);
             }
         }
+        std::cout << std::endl;
     }
 
     // Search for k nearest neighbors of a query vector

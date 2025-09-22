@@ -109,3 +109,25 @@ if __name__ == "__main__":
         end = time.perf_counter()
         elapsed = end - start
         log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("SwissProt dataset already exists. Skipped.")
+
+    # ArXiv
+    if not os.path.exists("datasets/arxiv"):
+        os.makedirs("datasets/arxiv")
+        log.info("Downloading and generating ArXiv dataset...")
+        start = time.perf_counter()
+        # Load dataset
+        dataset = load_dataset("Qdrant/arxiv-titles-instructorxl-embeddings", split="train", streaming=False)
+        log.info(f"Dataset loaded. Size = {dataset.num_rows} entries.")
+        with open("datasets/arxiv/vectors.txt", "w") as vec_file, open("datasets/arxiv/strings.txt", "w") as str_file:
+            for item in dataset:
+                s = item['title'].replace("\n", " ")
+                v = item['vector']
+                str_file.write(s + "\n")
+                vec_file.write(" ".join(map(str, v)) + "\n")
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("ArXiv dataset already exists. Skipped.")
