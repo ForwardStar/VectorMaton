@@ -123,6 +123,7 @@ if __name__ == "__main__":
         with open("datasets/arxiv/vectors.txt", "w") as vec_file, open("datasets/arxiv/strings.txt", "w") as str_file:
             for item in dataset:
                 s = item['title'].replace("\n", " ")
+                s = s.replace(" ", "")
                 v = item['vector']
                 str_file.write(s + "\n")
                 vec_file.write(" ".join(map(str, v)) + "\n")

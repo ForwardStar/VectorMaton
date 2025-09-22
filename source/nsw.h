@@ -51,7 +51,6 @@ public:
         std::vector<int> C = greedySearch(entry, vec[id], efConstruction);
         std::vector<int> NG = prune(C, newNodeIdx, M);
         for (int v : NG) {
-            std::cout << nodes[v].id << " ";
             nodes[newNodeIdx].neighbors.emplace_back(v);
             nodes[v].neighbors.emplace_back(newNodeIdx);
             if (nodes[v].neighbors.size() > static_cast<size_t>(M)) {
