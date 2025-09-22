@@ -57,7 +57,6 @@ public:
                 nodes[v].neighbors = prune(nodes[v].neighbors, v, M);
             }
         }
-        std::cout << std::endl;
     }
 
     // Search for k nearest neighbors of a query vector
