@@ -1,4 +1,4 @@
-# Substring-ANN
+# Vectormaton
 An elegant vector database that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
 
 Example scenario:
@@ -68,14 +68,14 @@ Generate queries by:
 ```sh
 python3 generate_queries.py
 ```
-and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly generated containing floating numbers.
+and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly generated containing floating numbers. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
 
 # APIs
 Refer to ``source/test_vector_db.cpp`` as a demo example.
 
 Include the header file:
 ```cpp
-#include "substring-ANN/source/vector_db.h"
+#include "vectormaton/source/vector_db.h"
 ```
 
 Initiate a vector DB instance:

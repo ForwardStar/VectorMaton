@@ -26,6 +26,10 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#define USE_HNSW 1
+#if USE_HNSW
+    #include "hnswlib/hnswlib.h"
+#endif
 
 // Calculate Euclidean distance between two vectors
 inline float distance(const std::vector<float>& a, const std::vector<float>& b) {

@@ -7,8 +7,13 @@
 class Baseline {
     public:
         std::vector<std::vector<float>> vecs;
+        std::vector<float*> data_ptrs;
         std::vector<std::string> strs;
-        NSW* nsw = nullptr;
+        #if USE_HNSW
+            hnswlib::HierarchicalNSW<float>* hnsw = nullptr;
+        #else
+            NSW* nsw = nullptr;
+        #endif
 
         int insert(const std::vector<float>& vec, const std::string &s);
         void remove(int id);
@@ -16,7 +21,14 @@ class Baseline {
         
         Baseline() {};
         ~Baseline() {
-            delete nsw;
+            #if USE_HNSW
+                if (hnsw) delete hnsw;
+            #else
+                if (nsw) delete nsw;
+            #endif
+            for (auto ptr : data_ptrs) {
+                delete [] ptr;
+            }
         };
 };
 
