@@ -4,8 +4,10 @@ CMakeCache.txt
 Makefile
 suffix_tree_test
 nsw_test
+hnsw_test
 sa_test
-db_test
+baseline_test
+vectormaton_test
 main
 build
 datasets

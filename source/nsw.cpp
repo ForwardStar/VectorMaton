@@ -2,12 +2,12 @@
 
 #include "nsw.h"
 
-std::vector<int> NSW::greedySearch(int entry, const std::vector<float>& q, int ef) const {
+std::vector<int> NSW::greedySearch(int entry, const float* q, int ef) const {
     std::unordered_set<int> visited = {entry};
     std::priority_queue<std::pair<float, int>> C;
-    C.emplace(-distance(vec[nodes[entry].id], q), entry);
+    C.emplace(-distance(vec_ptr[nodes[entry].id], q, dim), entry);
     std::priority_queue<std::pair<float, int>> W;
-    W.emplace(distance(vec[nodes[entry].id], q), entry);
+    W.emplace(distance(vec_ptr[nodes[entry].id], q, dim), entry);
 
     while (!C.empty()) {
         // Find the nearest node in C to query q
@@ -18,7 +18,7 @@ std::vector<int> NSW::greedySearch(int entry, const std::vector<float>& q, int e
         int f = W.top().second;
 
         // Termination condition
-        if (distance(vec[nodes[u].id], q) > distance(vec[nodes[f].id], q)) {
+        if (distance(vec_ptr[nodes[u].id], q, dim) > distance(vec_ptr[nodes[f].id], q, dim)) {
             break;
         }
 
@@ -26,11 +26,11 @@ std::vector<int> NSW::greedySearch(int entry, const std::vector<float>& q, int e
         for (int v : nodes[u].neighbors) {
             if (visited.find(v) == visited.end()) {
                 visited.insert(v);
-                float distVQ = distance(vec[nodes[v].id], q);
-                float distFQ = distance(vec[nodes[f].id], q);
+                float distVQ = distance(vec_ptr[nodes[v].id], q, dim);
+                float distFQ = distance(vec_ptr[nodes[f].id], q, dim);
                 if (distVQ < distFQ || W.size() < static_cast<size_t>(ef)) {
-                    C.emplace(-distance(vec[nodes[v].id], q), v);
-                    W.emplace(distance(vec[nodes[v].id], q), v);
+                    C.emplace(-distance(vec_ptr[nodes[v].id], q, dim), v);
+                    W.emplace(distance(vec_ptr[nodes[v].id], q, dim), v);
                 }
                 // Update f if W size exceeds ef
                 if (W.size() > static_cast<size_t>(ef)) {
@@ -57,7 +57,7 @@ std::vector<int> NSW::prune(const std::vector<int>& C, int u, int M) const {
     // Sort nodes in C by distance to u
     std::vector<std::pair<float, int>> distNodes;
     for (int v : C) {
-        distNodes.emplace_back(distance(vec[nodes[u].id], vec[nodes[v].id]), v);
+        distNodes.emplace_back(distance(vec_ptr[nodes[u].id], vec_ptr[nodes[v].id], dim), v);
     }
     std::sort(distNodes.begin(), distNodes.end());
 
@@ -67,7 +67,7 @@ std::vector<int> NSW::prune(const std::vector<int>& C, int u, int M) const {
         int v = dn.second;
         bool add = true;
         for (int w : R) {
-            if (distance(vec[nodes[v].id], vec[nodes[w].id]) < dn.first) {
+            if (distance(vec_ptr[nodes[v].id], vec_ptr[nodes[w].id], dim) < dn.first) {
                 add = false;
                 break;
             }

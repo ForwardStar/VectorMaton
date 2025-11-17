@@ -32,9 +32,9 @@
 #endif
 
 // Calculate Euclidean distance between two vectors
-inline float distance(const std::vector<float>& a, const std::vector<float>& b) {
+inline float distance(const float* a, const float* b, size_t size) {
     float dist = 0.0;
-    for (size_t i = 0; i < a.size(); ++i) {
+    for (size_t i = 0; i < size; ++i) {
         float diff = a[i] - b[i];
         dist += diff * diff;
     }

@@ -8,7 +8,7 @@
 class NSW {
 private:
     // Greedy search to find candidate nodes
-    std::vector<int> greedySearch(int entry, const std::vector<float>& q, int ef) const;
+    std::vector<int> greedySearch(int entry, const float* q, int ef) const;
 
     // Prune candidates to keep the closest M nodes
     std::vector<int> prune(const std::vector<int>& C, int u, int M) const;
@@ -21,16 +21,16 @@ public:
         Node() {}
     };
 
-    std::vector<std::vector<float>> vec_materialized = {}; // Local vectors
-    std::vector<std::vector<float>> &vec;
+    float** vec_ptr = nullptr; // It is user's responsibility to manage the memory of vec_ptr
     std::vector<Node> nodes;
 
     int M;
     int efConstruction;
+    int dim;
 
-    NSW(int m = 32, int efCon = 400) : M(m), efConstruction(efCon), vec(vec_materialized) {}
-    NSW(std::vector<std::vector<float>> &vec_data, int m = 32, int efCon = 400) : M(m), efConstruction(efCon), vec(vec_data) {}
-    NSW(NSW &other) : vec(other.vec) {
+    NSW(float** vec_data, int d, int m = 32, int efCon = 400) : M(m), dim(d), efConstruction(efCon), vec_ptr(vec_data) {}
+
+    NSW(NSW &other) : vec_ptr(other.vec_ptr), dim(other.dim) {
         nodes.resize(other.nodes.size());
         for (size_t i = 0; i < other.nodes.size(); i++) {
             nodes[i].id = other.nodes[i].id;
@@ -48,7 +48,7 @@ public:
             return;
         }
         int entry = 0, newNodeIdx = nodes.size() - 1;
-        std::vector<int> C = greedySearch(entry, vec[id], efConstruction);
+        std::vector<int> C = greedySearch(entry, vec_ptr[id], efConstruction);
         std::vector<int> NG = prune(C, newNodeIdx, M);
         for (int v : NG) {
             nodes[newNodeIdx].neighbors.emplace_back(v);
@@ -60,7 +60,7 @@ public:
     }
 
     // Search for k nearest neighbors of a query vector
-    std::vector<int> searchKNN(const std::vector<float>& q, int k = 10) const {
+    std::vector<int> searchKNN(const float* q, int k = 10) const {
         if (nodes.empty()) {
             return {};
         }

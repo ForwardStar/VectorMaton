@@ -6,33 +6,40 @@
 // Example usage
 int main() {
     // Initialize with sample vectors
-    std::vector<std::vector<float>> vecs = {
-        {1.0, 2.0, 3.0},
-        {4.0, 5.0, 6.0},
-        {7.0, 8.0, 9.0},
-        {10.0, 11.0, 12.0},
-        {13.0, 14.0, 15.0}
-    };
+    float** vecs;
+    vecs = new float*[5];
+    vecs[0] = new float[3]{1.0, 2.0, 3.0};
+    vecs[1] = new float[3]{4.0, 5.0, 6.0};
+    vecs[2] = new float[3]{7.0, 8.0, 9.0};
+    vecs[3] = new float[3]{10.0, 11.0, 12.0};
+    vecs[4] = new float[3]{13.0, 14.0, 15.0};
+
     std::cout << "Vectors:" << std::endl;
-    for (const auto& vec : vecs) {
-        std::cout << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << "}" << std::endl;
+    for (int i = 0; i < 5; i++) {
+        std::cout << "{" << vecs[i][0] << ", " << vecs[i][1] << ", " << vecs[i][2] << "}" << std::endl;
     }
 
     // Create an NSW instance
-    NSW nsw(vecs, 16, 200);
-    for (int i = 0; i < vecs.size(); i++) {
+    NSW nsw(vecs, 3, 16, 200);
+    for (int i = 0; i < 5; i++) {
         nsw.insert(i);
     }
 
     // Search for k=2 nearest neighbors
-    std::vector<float> query = {2.0, 3.0, 4.0};
+    float query[] = {2.0, 3.0, 4.0};
     auto neighbors = nsw.searchKNN(query, 2);
 
     // Print results
     std::cout << "Nearest 2 neighbors to {" << query[0] << ", " << query[1] << ", " << query[2] << "}:\n";
     for (const auto& p : neighbors) {
-        std::cout << "Distance: " << distance(vecs[p], query) << ", Index: " << p << "\n";
+        std::cout << "Distance: " << distance(vecs[p], query, 3) << ", Index: " << p << "\n";
     }
+
+    // Clean up
+    for (int i = 0; i < 5; i++) {
+        delete [] vecs[i];
+    }
+    delete [] vecs;
 
     return 0;
 }

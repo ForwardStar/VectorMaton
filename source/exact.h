@@ -5,13 +5,15 @@
 
 class ExactSearch {
     private:
-        std::vector<std::vector<float>> vecs;
-        std::vector<std::string> strs;
+        float** vecs; // It is user's responsibility to manage the memory of vecs
+        std::string* strs; // It is user's responsibility to manage the memory of strs
+        int dim = 0, max_elements = 0;
         
     public:
-        int insert(const std::vector<float>& vec, const std::string &s);
-        void remove(int id);
-        std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k);
+        void set_vectors(float** vectors, int dimension, int max_elems);
+        void set_strings(std::string* strings);
+        void build();
+        std::vector<int> query(const float* vec, const std::string &s, int k);
 
         ExactSearch() {};
         ~ExactSearch() {};

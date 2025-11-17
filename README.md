@@ -1,5 +1,5 @@
 # Vectormaton
-An elegant vector database that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
+An elegant index that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
 
 Example scenario:
 - In bioinformatics, each protein can be represented by (𝑠,𝑣), where 𝑠 is its amino acid sequence (e.g., Leu-Ser-Met) and 𝑣 is its 2D or 3D structural embedding (e.g., AlphaFold embeddings);
@@ -28,11 +28,11 @@ cmake ..
 make
 ```
 
-This will generate executable files ``nsw_test``, ``sa_test``, ``db_test`` and ``main``. In particular, ``db_test`` corresponds to ``source/test_vector_db.cpp``, which provides a demo on how to use the vector database. ``sa_test`` and ``nsw_test`` are testing programs for the algorithms used in the database.
+This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``baseline_test``, ``vectormaton_test`` and ``main``. In particular, ``vectormaton_test`` corresponds to ``source/test_vectormaton.cpp``, which provides a demo on how to use the index.
 
 The ``main`` is our experimental program. Run with:
 ```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>
+./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorMaton>
 ```
 
 To show debug messages, add ``--debug`` option when executing the ``main`` program. To limit the number of vectors and strings inserted, add ``--data-size=<n>`` to only select the first n vectors and strings of the data file.
@@ -69,52 +69,3 @@ Generate queries by:
 python3 generate_queries.py
 ```
 and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly generated containing floating numbers. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
-
-# APIs
-Refer to ``source/test_vector_db.cpp`` as a demo example.
-
-Include the header file:
-```cpp
-#include "vectormaton/source/vector_db.h"
-```
-
-Initiate a vector DB instance:
-```cpp
-VectorDB db;
-```
-
-Insert a vector with its associated string (possibly empty, which is then in line with the basic vector database with no substring query support):
-```cpp
-// Interface
-// int insert(const std::vector<float>& vec, const std::string &s);
-
-// Example
-int id = db.insert({1.0, 2.0, 3.0}, "banana"); // automatically generate a unique `id` for the data
-```
-
-Build an index for the vector database:
-```cpp
-// Interface
-// void build();
-
-// Example
-db.build(); // will build NSW graphs
-```
-
-Remove data:
-```cpp
-// Interface
-// void remove(int id);
-
-// Example
-db.remove(0);
-```
-
-Query the kNNs of a vector with a substring constraint:
-```cpp
-// Interface
-// std::vector<int> query(const std::vector<float>& vec, const std::string &s, int k);
-
-// Example
-std::vector<int> res = db.query({9.0, 10.0, 11.0}, "ana", 2) // `res` contains the data `id`s of the queried result
-```

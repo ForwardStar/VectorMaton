@@ -1,11 +1,11 @@
 #include "headers.h"
 #include "exact.h"
 #include "baseline.h"
-#include "vector_db.h"
+#include "vectormaton.h"
 
 int main(int argc, char * argv[]) {
     if (argc < 8) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorDB>");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorMaton>");
         return 1;
     }
 
@@ -135,20 +135,28 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    // Turn vectors into float**
+    float** vec_array = new float*[vectors.size()];
+    for (size_t i = 0; i < vectors.size(); ++i) {
+        vec_array[i] = vectors[i].data();
+    }
+
+    // Turn strings into std::string*
+    std::string* str_array = new std::string[strings.size()];
+    for (size_t i = 0; i < strings.size(); ++i) {
+        str_array[i] = strings[i];
+    }
+
     if (std::strcmp(argv[argc - 1], "Exact") == 0) {
         LOG_INFO("Using Exact search");
         ExactSearch es;
-        LOG_DEBUG("Inserting strings and vectors into ExactSearch");
-        unsigned long long start_time = currentTime();
-        for (size_t i = 0; i < strings.size(); ++i) {
-            es.insert(vectors[i], strings[i]);
-        }
-        LOG_INFO("ExactSearch insertion took ", timeFormatting(currentTime() - start_time).str());
+        es.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        es.set_strings(str_array);
         LOG_DEBUG("Processing queries");
-        start_time = currentTime();
+        unsigned long long start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = es.query(queried_vectors[i], queried_strings[i], queried_k[i]);
+            auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
         LOG_INFO("ExactSearch query processing took ", timeFormatting(currentTime() - start_time).str());
@@ -165,17 +173,17 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "Baseline") == 0) {
         LOG_INFO("Using Baseline search");
         Baseline bs;
-        LOG_DEBUG("Inserting strings and vectors into Baseline");
+        bs.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        bs.set_strings(str_array);
+        LOG_DEBUG("Building Baseline index");
         unsigned long long start_time = currentTime();
-        for (size_t i = 0; i < strings.size(); ++i) {
-            bs.insert(vectors[i], strings[i]);
-        }
-        LOG_INFO("Baseline insertion took ", timeFormatting(currentTime() - start_time).str());
+        bs.build();
+        LOG_INFO("Baseline index built in ", timeFormatting(currentTime() - start_time).str());
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = bs.query(queried_vectors[i], queried_strings[i], queried_k[i]);
+            auto res = bs.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
         LOG_INFO("Baseline query processing took ", timeFormatting(currentTime() - start_time).str());
@@ -189,28 +197,24 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    if (std::strcmp(argv[argc - 1], "VectorDB") == 0) {
-        LOG_INFO("Using VectorDB search");
-        VectorDB vdb;
-        LOG_DEBUG("Inserting strings and vectors into VectorDB");
+    if (std::strcmp(argv[argc - 1], "VectorMaton") == 0) {
+        LOG_INFO("Using VectorMaton");
+        VectorMaton vdb;
+        vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        vdb.set_strings(str_array);
+        LOG_DEBUG("Building VectorMaton index");
         unsigned long long start_time = currentTime();
-        for (size_t i = 0; i < strings.size(); ++i) {
-            vdb.insert(vectors[i], strings[i]);
-        }
-        LOG_INFO("VectorDB insertion took ", timeFormatting(currentTime() - start_time).str());
-        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
-        LOG_INFO("Building VectorDB indices");
-        start_time = currentTime();
         vdb.build();
-        LOG_INFO("VectorDB building took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("VectorMaton index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = vdb.query(queried_vectors[i], queried_strings[i], queried_k[i]);
+            auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("VectorDB query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("VectorMaton query processing took ", timeFormatting(currentTime() - start_time).str());
         LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {

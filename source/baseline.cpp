@@ -1,43 +1,41 @@
 #include "baseline.h"
 
-int Baseline::insert(const std::vector<float>& vec, const std::string &s) {
+void Baseline::set_vectors(float** vectors, int dimension, int num_elems) {
+    vecs = vectors;
+    dim = dimension;
+    num_elements = num_elems;
+}
+
+void Baseline::set_strings(std::string* strings) {
+    strs = strings;
+}
+
+void Baseline::build() {
     #if USE_HNSW
         if (!hnsw) {
-            int dim = vec.size(), max_elements = 1e7, M = 16, ef_construction = 200;
-            hnswlib::L2Space space(dim);
-            hnsw = new hnswlib::HierarchicalNSW<float>(&space, max_elements, M, ef_construction);
+            space = new hnswlib::L2Space(dim);
+            hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, 16, 200);
+            for (int i = 0; i < num_elements; i++) {
+                hnsw->addPoint(vecs[i], i);
+            }
         }
     #else
         if (!nsw) {
-            nsw = new NSW(vecs);
+            nsw = new NSW(vecs, dim);
+            for (int i = 0; i < num_elements; i++) {
+                nsw->insert(i);
+            }
         }
     #endif
-    strs.emplace_back(s);
-    vecs.emplace_back(vec);
-    #if USE_HNSW
-        float* data_ptr = new float[vec.size()];
-        for (size_t i = 0; i < vec.size(); i++) {   
-            data_ptr[i] = vec[i];
-        }
-        data_ptrs.emplace_back(data_ptr);
-        hnsw->addPoint(data_ptr, strs.size() - 1);
-    #else
-        nsw->insert(strs.size() - 1);
-    #endif
-    return strs.size() - 1;
 }
 
-void Baseline::remove(int id) {
-    // Work in progress
-}
-
-std::vector<int> Baseline::query(const std::vector<float>& vec, const std::string &s, int k, int threshold) {
+std::vector<int> Baseline::query(const float* vec, const std::string &s, int k, int threshold) {
     std::vector<int> results;
     int amplification = 2; // To improve recall, search for more candidates
     while (results.size() < k) {
         results.clear();
         #if USE_HNSW
-            auto tmp = hnsw->searchKnnCloserFirst((void*)vec.data(), k * amplification);
+            auto tmp = hnsw->searchKnnCloserFirst(vec, k * amplification);
             for (auto& pair : tmp) {
                 int id = pair.second;
                 if (strs[id].find(s) != std::string::npos) {
