@@ -179,6 +179,7 @@ int main(int argc, char * argv[]) {
         unsigned long long start_time = currentTime();
         bs.build();
         LOG_INFO("Baseline index built in ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", bs.size(), " bytes");
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
@@ -206,6 +207,7 @@ int main(int argc, char * argv[]) {
         unsigned long long start_time = currentTime();
         vdb.build();
         LOG_INFO("VectorMaton index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", vdb.size(), " bytes");
         LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
