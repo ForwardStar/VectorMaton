@@ -1,12 +1,12 @@
 #include "vectormaton.h"
 
 #if USE_HNSW
-    hnswlib::HierarchicalNSW<float>* deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig) {
+    hnswlib::HierarchicalNSW<float>* deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig, int num_elements) {
         using namespace hnswlib;
         auto space = new L2Space(orig.data_size_); // Create a new space with the same data size
 
         // Allocate new index with the same max_elements
-        auto* copy = new HierarchicalNSW<float>(space, orig.max_elements_);
+        auto* copy = new HierarchicalNSW<float>(space, num_elements);
 
         // Copy basic parameters
         copy->cur_element_count = orig.cur_element_count.load();
@@ -59,7 +59,7 @@
         }
 
         // Deep copy visited_list_pool_
-        copy->visited_list_pool_.reset(new VisitedListPool(1, orig.max_elements_));
+        copy->visited_list_pool_.reset(new VisitedListPool(1, copy->max_elements_));
 
         // Deep copy label lookup
         copy->label_lookup_ = orig.label_lookup_;
@@ -115,7 +115,7 @@ void VectorMaton::build() {
                     }
                 }
                 if (largest_state != -1) {
-                    auto tmp = deepCopyHNSW(*hnsws[gsa.st[largest_state].hash_value]);
+                    auto tmp = deepCopyHNSW(*hnsws[gsa.st[largest_state].hash_value], st.ids.size());
                     hnsws[st.hash_value] = tmp;
                     // Add vectors that are in st.ids but not in the copied HNSW
                     int l = 0, r = 0;
@@ -208,9 +208,10 @@ size_t VectorMaton::size() {
         }
     #else
         for (auto nsw : nsws) {
-            total_size += nsw.second->max_elements * nsw.second->size_data_per_element; // size of data_level0_memory_
-            total_size += sizeof(void*) * nsw.second->max_elements; // size of linkLists_
-            // Ignore the other variables since they are relatively small
+            for (auto& node : nsw.second->nodes) {
+                total_size += sizeof(node.id);
+                total_size += sizeof(int) * node.neighbors.capacity();
+            }
         }
     #endif
     for (auto& s : gsa.st) {
