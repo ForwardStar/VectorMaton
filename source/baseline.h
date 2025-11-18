@@ -21,6 +21,7 @@ class Baseline {
         void set_vectors(float** vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
         void build();
+        size_t size();
         std::vector<int> query(const float* vec, const std::string &s, int k, int threshold=2048);
         
         Baseline() {};

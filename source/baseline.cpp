@@ -29,6 +29,25 @@ void Baseline::build() {
     #endif
 }
 
+size_t Baseline::size() {
+    size_t total_size = 0;
+    #if USE_HNSW
+        total_size += hnsw->max_elements_ * hnsw->size_data_per_element_; // size of data_level0_memory_
+        total_size += sizeof(void*) * hnsw->max_elements_; // size of linkLists_
+        // Ignore the other variables since they are relatively small
+    #else
+        for (auto& node : nsw->nodes) {
+            total_size += sizeof(node.id);
+            total_size += sizeof(int) * node.neighbors.capacity();
+        }
+    #endif
+    for (int i = 0; i < num_elements; i++) {
+        total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
+        total_size += sizeof(float) * dim; // size of each vector
+    }
+    return total_size;
+}
+
 std::vector<int> Baseline::query(const float* vec, const std::string &s, int k, int threshold) {
     std::vector<int> results;
     int amplification = 2; // To improve recall, search for more candidates

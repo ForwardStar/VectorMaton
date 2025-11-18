@@ -139,7 +139,7 @@ void VectorMaton::build() {
                     }
                 } else {
                     int M = 16, ef_construction = 200;
-                    auto tmp = new hnswlib::HierarchicalNSW<float>(space, num_elements, M, ef_construction);
+                    auto tmp = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), M, ef_construction);
                     hnsws[st.hash_value] = tmp;
                     for (auto id : st.ids) {
                         tmp->addPoint(vecs[id], id);
@@ -196,6 +196,34 @@ void VectorMaton::build() {
             }
         }
     #endif
+}
+
+size_t VectorMaton::size() {
+    size_t total_size = 0;
+    #if USE_HNSW
+        for (auto hnsw : hnsws) {
+            total_size += hnsw.second->max_elements_ * hnsw.second->size_data_per_element_; // size of data_level0_memory_
+            total_size += sizeof(void*) * hnsw.second->max_elements_; // size of linkLists_
+            // Ignore the other variables since they are relatively small
+        }
+    #else
+        for (auto nsw : nsws) {
+            total_size += nsw.second->max_elements * nsw.second->size_data_per_element; // size of data_level0_memory_
+            total_size += sizeof(void*) * nsw.second->max_elements; // size of linkLists_
+            // Ignore the other variables since they are relatively small
+        }
+    #endif
+    for (auto& s : gsa.st) {
+        total_size += sizeof(uint32_t) * s.ids.size(); // size of ids vector
+        total_size += sizeof(std::pair<char, int>) * s.next.size(); // size of adjacency map
+        total_size += sizeof(s.len) + sizeof(s.link); // size of len and link
+        total_size += s.hash_value.capacity(); // size of hash_value string
+    }
+    for (int i = 0; i < num_elements; i++) {
+        total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
+        total_size += sizeof(float) * dim; // size of each vector
+    }
+    return total_size;
 }
 
 std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int k) {
