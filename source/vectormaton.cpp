@@ -1,10 +1,8 @@
 #include "vectormaton.h"
 
 #if USE_HNSW
-    hnswlib::HierarchicalNSW<float>* deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig, int num_elements) {
+    hnswlib::HierarchicalNSW<float>* VectorMaton::deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig, int num_elements) {
         using namespace hnswlib;
-        auto space = new L2Space(orig.data_size_); // Create a new space with the same data size
-
         // Allocate new index with the same max_elements
         auto* copy = new HierarchicalNSW<float>(space, num_elements);
 

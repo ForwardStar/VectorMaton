@@ -17,6 +17,7 @@ class VectorMaton {
         #if USE_HNSW
             hnswlib::L2Space* space = nullptr;
             std::unordered_map<std::string, hnswlib::HierarchicalNSW<float>*> hnsws;
+            hnswlib::HierarchicalNSW<float>* deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig, int num_elements);
         #else
             std::unordered_map<std::string, NSW*> nsws;
         #endif
