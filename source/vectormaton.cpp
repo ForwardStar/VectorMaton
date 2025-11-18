@@ -112,6 +112,7 @@ void VectorMaton::build() {
                         largest_state = value;
                     }
                 }
+                #if ENABLE_DEEP_COPY_HNSW
                 if (largest_state != -1) {
                     auto tmp = deepCopyHNSW(*hnsws[gsa.st[largest_state].hash_value], st.ids.size());
                     hnsws[st.hash_value] = tmp;
@@ -135,7 +136,9 @@ void VectorMaton::build() {
                             r++;
                         }
                     }
-                } else {
+                } else 
+                #endif
+                {
                     int M = 16, ef_construction = 200;
                     auto tmp = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), M, ef_construction);
                     hnsws[st.hash_value] = tmp;

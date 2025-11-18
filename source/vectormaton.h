@@ -5,6 +5,7 @@
 #include "nsw.h"
 #include "sa.h"
 #include "set_hash.h"
+#define ENABLE_DEEP_COPY_HNSW 0
 
 class VectorMaton {
     private:
