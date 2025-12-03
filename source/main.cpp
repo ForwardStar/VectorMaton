@@ -227,5 +227,34 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    if (std::strcmp(argv[argc - 1], "VectorMaton-partial") == 0) {
+        LOG_INFO("Using VectorMaton-partial");
+        VectorMaton vdb;
+        vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        vdb.set_strings(str_array);
+        LOG_DEBUG("Building VectorMaton-partial index");
+        unsigned long long start_time = currentTime();
+        vdb.build_partial();
+        LOG_INFO("VectorMaton-partial index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", vdb.size(), " bytes");
+        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
+        LOG_DEBUG("Processing queries");
+        start_time = currentTime();
+        std::vector<std::vector<int>> all_results;
+        for (size_t i = 0; i < queried_strings.size(); ++i) {
+            auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+            all_results.emplace_back(res);
+        }
+        LOG_INFO("VectorMaton query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_DEBUG("Writing results to ", argv[6]);
+        std::ofstream f_results(argv[6]);
+        for (const auto& res : all_results) {
+            for (const auto& id : res) {
+                f_results << id << " ";
+            }
+            f_results << "\n";
+        }
+    }
+
     return 0;
 }

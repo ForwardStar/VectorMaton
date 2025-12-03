@@ -85,6 +85,98 @@ void VectorMaton::set_strings(std::string* strings) {
     strs = strings;
 }
 
+void VectorMaton::build_partial(double shrink_factor) {
+    expand_rate = 1.0 / shrink_factor;
+    // Build GSA
+    LOG_DEBUG("Building Generalized Suffix Automaton (GSA)");
+    unsigned long long start_time = currentTime();
+    for (int i = 0; i < num_elements; i++) {
+        gsa.add_string(i, strs[i]);
+    }
+    LOG_DEBUG("GSA built in ", timeFormatting(currentTime() - start_time).str());
+    last_state_in_gsa = new int[gsa.st.size()];
+    #if USE_HNSW
+        if (!space) {
+            space = new hnswlib::L2Space(dim);
+        }
+        int* build_threshold = new int[gsa.st.size()];
+        for (int i = 0; i < gsa.st.size(); i++) {
+            build_threshold[i] = 2147483647; // INT_MAX
+        }
+        int i = 0, ten_percent = gsa.st.size() / 10;
+        for (int i = 0; i < gsa.st.size(); i++) {
+            auto& st = gsa.st[i];
+            st.hash_value = sethash::sha256_hash(st.ids);
+            if (i % ten_percent == 0) {
+                LOG_DEBUG("Building HNSW for state ", i, "/", gsa.st.size());
+            }
+            if (build_threshold[i] > gsa.st[i].ids.size()) {
+                // Build HNSW for this state
+                auto tmp = new hnswlib::HierarchicalNSW<float>(space, gsa.st[i].ids.size(), 16, 200);
+                hnsws[gsa.st[i].hash_value] = tmp;
+                for (auto id : gsa.st[i].ids) {
+                    tmp->addPoint(vecs[id], id);
+                }
+                // Propagate build threshold to children
+                int new_threshold = static_cast<int>(gsa.st[i].ids.size() * shrink_factor);
+                for (auto& [key, value] : gsa.st[i].next) {
+                    if (build_threshold[value] > new_threshold) {
+                        build_threshold[value] = new_threshold;
+                        last_state_in_gsa[value] = i;
+                    }
+                }
+            }
+            else {
+                for (auto& [key, value] : gsa.st[i].next) {
+                    if (build_threshold[value] > build_threshold[i]) {
+                        build_threshold[value] = build_threshold[i];
+                        last_state_in_gsa[value] = last_state_in_gsa[i];
+                    }
+                }
+            }
+        }
+        delete [] build_threshold;
+    #else
+        int* build_threshold = new int[gsa.st.size()];
+        for (int i = 0; i < gsa.st.size(); i++) {
+            build_threshold[i] = 2147483647; // INT_MAX
+        }
+        int i = 0, ten_percent = gsa.st.size() / 10;
+        for (int i = 0; i < gsa.st.size(); i++) {
+            auto& st = gsa.st[i];
+            st.hash_value = sethash::sha256_hash(st.ids);
+            if (i % ten_percent == 0) {
+                LOG_DEBUG("Building NSW for state ", i, "/", gsa.st.size());
+            }
+            if (build_threshold[i] > gsa.st[i].ids.size()) {
+                // Build NSW for this state
+                auto tmp = new NSW(vecs, dim);
+                nsws[gsa.st[i].hash_value] = tmp;
+                for (auto id : gsa.st[i].ids) {
+                    tmp->insert(id);
+                }
+                // Propagate build threshold to children
+                int new_threshold = static_cast<int>(gsa.st[i].ids.size() * shrink_factor);
+                for (auto& [key, value] : gsa.st[i].next) {
+                    if (build_threshold[value] > new_threshold) {
+                        build_threshold[value] = new_threshold;
+                        last_state_in_gsa[value] = i;
+                    }
+                }
+            }
+            else {
+                for (auto& [key, value] : gsa.st[i].next) {
+                    if (build_threshold[value] > build_threshold[i]) {
+                        build_threshold[value] = build_threshold[i];
+                        last_state_in_gsa[value] = last_state_in_gsa[i];
+                    }
+                }
+            }
+        }
+        delete [] build_threshold;
+    #endif
+}
+
 void VectorMaton::build() {
     // Build GSA
     LOG_DEBUG("Building Generalized Suffix Automaton (GSA)");
@@ -232,6 +324,22 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
     int i = gsa.query(s);
     if (i == -1) return {};
     #if USE_HNSW
+        if (hnsws.find(gsa.st[i].hash_value) == hnsws.end()) {
+            double expand_factor = double(gsa.st[last_state_in_gsa[i]].ids.size()) / double(gsa.st[i].ids.size());
+            expand_factor = std::max(expand_factor, expand_rate);
+            auto results = hnsws[gsa.st[last_state_in_gsa[i]].hash_value]->searchKnnCloserFirst(vec, k * expand_factor);
+            // Filter results to only those in gsa.st[i].ids
+            std::vector<int> filtered_results;
+            for (auto& pair : results) {
+                if (std::binary_search(gsa.st[i].ids.begin(), gsa.st[i].ids.end(), pair.second)) {
+                    filtered_results.push_back(pair.second);
+                    if (filtered_results.size() >= static_cast<size_t>(k)) {
+                        break;
+                    }
+                }
+            }
+            return filtered_results;
+        }
         auto tmp = hnsws[gsa.st[i].hash_value]->searchKnnCloserFirst(vec, k);
         std::vector<int> results;
         for (auto& pair : tmp) {
@@ -239,6 +347,22 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
         }
         return results;
     #else
+        if (nsws.find(gsa.st[i].hash_value) == nsws.end()) {
+            double expand_factor = double(gsa.st[last_state_in_gsa[i]].ids.size()) / double(gsa.st[i].ids.size());
+            expand_factor = std::max(expand_factor, expand_rate);
+            auto results = nsws[gsa.st[last_state_in_gsa[i]].hash_value]->searchKNN(vec, k * expand_factor);
+            // Filter results to only those in gsa.st[i].ids
+            std::vector<int> filtered_results;
+            for (auto id : results) {
+                if (std::binary_search(gsa.st[i].ids.begin(), gsa.st[i].ids.end(), id)) {
+                    filtered_results.push_back(id);
+                    if (filtered_results.size() >= static_cast<size_t>(k)) {
+                        break;
+                    }
+                }
+            }
+            return filtered_results;
+        }
         return nsws[gsa.st[i].hash_value]->searchKNN(vec, k);
     #endif
 }

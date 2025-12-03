@@ -28,7 +28,7 @@ public:
     int efConstruction;
     int dim;
 
-    NSW(float** vec_data, int d, int m = 32, int efCon = 400) : M(m), dim(d), efConstruction(efCon), vec_ptr(vec_data) {}
+    NSW(float** vec_data, int d, int m = 16, int efCon = 200) : M(m), dim(d), efConstruction(efCon), vec_ptr(vec_data) {}
 
     NSW(NSW &other) : vec_ptr(other.vec_ptr), dim(other.dim) {
         nodes.resize(other.nodes.size());

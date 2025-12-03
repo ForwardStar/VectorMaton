@@ -41,6 +41,21 @@ int main() {
     print_res(db.query(query_vec1, "anana", 2)); // {0, 1}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
     print_res(db.query(query_vec1, "banana", 2)); // {0}
+
+    // Test build_partial
+    VectorMaton pdb;
+    pdb.set_vectors(vecs, 3, 5);
+    pdb.set_strings(strings);
+    pdb.build_partial();
+    std::cout << "Partial VectorMaton tests:" << std::endl;
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
+    print_res(pdb.query(query_vec1, "ana", 2)); // {2, 3}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;
+    print_res(pdb.query(query_vec1, "nana", 2)); // {1, 2}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'anana'." << std::endl;
+    print_res(pdb.query(query_vec1, "anana", 2)); // {0, 1}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
+    print_res(pdb.query(query_vec1, "banana", 2)); // {0}
     
     return 0;
 }

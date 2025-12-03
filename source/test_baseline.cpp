@@ -34,7 +34,6 @@ int main() {
 
     float query_vec1[3] = {9.0, 10.0, 11.0};
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
-    auto tmp = db.hnsw->searchKnn(query_vec1, 2);
     print_res(db.query(query_vec1, "ana", 2)); // {2, 3}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;
     print_res(db.query(query_vec1, "nana", 2)); // {1, 2}

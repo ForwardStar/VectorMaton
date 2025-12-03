@@ -15,6 +15,8 @@ class VectorMaton {
 
     public:
         GeneralizedSuffixAutomaton gsa;
+        int* last_state_in_gsa = nullptr;
+        double expand_rate = 2.0;
         #if USE_HNSW
             hnswlib::L2Space* space = nullptr;
             std::unordered_map<std::string, hnswlib::HierarchicalNSW<float>*> hnsws;
@@ -25,6 +27,7 @@ class VectorMaton {
 
         void set_vectors(float** vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
+        void build_partial(double shrink_factor = 0.5);
         void build();
         size_t size();
         std::vector<int> query(const float* vec, const std::string &s, int k);
@@ -41,6 +44,9 @@ class VectorMaton {
                     delete pair.second;
                 }
             #endif
+            if (last_state_in_gsa) {
+                delete [] last_state_in_gsa;
+            }
         }
 };
 
