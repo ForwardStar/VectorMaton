@@ -181,6 +181,16 @@ size_t VectorMaton::vertex_num() {
     return total_vertices;
 }
 
+void VectorMaton::set_ef(int ef) {
+    #if USE_HNSW
+        for (int i = 0; i < gsa.st.size(); i++) {
+            hnsws[i]->setEf(ef);
+        }
+    #else
+        // TODO: implement
+    #endif
+}
+
 void VectorMaton::set_min_build_threshold(int threshold) {
     min_build_threshold = threshold;
 }
@@ -203,7 +213,7 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
     }
     #if USE_HNSW
         std::vector<std::pair<float, hnswlib::labeltype>> local_res;
-        if (built) {
+        if (built[i]) {
             local_res = hnsws[i]->searchKnnCloserFirst(vec, k);
         }
         else {

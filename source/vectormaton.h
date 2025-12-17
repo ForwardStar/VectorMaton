@@ -32,6 +32,7 @@ class VectorMaton {
         void build_full();
         size_t size();
         size_t vertex_num();
+        void set_ef(int ef);
         void set_min_build_threshold(int threshold);
         std::vector<int> query(const float* vec, const std::string &s, int k);
 
