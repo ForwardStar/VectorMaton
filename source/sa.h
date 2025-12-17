@@ -8,12 +8,16 @@
 
 class GeneralizedSuffixAutomaton {
 public:
+    struct Statistics {
+        double mid, avg; // median and avg of vector set sizes
+        std::vector<int> sizes; // vector set sizes (sorted)
+    };
+
     struct State {
         int len = 0;
         int link = -1;
         std::unordered_map<char, int> next;
         std::vector<uint32_t> ids;
-        std::string hash_value = "";
     };
     std::vector<State> st;
 
@@ -43,6 +47,9 @@ public:
 
     // Print the GSA graph.
     void print() const;
+
+    // Statistics of GSA nodes.
+    std::vector<Statistics> get_statistics() const;
 
 private:
     int last;

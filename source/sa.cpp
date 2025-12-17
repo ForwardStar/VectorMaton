@@ -147,3 +147,35 @@ void GeneralizedSuffixAutomaton::print() const {
         std::cout << "}\n";
     }
 }
+
+std::vector<GeneralizedSuffixAutomaton::Statistics> GeneralizedSuffixAutomaton::get_statistics() const {
+    std::vector<Statistics> stats;
+    std::queue<std::pair<int, int>> q;
+    q.emplace(0, 0); // state id, depth
+    while (!q.empty()) {
+        auto [state_id, depth] = q.front();
+        q.pop();
+        if (stats.size() <= static_cast<size_t>(depth)) {
+            stats.emplace_back();
+        }
+        stats[depth].sizes.push_back(static_cast<int>(st[state_id].ids.size()));
+        for (const auto &t : st[state_id].next) {
+            q.emplace(t.second, depth + 1);
+        }
+    }
+    for (auto &stat : stats) {
+        std::sort(stat.sizes.begin(), stat.sizes.end());
+        int n = static_cast<int>(stat.sizes.size());
+        if (n % 2 == 1) {
+            stat.mid = stat.sizes[n / 2];
+        } else {
+            stat.mid = (stat.sizes[n / 2 - 1] + stat.sizes[n / 2]) / 2.0;
+        }
+        double sum = 0.0;
+        for (int size : stat.sizes) {
+            sum += size;
+        }
+        stat.avg = sum / n;
+    }
+    return stats;
+}

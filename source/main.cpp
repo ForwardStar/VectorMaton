@@ -67,9 +67,9 @@ int main(int argc, char * argv[]) {
     }
 
     // Log the number of strings and vectors
-    LOG_DEBUG("Number of strings: ", strings.size());
-    LOG_DEBUG("Total length of strings: ", std::accumulate(strings.begin(), strings.end(), 0, [](int sum, const std::string& str) { return sum + str.size(); }));
-    LOG_DEBUG("Number of vectors: ", vectors.size());
+    LOG_INFO("Number of strings: ", strings.size());
+    LOG_INFO("Total length of strings: ", std::accumulate(strings.begin(), strings.end(), 0, [](int sum, const std::string& str) { return sum + str.size(); }));
+    LOG_INFO("Number of vectors: ", vectors.size());
     if (strings.size() != vectors.size()) {
         LOG_WARN("Mismatched number of strings and vectors: aligning their sizes");
         size_t min_size = std::min(strings.size(), vectors.size());
@@ -198,17 +198,18 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    if (std::strcmp(argv[argc - 1], "VectorMaton") == 0) {
-        LOG_INFO("Using VectorMaton");
+    if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
+        LOG_INFO("Using VectorMaton-full");
         VectorMaton vdb;
         vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
         vdb.set_strings(str_array);
-        LOG_DEBUG("Building VectorMaton index");
+        LOG_DEBUG("Building VectorMaton-full index");
         unsigned long long start_time = currentTime();
-        vdb.build();
-        LOG_INFO("VectorMaton index built took ", timeFormatting(currentTime() - start_time).str());
+        vdb.build_full();
+        LOG_INFO("VectorMaton-full index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
+        LOG_INFO("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
+        LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
@@ -216,7 +217,7 @@ int main(int argc, char * argv[]) {
             auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("VectorMaton query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("VectorMaton-full query processing took ", timeFormatting(currentTime() - start_time).str());
         LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {
@@ -227,17 +228,18 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    if (std::strcmp(argv[argc - 1], "VectorMaton-partial") == 0) {
-        LOG_INFO("Using VectorMaton-partial");
+    if (std::strcmp(argv[argc - 1], "VectorMaton-smart") == 0) {
+        LOG_INFO("Using VectorMaton-smart");
         VectorMaton vdb;
         vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
         vdb.set_strings(str_array);
-        LOG_DEBUG("Building VectorMaton-partial index");
+        LOG_DEBUG("Building VectorMaton-smart index");
         unsigned long long start_time = currentTime();
-        vdb.build_partial();
-        LOG_INFO("VectorMaton-partial index built took ", timeFormatting(currentTime() - start_time).str());
+        vdb.build_smart();
+        LOG_INFO("VectorMaton-smart index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_DEBUG("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
+        LOG_INFO("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
+        LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
@@ -245,7 +247,7 @@ int main(int argc, char * argv[]) {
             auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("VectorMaton query processing took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("VectorMaton-smart query processing took ", timeFormatting(currentTime() - start_time).str());
         LOG_DEBUG("Writing results to ", argv[6]);
         std::ofstream f_results(argv[6]);
         for (const auto& res : all_results) {

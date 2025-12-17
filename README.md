@@ -32,7 +32,7 @@ This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``
 
 The ``main`` is our experimental program. Run with:
 ```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorMaton>
+./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorMaton-full|VectorMaton-smart>
 ```
 
 To show debug messages, add ``--debug`` option when executing the ``main`` program. To limit the number of vectors and strings inserted, add ``--data-size=<n>`` to only select the first n vectors and strings of the data file.

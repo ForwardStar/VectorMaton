@@ -5,7 +5,7 @@ def compute_recall(ground_truth, prediction):
     Compute recall = |ground_truth ∩ prediction| / |ground_truth|
     """
     if not ground_truth:  # avoid division by zero
-        return 0.0
+        return 1.0
     intersection = ground_truth.intersection(prediction)
     return len(intersection) / len(ground_truth)
 

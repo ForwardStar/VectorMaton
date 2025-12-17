@@ -19,9 +19,10 @@ int main() {
     };
 
     VectorMaton db;
+    db.set_min_build_threshold(0);
     db.set_vectors(vecs, 3, 5);
     db.set_strings(strings);
-    db.build();
+    db.build_full();
 
     auto print_res = [](const std::vector<int>& res){
         std::cout << "Result: {";
@@ -42,12 +43,12 @@ int main() {
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
     print_res(db.query(query_vec1, "banana", 2)); // {0}
 
-    // Test build_partial
+    // Test build_smart
     VectorMaton pdb;
     pdb.set_vectors(vecs, 3, 5);
     pdb.set_strings(strings);
-    pdb.build_partial();
-    std::cout << "Partial VectorMaton tests:" << std::endl;
+    pdb.build_smart();
+    std::cout << "Smart VectorMaton tests:" << std::endl;
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
     print_res(pdb.query(query_vec1, "ana", 2)); // {2, 3}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;

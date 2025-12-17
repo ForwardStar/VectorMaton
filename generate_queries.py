@@ -73,6 +73,9 @@ if __name__ == "__main__":
     s = int(input("Enter the desired string length for queries: "))
     num_queries = int(input("Enter the number of queries to generate: "))
     max_k = int(input("Enter the maximum k value for k-NN search: "))
+    truncate_len = int(input("Enter the number of elements you want to select from the dataset (-1 for all): "))
+    if truncate_len != -1:
+        string_list = string_list[:truncate_len]
     result = generate_queries(string_list, vector_size, s, num_queries)
 
     # Print the generated queries to "strings.txt", "vectors.txt", and "k.txt"

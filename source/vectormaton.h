@@ -5,48 +5,53 @@
 #include "nsw.h"
 #include "sa.h"
 #include "set_hash.h"
-#define ENABLE_DEEP_COPY_HNSW 0
 
 class VectorMaton {
     private:
         float** vecs; // It is user's responsibility to manage the memory of vecs
         std::string* strs; // It is user's responsibility to manage the memory of strs
         int dim = 0, num_elements = 0;
+        int min_build_threshold = 32;
+        void build_gsa();
 
     public:
+        int* inherit_states = nullptr;
+        bool* built = nullptr;
+        std::vector<int>* candidate_ids;
         GeneralizedSuffixAutomaton gsa;
-        int* last_state_in_gsa = nullptr;
-        double expand_rate = 2.0;
         #if USE_HNSW
             hnswlib::L2Space* space = nullptr;
-            std::unordered_map<std::string, hnswlib::HierarchicalNSW<float>*> hnsws;
-            hnswlib::HierarchicalNSW<float>* deepCopyHNSW(const hnswlib::HierarchicalNSW<float>& orig, int num_elements);
+            hnswlib::HierarchicalNSW<float>** hnsws = nullptr;
         #else
-            std::unordered_map<std::string, NSW*> nsws;
+            NSW** nsws = nullptr;
         #endif
 
         void set_vectors(float** vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
-        void build_partial(double shrink_factor = 0.5);
-        void build();
+        void build_smart();
+        void build_full();
         size_t size();
+        size_t vertex_num();
+        void set_min_build_threshold(int threshold);
         std::vector<int> query(const float* vec, const std::string &s, int k);
 
         VectorMaton() {}
         ~VectorMaton() {
             #if USE_HNSW
-                for (auto& pair : hnsws) {
-                    delete pair.second;
+                for (int i = 0; i < gsa.st.size(); i++) {
+                    delete hnsws[i];
                 }
+                delete [] hnsws;
                 delete space;
             #else
-                for (auto& pair : nsws) {
-                    delete pair.second;
+                for (int i = 0; i < gsa.st.size(); i++) {
+                    delete nsws[i];
                 }
+                delete [] nsws;
             #endif
-            if (last_state_in_gsa) {
-                delete [] last_state_in_gsa;
-            }
+            if (inherit_states) delete [] inherit_states;
+            if (built) delete [] built;
+            if (candidate_ids) delete [] candidate_ids;
         }
 };
 
