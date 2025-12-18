@@ -168,9 +168,6 @@ void VectorMaton::build_full() {
             for (int j = 0; j < size_ids[i]; j++) {
                 candidate_ids[i][j] = st.ids[j];
             }
-            if (st.ids.size() < min_build_threshold) {
-                continue;
-            }
             int M = 16, ef_construction = 200;
             hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), M, ef_construction);
             for (auto id : st.ids) {
