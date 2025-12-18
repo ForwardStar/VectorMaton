@@ -17,7 +17,7 @@ void VectorMaton::build_gsa() {
         gsa.add_string(i, strs[i]);
     }
     LOG_DEBUG("GSA built in ", timeFormatting(currentTime() - start_time).str());
-    LOG_INFO("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));
+    LOG_DEBUG("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));
 
     // Print GSA statistics
     auto stats = gsa.get_statistics();
