@@ -31,7 +31,9 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             int cur = (int)st.size();
             st.emplace_back();
             st[cur].len = st[last].len + 1;
-            st[cur].next = st[x].next; // copy map
+            for (auto e : st[x].next) {
+                st[cur].next[e.first] = e.second; // copy map
+            }
             st[cur].link = st[x].link;
             affected_states.emplace_back(cur);
             for (auto old_id : st[x].ids) { // copy ids
@@ -74,7 +76,9 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             int clone = (int)st.size();
             st.emplace_back();
             st[clone].len = st[p].len + 1;
-            st[clone].next = st[q].next; // copy map
+            for (auto e : st[q].next) {
+                st[clone].next[e.first] = e.second; // copy map
+            }
             st[clone].link = st[q].link;
             affected_states.emplace_back(clone);
             for (auto old_id : st[q].ids) { // copy ids
@@ -178,4 +182,44 @@ std::vector<GeneralizedSuffixAutomaton::Statistics> GeneralizedSuffixAutomaton::
         stat.avg = sum / n;
     }
     return stats;
+}
+
+std::vector<int> GeneralizedSuffixAutomaton::topo_sort() const {
+    int n = static_cast<int>(st.size());
+    int* in_degree = new int[n];
+    for (int i = 0; i < n; ++i) {
+        in_degree[i] = 0;
+    }
+    for (int i = 0; i < n; ++i) {
+        for (const auto &t : st[i].next) {
+            in_degree[t.second]++;
+        }
+    }
+    std::queue<int> q;
+    for (int i = 0; i < n; ++i) {
+        if (in_degree[i] == 0) {
+            q.push(i);
+        }
+    }
+    std::vector<int> order;
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        order.push_back(u);
+        for (const auto &t : st[u].next) {
+            int v = t.second;
+            in_degree[v]--;
+            if (in_degree[v] == 0) {
+                q.push(v);
+            }
+        }
+    }
+    // Bug check
+    for (int i = 0; i < n; i++) {
+        if (in_degree[i] != 0) {
+            LOG_ERROR("Cycle detected in GSA states!");
+        }
+    }
+    delete [] in_degree;
+    return order;
 }

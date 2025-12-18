@@ -51,6 +51,9 @@ public:
     // Statistics of GSA nodes.
     std::vector<Statistics> get_statistics() const;
 
+    // Topological sort of states (for processing in order of links).
+    std::vector<int> topo_sort() const;
+
 private:
     int last;
     void sa_extend(char c, uint32_t id);

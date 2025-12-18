@@ -208,7 +208,6 @@ int main(int argc, char * argv[]) {
         vdb.build_full();
         LOG_INFO("VectorMaton-full index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_INFO("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
         LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();
@@ -238,7 +237,6 @@ int main(int argc, char * argv[]) {
         vdb.build_smart();
         LOG_INFO("VectorMaton-smart index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_INFO("Total states: ", std::to_string(vdb.gsa.size()), ", total string IDs in GSA: ", std::to_string(vdb.gsa.size_tot()));
         LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
         LOG_DEBUG("Processing queries");
         start_time = currentTime();

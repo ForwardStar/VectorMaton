@@ -13,11 +13,12 @@ class VectorMaton {
         int dim = 0, num_elements = 0;
         int min_build_threshold = 32;
         void build_gsa();
+        void clear_gsa();
 
     public:
-        int* inherit_states = nullptr;
-        bool* built = nullptr;
-        std::vector<int>* candidate_ids;
+        int* inherit_states = nullptr; // inherited state id
+        int* size_ids = nullptr; // how many vectors are maintained in this state?
+        int** candidate_ids = nullptr; // maintained vector ids in this state (others are inherited from inherit_states)
         GeneralizedSuffixAutomaton gsa;
         #if USE_HNSW
             hnswlib::L2Space* space = nullptr;
@@ -51,8 +52,13 @@ class VectorMaton {
                 delete [] nsws;
             #endif
             if (inherit_states) delete [] inherit_states;
-            if (built) delete [] built;
-            if (candidate_ids) delete [] candidate_ids;
+            if (candidate_ids) {
+                for (int i = 0; i < gsa.st.size(); i++) {
+                    delete [] candidate_ids[i];
+                }
+                delete [] candidate_ids;
+            }
+            if (size_ids) delete [] size_ids;
         }
 };
 
