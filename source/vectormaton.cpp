@@ -231,7 +231,7 @@ size_t VectorMaton::vertex_num() {
 void VectorMaton::set_ef(int ef) {
     #if USE_HNSW
         for (int i = 0; i < gsa.st.size(); i++) {
-            hnsws[i]->setEf(ef);
+            if (hnsws[i]) hnsws[i]->setEf(ef);
         }
     #else
         // TODO: implement

@@ -1,16 +1,16 @@
-#include "baseline.h"
+#include "post_filtering.h"
 
-void Baseline::set_vectors(float** vectors, int dimension, int num_elems) {
+void PostFiltering::set_vectors(float** vectors, int dimension, int num_elems) {
     vecs = vectors;
     dim = dimension;
     num_elements = num_elems;
 }
 
-void Baseline::set_strings(std::string* strings) {
+void PostFiltering::set_strings(std::string* strings) {
     strs = strings;
 }
 
-void Baseline::build() {
+void PostFiltering::build() {
     #if USE_HNSW
         if (!hnsw) {
             space = new hnswlib::L2Space(dim);
@@ -29,7 +29,7 @@ void Baseline::build() {
     #endif
 }
 
-size_t Baseline::size() {
+size_t PostFiltering::size() {
     size_t total_size = 0;
     #if USE_HNSW
         total_size += hnsw->max_elements_ * hnsw->size_data_per_element_; // size of data_level0_memory_
@@ -48,7 +48,7 @@ size_t Baseline::size() {
     return total_size;
 }
 
-std::vector<int> Baseline::query(const float* vec, const std::string &s, int k, int threshold) {
+std::vector<int> PostFiltering::query(const float* vec, const std::string &s, int k, int threshold) {
     std::vector<int> results;
     int amplification = 2; // To improve recall, search for more candidates
     while (results.size() < k) {

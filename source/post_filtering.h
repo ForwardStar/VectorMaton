@@ -1,10 +1,10 @@
-#ifndef BASELINE_H
-#define BASELINE_H
+#ifndef POSTFILTERING_H
+#define POSTFILTERING_H
 
 #include "headers.h"
 #include "nsw.h"
 
-class Baseline {
+class PostFiltering {
     private:
         float** vecs; // It is user's responsibility to manage the memory of vecs
         std::string* strs; // It is user's responsibility to manage the memory of strs
@@ -24,8 +24,8 @@ class Baseline {
         size_t size();
         std::vector<int> query(const float* vec, const std::string &s, int k, int threshold=2048);
         
-        Baseline() {};
-        ~Baseline() {
+        PostFiltering() {};
+        ~PostFiltering() {
             #if USE_HNSW
                 if (hnsw) {
                     delete hnsw;

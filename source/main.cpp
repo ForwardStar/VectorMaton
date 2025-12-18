@@ -1,17 +1,19 @@
 #include "headers.h"
 #include "exact.h"
-#include "baseline.h"
+#include "pre_filtering.h"
+#include "post_filtering.h"
 #include "vectormaton.h"
 
 int main(int argc, char * argv[]) {
     if (argc < 8) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <output_file> <Exact|Baseline|VectorMaton>");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics_file=output_statistics.csv]");
         return 1;
     }
 
     int data_size = 1000000000; // default: no limit
+    std::string statistics_file = "";
     // Parse optional arguments
-    if (argc > 8) {
+    if (argc > 7) {
         for (int i = 0; i < argc; i++) {
             if (std::string(argv[i]) == "--debug") {
                 Logger::instance().set_level(Logger::Level::DEBUG);
@@ -27,6 +29,17 @@ int main(int argc, char * argv[]) {
             if (std::string(argv[i]).find("--data-size=") == 0) {
                 data_size = std::stoi(std::string(argv[i]).substr(12));
                 LOG_DEBUG("Data size limit set to ", data_size);
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--statistics_file=") == 0) {
+                statistics_file = std::string(argv[i]).substr(18);
+                LOG_DEBUG("Statistics file set to ", statistics_file);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -147,55 +160,67 @@ int main(int argc, char * argv[]) {
         str_array[i] = strings[i];
     }
 
-    if (std::strcmp(argv[argc - 1], "Exact") == 0) {
-        LOG_INFO("Using Exact search");
-        ExactSearch es;
-        es.set_vectors(vec_array, vectors[0].size(), vectors.size());
-        es.set_strings(str_array);
-        LOG_DEBUG("Processing queries");
-        unsigned long long start_time = currentTime();
-        std::vector<std::vector<int>> all_results;
-        for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
-            all_results.emplace_back(res);
-        }
-        LOG_INFO("ExactSearch query processing took ", timeFormatting(currentTime() - start_time).str());
-        LOG_DEBUG("Writing results to ", argv[6]);
-        std::ofstream f_results(argv[6]);
-        for (const auto& res : all_results) {
-            for (const auto& id : res) {
-                f_results << id << " ";
-            }
-            f_results << "\n";
-        }
+    std::vector<std::vector<int>> exact_results;
+    LOG_INFO("Doing ExactSearch for baseline comparison");
+    ExactSearch es;
+    es.set_vectors(vec_array, vectors[0].size(), vectors.size());
+    es.set_strings(str_array);
+    unsigned long long start_time = currentTime();
+    std::vector<std::vector<int>> all_results;
+    for (size_t i = 0; i < queried_strings.size(); ++i) {
+        auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+        exact_results.emplace_back(res);
     }
+    auto exact_time = currentTime() - start_time;
+    LOG_INFO("ExactSearch query processing took ", timeFormatting(exact_time).str(), ", avg (us): ", (static_cast<float>(exact_time) / queried_strings.size()));
 
-    if (std::strcmp(argv[argc - 1], "Baseline") == 0) {
-        LOG_INFO("Using Baseline search");
-        Baseline bs;
-        bs.set_vectors(vec_array, vectors[0].size(), vectors.size());
-        bs.set_strings(str_array);
-        LOG_DEBUG("Building Baseline index");
+    if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
+        LOG_INFO("Using PreFiltering");
+        PreFiltering pf;
+        pf.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        pf.set_strings(str_array);
+        LOG_INFO("Building PreFiltering index");
         unsigned long long start_time = currentTime();
-        bs.build();
-        LOG_INFO("Baseline index built in ", timeFormatting(currentTime() - start_time).str());
-        LOG_INFO("Total index size: ", bs.size(), " bytes");
-        LOG_DEBUG("Processing queries");
+        pf.build();
+        LOG_INFO("PreFiltering index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", pf.size(), " bytes");
+        LOG_INFO("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
         for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = bs.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+            auto res = pf.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("Baseline query processing took ", timeFormatting(currentTime() - start_time).str());
-        LOG_DEBUG("Writing results to ", argv[6]);
-        std::ofstream f_results(argv[6]);
-        for (const auto& res : all_results) {
-            for (const auto& id : res) {
-                f_results << id << " ";
+        LOG_INFO("PreFiltering query processing took ", timeFormatting(currentTime() - start_time).str(), ", avg (us): ", (static_cast<float>(currentTime() - start_time) / queried_strings.size()));
+        // Compute recall
+        double total_recall = 0;
+        int effective = 0;
+        for (size_t i = 0; i < queried_strings.size(); ++i) {
+            std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+            int correct = 0;
+            for (const auto& id : all_results[i]) {
+                if (exact_set.find(id) != exact_set.end()) {
+                    correct++;
+                }
             }
-            f_results << "\n";
+            if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
         }
+        double recall = static_cast<double>(total_recall) / effective;
+        LOG_INFO("PreFiltering recall: ", recall);
+    }
+
+    if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
+        LOG_INFO("Using PostFiltering");
+        PostFiltering pf;
+        pf.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        pf.set_strings(str_array);
+        LOG_INFO("Building PostFiltering index");
+        unsigned long long start_time = currentTime();
+        pf.build();
+        LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", pf.size(), " bytes");
+        LOG_INFO("Processing queries");
+        // TODO: implement
     }
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
@@ -203,27 +228,53 @@ int main(int argc, char * argv[]) {
         VectorMaton vdb;
         vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
         vdb.set_strings(str_array);
-        LOG_DEBUG("Building VectorMaton-full index");
+        LOG_INFO("Building VectorMaton-full index");
         unsigned long long start_time = currentTime();
         vdb.build_full();
         LOG_INFO("VectorMaton-full index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
         LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
-        LOG_DEBUG("Processing queries");
-        start_time = currentTime();
-        std::vector<std::vector<int>> all_results;
-        for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
-            all_results.emplace_back(res);
-        }
-        LOG_INFO("VectorMaton-full query processing took ", timeFormatting(currentTime() - start_time).str());
-        LOG_DEBUG("Writing results to ", argv[6]);
-        std::ofstream f_results(argv[6]);
-        for (const auto& res : all_results) {
-            for (const auto& id : res) {
-                f_results << id << " ";
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef = 20; ef <= 200; ef += 20) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            vdb.set_ef(ef);
+            start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+                all_results.emplace_back(res);
             }
-            f_results << "\n";
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            // Calculate recall
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            // Write header
+            f_stats << "ef_search,time_us,recall,exact\n";
+            // Compute exact search time per query
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
+            // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+            }
         }
     }
 
@@ -232,27 +283,53 @@ int main(int argc, char * argv[]) {
         VectorMaton vdb;
         vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
         vdb.set_strings(str_array);
-        LOG_DEBUG("Building VectorMaton-smart index");
+        LOG_INFO("Building VectorMaton-smart index");
         unsigned long long start_time = currentTime();
         vdb.build_smart();
         LOG_INFO("VectorMaton-smart index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
         LOG_INFO("Total vertices in HNSW/NSW: ", std::to_string(vdb.vertex_num()));
-        LOG_DEBUG("Processing queries");
-        start_time = currentTime();
-        std::vector<std::vector<int>> all_results;
-        for (size_t i = 0; i < queried_strings.size(); ++i) {
-            auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
-            all_results.emplace_back(res);
-        }
-        LOG_INFO("VectorMaton-smart query processing took ", timeFormatting(currentTime() - start_time).str());
-        LOG_DEBUG("Writing results to ", argv[6]);
-        std::ofstream f_results(argv[6]);
-        for (const auto& res : all_results) {
-            for (const auto& id : res) {
-                f_results << id << " ";
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef = 20; ef <= 200; ef += 20) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            vdb.set_ef(ef);
+            start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+                all_results.emplace_back(res);
             }
-            f_results << "\n";
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            // Calculate recall
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            // Write header
+            f_stats << "ef_search,time_us,recall,exact\n";
+            // Compute exact search time per query
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
+            // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+            }
         }
     }
 
