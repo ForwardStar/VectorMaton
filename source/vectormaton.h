@@ -11,7 +11,7 @@ class VectorMaton {
         float** vecs; // It is user's responsibility to manage the memory of vecs
         std::string* strs; // It is user's responsibility to manage the memory of strs
         int dim = 0, num_elements = 0;
-        int min_build_threshold = 32;
+        int min_build_threshold = 200; // minimum number of vectors to build HNSW/NSW
         void build_gsa();
         void clear_gsa();
 

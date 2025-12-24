@@ -71,6 +71,7 @@ void VectorMaton::build_smart() {
                 for (int j = 0; j < size_ids[i]; j++) {
                     candidate_ids[i][j] = st.ids[j];
                 }
+                st.ids = std::vector<uint32_t>();
                 continue;
             }
             // First find a successor with largest built graph
@@ -93,6 +94,7 @@ void VectorMaton::build_smart() {
                     candidate_ids[i][j] = id;
                 }
                 largest_state[i] = i;
+                st.ids = std::vector<uint32_t>();
             }
             else {
                 // Found the largest successor, inherit from this successor
@@ -128,6 +130,7 @@ void VectorMaton::build_smart() {
                         largest_state[i] = i;
                     }
                 }
+                st.ids = std::vector<uint32_t>();
             }
         }
     #else
@@ -135,7 +138,7 @@ void VectorMaton::build_smart() {
     #endif
 
     delete [] largest_state;
-    clear_gsa();
+    // clear_gsa();
 }
 
 void VectorMaton::build_full() {
@@ -173,12 +176,13 @@ void VectorMaton::build_full() {
             for (auto id : st.ids) {
                 hnsws[i]->addPoint(vecs[id], id);
             }
+            st.ids = std::vector<uint32_t>();
         }
     #else
         // TODO: implement
     #endif
     
-    clear_gsa();
+    // clear_gsa();
 }
 
 size_t VectorMaton::size() {
