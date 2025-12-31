@@ -188,31 +188,42 @@ void VectorMaton::build_full() {
 size_t VectorMaton::size() {
     size_t total_size = 0;
     #if USE_HNSW
+        size_t hnsw_size = 0;
         for (int i = 0; i < gsa.st.size(); i++) {
             auto hnsw = hnsws[i];
             if (!hnsw) continue;
-            total_size += hnsw->max_elements_ * hnsw->size_data_per_element_; // size of data_level0_memory_
-            total_size += sizeof(void*) * hnsw->max_elements_; // size of linkLists_
-            // Ignore the other variables since they are relatively small
+            hnsw_size += hnsw->indexFileSize();
         }
+        LOG_DEBUG("HNSW size: ", hnsw_size, " bytes.");
+        total_size += hnsw_size;
     #else
+        size_t nsw_size = 0;
         for (int i = 0; i < gsa.st.size(); i++) {
             auto nsw = nsws[i];
             if (!nsw) continue;
             for (auto& node : nsw->nodes) {
-                total_size += sizeof(node.id);
-                total_size += sizeof(int) * node.neighbors.capacity();
+                nsw_size += sizeof(node.id);
+                nsw_size += sizeof(int) * node.neighbors.capacity();
             }
         }
+        LOG_DEBUG("NSW size: ", nsw_size, " bytes.");
+        total_size += nsw_size;
     #endif
+    size_t sa_size = 0;
     for (auto& s : gsa.st) {
-        total_size += sizeof(std::pair<char, int>) * s.next.size(); // size of adjacency map
-        total_size += sizeof(s.len) + sizeof(s.link); // size of len and link
+        sa_size += sizeof(std::pair<char, int>) * s.next.size(); // size of adjacency map
+        sa_size += sizeof(s.len) + sizeof(s.link); // size of len and link
     }
+    LOG_DEBUG("Suffix automaton size: ", sa_size, " bytes.");
+    total_size += sa_size;
+    size_t string_size = 0, vector_size = 0;
     for (int i = 0; i < num_elements; i++) {
-        total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
-        total_size += sizeof(float) * dim; // size of each vector
+        string_size += sizeof(std::string) + strs[i].capacity(); // size of each string
+        vector_size += sizeof(float) * dim; // size of each vector
     }
+    LOG_DEBUG("String size: ", string_size, " bytes.");
+    LOG_DEBUG("Vector size: ", vector_size, " bytes.");
+    total_size += string_size + vector_size;
     return total_size;
 }
 
@@ -225,6 +236,11 @@ size_t VectorMaton::vertex_num() {
             if (!nsws[i]) continue;
         #endif
         total_vertices += size_ids[i];
+        #ifdef USE_HNSW
+            if (size_ids[i] != hnsws[i]->max_elements_) {
+                LOG_ERROR("Vertex number for state ", i, " does not match!");
+            }
+        #endif
     }
     return total_vertices;
 }
