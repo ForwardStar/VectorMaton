@@ -109,7 +109,12 @@ void GeneralizedSuffixAutomaton::add_string(uint32_t id, const std::string &s) {
     last = 0;
     st[0].ids.emplace_back(id);
     for (char c : s) {
-        sa_extend(c, id);
+        if (c >= 'a' && c <= 'z') {
+            sa_extend(c, id);
+        }
+        else {
+            LOG_WARN("Non-alphabetic character '", c, "' in the ", id, "-th string: did you pre-process data correctly?");
+        }
     }
 }
 

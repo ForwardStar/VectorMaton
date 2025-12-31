@@ -5,7 +5,7 @@
 #include "vectormaton.h"
 
 int main(int argc, char * argv[]) {
-    if (argc < 8) {
+    if (argc < 7) {
         LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics_file=output_statistics.csv]");
         return 1;
     }
