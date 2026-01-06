@@ -19,7 +19,7 @@ void PreFiltering::build_gsa() {
     }
 }
 
-void PreFiltering::set_vectors(float** vectors, int dimension, int num_elems) {
+void PreFiltering::set_vectors(float* vectors, int dimension, int num_elems) {
     vecs = vectors;
     dim = dimension;
     num_elements = num_elems;
@@ -51,7 +51,7 @@ std::vector<int> PreFiltering::query(const float* vec, const std::string &s, int
         results.push_back(id);
     }
     std::sort(results.begin(), results.end(), [&](int a, int b) {
-        return distance(vecs[a], vec, dim) < distance(vecs[b], vec, dim);
+        return distance(vecs + a * dim, vec, dim) < distance(vecs + b * dim, vec, dim);
     });
     results.resize(std::min(k, static_cast<int>(results.size())));
     return results;

@@ -2,13 +2,11 @@
 #include <iostream>
 
 int main() {
-    float** vecs;
-    vecs = new float*[5];
-    vecs[0] = new float[3]{1.0, 2.0, 3.0};
-    vecs[1] = new float[3]{4.0, 5.0, 6.0};
-    vecs[2] = new float[3]{7.0, 8.0, 9.0};
-    vecs[3] = new float[3]{10.0, 11.0, 12.0};
-    vecs[4] = new float[3]{13.0, 14.0, 15.0};
+    float* vecs;
+    vecs = new float[15];
+    for (int i = 0; i < 15; i++) {
+        vecs[i] = i + 1;
+    }
     
     std::string strings[5] = {
         "banana",

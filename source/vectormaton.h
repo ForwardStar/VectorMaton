@@ -8,7 +8,7 @@
 
 class VectorMaton {
     private:
-        float** vecs; // It is user's responsibility to manage the memory of vecs
+        float* vecs; // It is user's responsibility to manage the memory of vecs
         std::string* strs; // It is user's responsibility to manage the memory of strs
         int dim = 0, num_elements = 0;
         int min_build_threshold = 200; // minimum number of vectors to build HNSW/NSW
@@ -27,7 +27,7 @@ class VectorMaton {
             NSW** nsws = nullptr;
         #endif
 
-        void set_vectors(float** vectors, int dimension, int num_elems);
+        void set_vectors(float* vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
         void build_smart();
         void build_full();

@@ -1,6 +1,6 @@
 #include "post_filtering.h"
 
-void PostFiltering::set_vectors(float** vectors, int dimension, int num_elems) {
+void PostFiltering::set_vectors(float* vectors, int dimension, int num_elems) {
     vecs = vectors;
     dim = dimension;
     num_elements = num_elems;
@@ -14,9 +14,9 @@ void PostFiltering::build() {
     #if USE_HNSW
         if (!hnsw) {
             space = new hnswlib::L2Space(dim);
-            hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, 16, 200);
+            hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs, 16, 200);
             for (int i = 0; i < num_elements; i++) {
-                hnsw->addPoint(vecs[i], i);
+                hnsw->addPoint(i);
             }
         }
     #else

@@ -6,7 +6,7 @@
 
 class PostFiltering {
     private:
-        float** vecs; // It is user's responsibility to manage the memory of vecs
+        float* vecs; // It is user's responsibility to manage the memory of vecs
         std::string* strs; // It is user's responsibility to manage the memory of strs
         int dim = 0, num_elements = 0;
 
@@ -18,7 +18,7 @@ class PostFiltering {
             NSW* nsw = nullptr;
         #endif
 
-        void set_vectors(float** vectors, int dimension, int num_elems);
+        void set_vectors(float* vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
         void build();
         size_t size();
