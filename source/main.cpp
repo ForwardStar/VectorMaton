@@ -149,7 +149,7 @@ int main(int argc, char * argv[]) {
     }
 
     // Turn vectors into float*
-    float* vec_array = new float[vectors.size()];
+    float* vec_array = new float[vectors.size() * vectors[0].size()];
     for (size_t i = 0; i < vectors.size(); ++i) {
         for (size_t j = 0; j < vectors[0].size(); ++j) {
             vec_array[i * vectors[0].size() + j] = vectors[i][j];
