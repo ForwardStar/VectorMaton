@@ -4,7 +4,6 @@
 #define SA_H
 
 #include "headers.h"
-#include "set_hash.h"
 
 class GeneralizedSuffixAutomaton {
 public:

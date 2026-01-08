@@ -26,10 +26,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
-#define USE_HNSW 1
-#if USE_HNSW
-    #include "hnswlib/hnswlib.h"
-#endif
+#include "hnswlib/hnswlib.h"
 
 // Calculate Euclidean distance between two vectors
 inline float distance(const float* a, const float* b, size_t size) {
