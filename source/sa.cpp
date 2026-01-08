@@ -9,6 +9,27 @@ GeneralizedSuffixAutomaton::GeneralizedSuffixAutomaton() {
     last = 0;
 }
 
+GeneralizedSuffixAutomaton::GeneralizedSuffixAutomaton(char* input_file) {
+    std::ifstream f(input_file);
+    int n;
+    f >> n;
+    st.resize(n);
+    for (int i = 0; i < n; i++) {
+        int m, k;
+        f >> st[i].len >> st[i].link >> m >> k;
+        for (int j = 0; j < m; j++) {
+            int x, y;
+            f >> x >> y;
+            st[i].next[char(x)] = y;
+        }
+        st[i].ids.resize(k);
+        for (int j = 0; j < k; j++) {
+            f >> st[i].ids[j];
+        }
+    }
+    f.close();
+}
+
 int GeneralizedSuffixAutomaton::size() {
     return st.size();
 }
@@ -227,4 +248,21 @@ std::vector<int> GeneralizedSuffixAutomaton::topo_sort() const {
     }
     delete [] in_degree;
     return order;
+}
+
+void GeneralizedSuffixAutomaton::dump(char* output_file) {
+    std::ofstream f(output_file);
+    f << st.size() << "\n";
+    for (int i = 0; i < st.size(); i++) {
+        f << st[i].len << " " << st[i].link << " " << st[i].next.size() << " " << st[i].ids.size() << "\n";
+        for (auto e : st[i].next) {
+            f << int(e.first) << " " << e.second << " ";
+        }
+        f << "\n";
+        for (auto id : st[i].ids) {
+            f << id << " ";
+        }
+        f << "\n";
+    }
+    f.close();
 }

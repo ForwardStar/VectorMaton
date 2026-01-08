@@ -25,8 +25,8 @@ class VectorMaton {
         void set_strings(std::string* strings);
         void build_smart();
         void build_full();
-        void load_index(char* input_file);
-        void save_index(char* output_file);
+        void load_index(const char* input_folder);
+        void save_index(const char* output_folder);
         size_t size();
         size_t vertex_num();
         void set_ef(int ef);

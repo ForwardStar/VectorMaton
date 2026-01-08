@@ -176,12 +176,102 @@ void VectorMaton::build_full() {
     // clear_gsa();
 }
 
-void VectorMaton::load_index(char* input_file) {
+void VectorMaton::load_index(const char* input_folder) {
+    namespace fs = std::filesystem;
+    fs::path in_path(input_folder);
 
+    fs::path gsa_file = in_path / "gsa.in";
+    LOG_DEBUG("Loading automaton data from ", gsa_file.string());
+    std::string tmp = gsa_file.string();
+    std::vector<char> filename(tmp.begin(), tmp.end());
+    filename.push_back('\0');
+    gsa = GeneralizedSuffixAutomaton(filename.data());
+
+    fs::path internal_file = in_path / "internal.in";
+    LOG_DEBUG("Loading VectorMaton internal data from ", internal_file.string());
+    std::ifstream f(internal_file.string());
+    inherit_states = new int[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        f >> inherit_states[i];
+    }
+    size_ids = new int[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        f >> size_ids[i];
+    }
+    candidate_ids = new int*[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        candidate_ids[i] = new int[size_ids[i]];
+        for (int j = 0; j < size_ids[i]; j++) {
+            f >> candidate_ids[i][j];
+        }
+    }
+    f.close();
+
+    LOG_DEBUG("Loading HNSW data");
+    space = new hnswlib::L2Space(dim);
+    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        std::string s = "hnsw";
+        s += std::to_string(i);
+        std::vector<char> buf(s.begin(), s.end());
+        buf.push_back('\0');
+        fs::path hnsw_file = in_path / buf.data();
+        std::string tmp = hnsw_file.string();
+        if (fs::exists(hnsw_file)) {
+            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, tmp, size_ids[i]);
+        }
+        else {
+            hnsws[i] = nullptr;
+        }
+    }
 }
 
-void VectorMaton::save_index(char* output_file) {
-    
+void VectorMaton::save_index(const char* output_folder) {
+    namespace fs = std::filesystem;
+    fs::path out_path(output_folder);
+
+    if (!fs::exists(out_path)) {
+        fs::create_directories(out_path);  // safer than create_directory
+    }
+
+    fs::path gsa_file = out_path / "gsa.in";
+    LOG_DEBUG("Saving automaton data from ", gsa_file.string());
+    std::string tmp = gsa_file.string();
+    std::vector<char> filename(tmp.begin(), tmp.end());
+    filename.push_back('\0');
+    gsa.dump(filename.data());
+
+    fs::path internal_file = out_path / "internal.in";
+    LOG_DEBUG("Saving VectorMaton internal data from ", internal_file.string());
+    std::ofstream f(internal_file.string());
+    for (int i = 0; i < gsa.st.size(); i++) {
+        f << inherit_states[i] << " ";
+    }
+    f << "\n";
+    for (int i = 0; i < gsa.st.size(); i++) {
+        f << size_ids[i] << " ";
+    }
+    f << "\n";
+    for (int i = 0; i < gsa.st.size(); i++) {
+        for (int j = 0; j < size_ids[i]; j++) {
+            f << candidate_ids[i][j] << " ";
+        }
+        f << "\n";
+    }
+    f.close();
+
+    LOG_DEBUG("Saving HNSW data");
+    for (int i = 0; i < gsa.st.size(); i++) {
+        if (hnsws[i]) {
+            std::string s = "hnsw";
+            s += std::to_string(i);
+            std::vector<char> buf(s.begin(), s.end());
+            buf.push_back('\0');
+            fs::path hnsw_file = out_path / buf.data();
+            std::string tmp = hnsw_file.string();
+            hnsws[i]->saveIndex(tmp);
+        }
+    }
 }
 
 size_t VectorMaton::size() {

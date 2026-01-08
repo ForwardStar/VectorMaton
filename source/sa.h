@@ -24,6 +24,7 @@ public:
     std::vector<int> affected_states;
 
     GeneralizedSuffixAutomaton();
+    GeneralizedSuffixAutomaton(char* input_file);
 
     // Add a new string with integer ID 'id'. This will index all substrings of s
     // so future queries will return 'id' if a queried substring appears in s.
@@ -52,6 +53,9 @@ public:
 
     // Topological sort of states (for processing in order of links).
     std::vector<int> topo_sort() const;
+
+    // Dump the index to disk
+    void dump(char* output_file);
 
 private:
     int last;
