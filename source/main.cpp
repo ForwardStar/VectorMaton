@@ -149,23 +149,26 @@ int main(int argc, char * argv[]) {
     }
 
     // Turn vectors into float*
-    float* vec_array = new float[vectors.size() * vectors[0].size()];
-    for (size_t i = 0; i < vectors.size(); ++i) {
-        for (size_t j = 0; j < vectors[0].size(); ++j) {
-            vec_array[i * vectors[0].size() + j] = vectors[i][j];
+    int n = vectors.size(), dim = vectors[0].size();
+    float* vec_array = new float[n * dim];
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < dim; ++j) {
+            vec_array[i * dim + j] = vectors[i][j];
         }
     }
+    vectors = std::vector<std::vector<float>>();
 
     // Turn strings into std::string*
-    std::string* str_array = new std::string[strings.size()];
-    for (size_t i = 0; i < strings.size(); ++i) {
+    std::string* str_array = new std::string[n];
+    for (size_t i = 0; i < n; ++i) {
         str_array[i] = strings[i];
     }
+    strings = std::vector<std::string>();
 
     std::vector<std::vector<int>> exact_results;
     LOG_INFO("Doing ExactSearch for baseline comparison");
     ExactSearch es;
-    es.set_vectors(vec_array, vectors[0].size(), vectors.size());
+    es.set_vectors(vec_array, dim, n);
     es.set_strings(str_array);
     unsigned long long start_time = currentTime();
     std::vector<std::vector<int>> all_results;
@@ -179,7 +182,7 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
         PreFiltering pf;
-        pf.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        pf.set_vectors(vec_array, dim, n);
         pf.set_strings(str_array);
         LOG_INFO("Building PreFiltering index");
         unsigned long long start_time = currentTime();
@@ -214,7 +217,7 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
         LOG_INFO("Using PostFiltering");
         PostFiltering pf;
-        pf.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        pf.set_vectors(vec_array, dim, n);
         pf.set_strings(str_array);
         LOG_INFO("Building PostFiltering index");
         unsigned long long start_time = currentTime();
@@ -228,7 +231,7 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
         LOG_INFO("Using VectorMaton-full");
         VectorMaton vdb;
-        vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        vdb.set_vectors(vec_array, dim, n);
         vdb.set_strings(str_array);
         LOG_INFO("Building VectorMaton-full index");
         unsigned long long start_time = currentTime();
@@ -283,7 +286,7 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorMaton-smart") == 0) {
         LOG_INFO("Using VectorMaton-smart");
         VectorMaton vdb;
-        vdb.set_vectors(vec_array, vectors[0].size(), vectors.size());
+        vdb.set_vectors(vec_array, dim, n);
         vdb.set_strings(str_array);
         LOG_INFO("Building VectorMaton-smart index");
         unsigned long long start_time = currentTime();

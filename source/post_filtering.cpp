@@ -10,6 +10,14 @@ void PostFiltering::set_strings(std::string* strings) {
     strs = strings;
 }
 
+void PostFiltering::set_ef(int ef) {
+    #if USE_HNSW
+        hnsw->setEf(ef);
+    #else
+        // TODO: implement
+    #endif
+}
+
 void PostFiltering::build() {
     #if USE_HNSW
         if (!hnsw) {
@@ -48,37 +56,22 @@ size_t PostFiltering::size() {
     return total_size;
 }
 
-std::vector<int> PostFiltering::query(const float* vec, const std::string &s, int k, int threshold) {
+std::vector<int> PostFiltering::query(const float* vec, const std::string &s, int k, int ef_search) {
     std::vector<int> results;
-    int amplification = 2; // To improve recall, search for more candidates
-    while (results.size() < k) {
-        results.clear();
-        #if USE_HNSW
-            auto tmp = hnsw->searchKnnCloserFirst(vec, k * amplification);
-            for (auto& pair : tmp) {
-                int id = pair.second;
-                if (strs[id].find(s) != std::string::npos) {
-                    results.push_back(id);
-                }
-                if (results.size() >= static_cast<size_t>(k)) {
-                    break;
-                }
+    #if USE_HNSW
+        if (ef_search) set_ef(ef_search);
+        auto tmp = hnsw->searchKnnCloserFirst(vec, (ef_search != 0 ? ef_search : k));
+        for (auto& pair : tmp) {
+            int id = pair.second;
+            if (strs[id].find(s) != std::string::npos) {
+                results.push_back(id);
             }
-        #else
-            auto tmp = nsw->searchKNN(vec, k * amplification); // Get more candidates to improve recall
-            for (uint32_t id : tmp) {
-                if (strs[id].find(s) != std::string::npos) {
-                    results.push_back(id);
-                }
-                if (results.size() >= static_cast<size_t>(k)) {
-                    break;
-                }
+            if (results.size() >= static_cast<size_t>(k)) {
+                break;
             }
-        #endif
-        amplification *= 2; // Double the amplification factor
-        if (amplification > threshold) { // Avoid too large amplification
-            break;
         }
-    }
+    #else
+        // TODO: implementation
+    #endif
     return results;
 }

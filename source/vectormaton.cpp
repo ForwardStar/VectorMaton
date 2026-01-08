@@ -20,13 +20,13 @@ void VectorMaton::build_gsa() {
     LOG_DEBUG("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));
 
     // Print GSA statistics
-    auto stats = gsa.get_statistics();
-    for (size_t depth = 0; depth < stats.size(); ++depth) {
-        const auto &stat = stats[depth];
-        LOG_DEBUG("Depth ", depth, ": num states = ", stat.sizes.size(),
-                  ", median vector set size = ", stat.mid,
-                  ", average vector set size = ", stat.avg);
-    }
+    // auto stats = gsa.get_statistics();
+    // for (size_t depth = 0; depth < stats.size(); ++depth) {
+    //     const auto &stat = stats[depth];
+    //     LOG_DEBUG("Depth ", depth, ": num states = ", stat.sizes.size(),
+    //               ", median vector set size = ", stat.mid,
+    //               ", average vector set size = ", stat.avg);
+    // }
 }
 
 void VectorMaton::clear_gsa() {
@@ -90,7 +90,7 @@ void VectorMaton::build_smart() {
                 candidate_ids[i] = new int[size_ids[i]];
                 for (int j = 0; j < size_ids[i]; j++) {
                     int id = st.ids[j];
-                    hnsws[i]->addPoint(id);    
+                    hnsws[i]->addPoint(id);
                     candidate_ids[i][j] = id;
                 }
                 largest_state[i] = i;
@@ -211,7 +211,8 @@ size_t VectorMaton::size() {
     #endif
     size_t sa_size = 0;
     for (auto& s : gsa.st) {
-        sa_size += sizeof(std::pair<char, int>) * s.next.size(); // size of adjacency map
+        sa_size += s.next.bucket_count() * sizeof(void*);
+        sa_size += (sizeof(std::pair<char, int>) + sizeof(void*)) * s.next.size(); // size of adjacency map
         sa_size += sizeof(s.len) + sizeof(s.link); // size of len and link
     }
     LOG_DEBUG("Suffix automaton size: ", sa_size, " bytes.");
@@ -224,6 +225,13 @@ size_t VectorMaton::size() {
     LOG_DEBUG("String size: ", string_size, " bytes.");
     LOG_DEBUG("Vector size: ", vector_size, " bytes.");
     total_size += string_size + vector_size;
+    // Auxiliary components
+    size_t aux_size = sizeof(int) * gsa.st.size() * 3;
+    for (int i = 0; i < gsa.st.size(); i++) {
+        aux_size += sizeof(int) * size_ids[i];
+    }
+    LOG_DEBUG("Auxiliary components' size: ", aux_size, " bytes.");
+    total_size += aux_size;
     return total_size;
 }
 

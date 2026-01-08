@@ -20,9 +20,10 @@ class PostFiltering {
 
         void set_vectors(float* vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
+        void set_ef(int ef);
         void build();
         size_t size();
-        std::vector<int> query(const float* vec, const std::string &s, int k, int threshold=2048);
+        std::vector<int> query(const float* vec, const std::string &s, int k, int ef_search=0);
         
         PostFiltering() {};
         ~PostFiltering() {
