@@ -6,7 +6,7 @@
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics_file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder]");
         return 1;
     }
 
@@ -39,7 +39,7 @@ int main(int argc, char * argv[]) {
             }
         }
         for (int i = 0; i < argc; i++) {
-            if (std::string(argv[i]).find("--statistics_file=") == 0) {
+            if (std::string(argv[i]).find("--statistics-file=") == 0) {
                 statistics_file = std::string(argv[i]).substr(18);
                 LOG_INFO("Statistics file set to ", statistics_file);
                 for (int j = i; j < argc - 1; j++) {
