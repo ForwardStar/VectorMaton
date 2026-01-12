@@ -1,20 +1,6 @@
 # Vectormaton
 An elegant index that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
 
-Example scenario:
-- In bioinformatics, each protein can be represented by (𝑠,𝑣), where 𝑠 is its amino acid sequence (e.g., Leu-Ser-Met) and 𝑣 is its 2D or 3D structural embedding (e.g., AlphaFold embeddings);
-
-- Query: searching the k-most similar protein structures containing a specific motif (i.e., a substring of amino acid sequence).
-
-Example query:
-- There are 4 (𝑠,𝑣) pairs in the vector database: ("ATP synthase subunit beta", [0, 1, 2]), ("ATP-dependent helicase", [3, 4, 5]), ("DNA polymerase III", [6, 7, 8]), ("Lactate dehydrogenase", [9, 10, 11])
-- Query 1: k=2, v=[5, 6, 7], s=""
-- Result 1: ("ATP-dependent helicase", [3, 4, 5]), ("DNA polymerase III", [6, 7, 8])
-- To be more specific, this returns the 2-NNs of vector v with an empty substring constraint, which is equalalent to the classic ANN search;
-- Query 2: k=2, v=[5, 6, 7], s="ATP"
-- Result 2: ("ATP synthase subunit beta", [0, 1, 2]), ("ATP-dependent helicase", [3, 4, 5])
-- This gives a substring constraint "ATP"; therefore, only data containing "ATP" as a substring will be considered.
-
 # Compile and run
 Parts of the project depend on ``openssl``. Install on Ubuntu:
 ```sh
