@@ -90,35 +90,35 @@ if __name__ == "__main__":
     else:
         log.info("CodeSearchNet dataset already exists. Skipped.")
     
-    # # SwissProt
-    # if not os.path.exists("datasets/swissprot"):
-    #     os.makedirs("datasets/swissprot")
-    #     log.info("Downloading and generating SwissProt dataset...")
-    #     start = time.perf_counter()
-    #     # Load dataset
-    #     dataset = load_dataset("DanielHesslow/SwissProt-EC", trust_remote_code=True)
-    #     log.info(f"Dataset loaded. Size = {dataset['train'].num_rows} entries.")
-    #     with open("datasets/swissprot/vectors.txt", "w") as vec_file, open("datasets/swissprot/strings.txt", "w") as str_file:
-    #         device = "cuda" if torch.cuda.is_available() else "cpu"
-    #         tokenizer = AutoTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
-    #         model = AutoModel.from_pretrained("Rostlab/prot_bert").to(device)
-    #         for item in dataset['train']:
-    #             s = item['seq']
-    #             # Remove all non-alphabet symbols
-    #             s = ''.join(c for c in s if c.isalpha())
-    #             # Convert to lowercase
-    #             s = s.lower()
-    #             seq = item['seq']
-    #             inputs = tokenizer(seq, return_tensors="pt", truncation=True, max_length=1024).to(device)
-    #             with torch.no_grad():
-    #                 v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
-    #             vec_file.write(" ".join(map(str, v)) + "\n")
-    #             str_file.write(s + "\n")
-    #     end = time.perf_counter()
-    #     elapsed = end - start
-    #     log.info(f"Time consumption: {format_time(elapsed)}")
-    # else:
-    #     log.info("SwissProt dataset already exists. Skipped.")
+    # SwissProt
+    if not os.path.exists("datasets/swissprot"):
+        os.makedirs("datasets/swissprot")
+        log.info("Downloading and generating SwissProt dataset...")
+        start = time.perf_counter()
+        # Load dataset
+        dataset = load_dataset("khairi/uniprot-swissprot", trust_remote_code=True)
+        log.info(f"Dataset loaded. Size = {dataset['train'].num_rows} entries.")
+        with open("datasets/swissprot/vectors.txt", "w") as vec_file, open("datasets/swissprot/strings.txt", "w") as str_file:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            tokenizer = AutoTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
+            model = AutoModel.from_pretrained("Rostlab/prot_bert").to(device)
+            for item in dataset['train']:
+                s = item['Sequences']
+                # Remove all non-alphabet symbols
+                s = ''.join(c for c in s if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
+                # Convert to lowercase
+                s = s.lower()
+                seq = item['Sequences']
+                inputs = tokenizer(seq, return_tensors="pt", truncation=True, max_length=1024).to(device)
+                with torch.no_grad():
+                    v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
+                vec_file.write(" ".join(map(str, v)) + "\n")
+                str_file.write(s + "\n")
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("SwissProt dataset already exists. Skipped.")
 
     # ArXiv
     if not os.path.exists("datasets/arxiv"):
