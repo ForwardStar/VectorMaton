@@ -24,6 +24,36 @@ void PostFiltering::build() {
     }
 }
 
+void PostFiltering::load_index(const char* input_folder) {
+    namespace fs = std::filesystem;
+    fs::path in_path(input_folder);
+
+    fs::path hnsw_file = in_path / "hnsw";
+
+    LOG_DEBUG("Loading HNSW data");
+    space = new hnswlib::L2Space(dim);
+    if (fs::exists(hnsw_file)) {
+        hnsw = new hnswlib::HierarchicalNSW<float>(space, hnsw_file.string(), num_elements);
+    }
+    else {
+        hnsw = nullptr;
+    }
+}
+
+void PostFiltering::save_index(const char* output_folder) {
+    namespace fs = std::filesystem;
+    fs::path out_path(output_folder);
+
+    if (!fs::exists(out_path)) {
+        fs::create_directories(out_path);  // safer than create_directory
+    }
+
+    LOG_DEBUG("Saving HNSW data");
+    fs::path hnsw_file = out_path / "hnsw";
+    std::string tmp = hnsw_file.string();
+    hnsw->saveIndex(tmp);
+}
+
 size_t PostFiltering::size() {
     size_t total_size = 0;
     total_size += hnsw->indexFileSize();

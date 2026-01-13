@@ -243,11 +243,25 @@ int main(int argc, char * argv[]) {
         PostFiltering pf;
         pf.set_vectors(vec_array, dim, n);
         pf.set_strings(str_array);
-        LOG_INFO("Building PostFiltering index");
-        unsigned long long start_time = currentTime();
-        pf.build();
+        if (index_in == "") {
+            LOG_INFO("Building PostFiltering index");
+            unsigned long long start_time = currentTime();
+            pf.build();
+        }
+        else {
+            LOG_INFO("Loading index from: ", index_in);
+            unsigned long long start_time = currentTime();
+            pf.load_index(index_in.c_str());
+            LOG_INFO("VectorMaton-full index loaded in ", timeFormatting(currentTime() - start_time).str());
+        }
         LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", pf.size(), " bytes");
+        if (index_out != "") {
+            LOG_INFO("Saving index to: ", index_out);
+            unsigned long long start_time = currentTime();
+            pf.save_index(index_out.c_str());
+            LOG_INFO("VectorMaton-full index saved in ", timeFormatting(currentTime() - start_time).str());
+        }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef = 20; ef <= 200; ef += 20) {

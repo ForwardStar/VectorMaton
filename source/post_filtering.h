@@ -17,6 +17,8 @@ class PostFiltering {
         void set_strings(std::string* strings);
         void set_ef(int ef);
         void build();
+        void load_index(const char* input_folder);
+        void save_index(const char* output_folder);
         size_t size();
         std::vector<int> query(const float* vec, const std::string &s, int k, int ef_search=0);
         
