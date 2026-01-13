@@ -7,6 +7,11 @@ Parts of the project depend on ``openssl``. Install on Ubuntu:
 sudo apt-get install libssl-dev
 ```
 
+Fetch the ``hnswlib`` submodule:
+```sh
+git submodule update --init --recursive
+```
+
 We developed and tested this vector database under ``GCC 10.5.0`` with ``O3`` optimization. To compile the codes, simply run:
 ```sh
 mkdir build && cd build
