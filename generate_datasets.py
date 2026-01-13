@@ -103,12 +103,12 @@ if __name__ == "__main__":
             tokenizer = AutoTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
             model = AutoModel.from_pretrained("Rostlab/prot_bert").to(device)
             for item in dataset['train']:
-                s = item['Sequences']
+                s = item['Sequence']
                 # Remove all non-alphabet symbols
                 s = ''.join(c for c in s if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
                 # Convert to lowercase
                 s = s.lower()
-                seq = item['Sequences']
+                seq = item['Sequence']
                 inputs = tokenizer(seq, return_tensors="pt", truncation=True, max_length=1024).to(device)
                 with torch.no_grad():
                     v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
