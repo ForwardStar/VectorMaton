@@ -1,4 +1,4 @@
-# Vectormaton
+# VectorMaton
 An elegant index that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
 
 # Compile and run
