@@ -247,6 +247,7 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Building PostFiltering index");
             unsigned long long start_time = currentTime();
             pf.build();
+            LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         }
         else {
             LOG_INFO("Loading index from: ", index_in);
@@ -254,7 +255,6 @@ int main(int argc, char * argv[]) {
             pf.load_index(index_in.c_str());
             LOG_INFO("PostFiltering index loaded in ", timeFormatting(currentTime() - start_time).str());
         }
-        LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", pf.size(), " bytes");
         if (index_out != "") {
             LOG_INFO("Saving index to: ", index_out);

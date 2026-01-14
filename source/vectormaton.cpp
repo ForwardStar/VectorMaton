@@ -218,7 +218,7 @@ void VectorMaton::load_index(const char* input_folder) {
         fs::path hnsw_file = in_path / buf.data();
         std::string tmp = hnsw_file.string();
         if (fs::exists(hnsw_file)) {
-            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, tmp, size_ids[i]);
+            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, tmp, vecs);
         }
         else {
             hnsws[i] = nullptr;

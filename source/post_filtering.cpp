@@ -33,7 +33,7 @@ void PostFiltering::load_index(const char* input_folder) {
     LOG_DEBUG("Loading HNSW data");
     space = new hnswlib::L2Space(dim);
     if (fs::exists(hnsw_file)) {
-        hnsw = new hnswlib::HierarchicalNSW<float>(space, hnsw_file.string(), num_elements);
+        hnsw = new hnswlib::HierarchicalNSW<float>(space, hnsw_file.string(), vecs);
     }
     else {
         hnsw = nullptr;
