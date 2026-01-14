@@ -252,7 +252,7 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Loading index from: ", index_in);
             unsigned long long start_time = currentTime();
             pf.load_index(index_in.c_str());
-            LOG_INFO("VectorMaton-full index loaded in ", timeFormatting(currentTime() - start_time).str());
+            LOG_INFO("PostFiltering index loaded in ", timeFormatting(currentTime() - start_time).str());
         }
         LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", pf.size(), " bytes");
@@ -260,7 +260,7 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Saving index to: ", index_out);
             unsigned long long start_time = currentTime();
             pf.save_index(index_out.c_str());
-            LOG_INFO("VectorMaton-full index saved in ", timeFormatting(currentTime() - start_time).str());
+            LOG_INFO("PostFiltering index saved in ", timeFormatting(currentTime() - start_time).str());
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
