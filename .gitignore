@@ -12,3 +12,4 @@ main
 build
 datasets
 *.txt
+results
