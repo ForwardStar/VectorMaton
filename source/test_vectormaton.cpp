@@ -55,6 +55,37 @@ int main() {
     print_res(pdb.query(query_vec1, "anana", 2)); // {0, 1}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
     print_res(pdb.query(query_vec1, "banana", 2)); // {0}
+
+    // Test save/load index
+    pdb.save_index("test_vectormaton");
+    VectorMaton pdb1;
+    pdb1.set_vectors(vecs, 3, 5);
+    pdb1.set_strings(strings);
+    pdb1.load_index("test_vectormaton");
+    std::cout << "Load VectorMaton tests:" << std::endl;
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
+    print_res(pdb1.query(query_vec1, "ana", 2)); // {2, 3}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;
+    print_res(pdb1.query(query_vec1, "nana", 2)); // {1, 2}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'anana'." << std::endl;
+    print_res(pdb1.query(query_vec1, "anana", 2)); // {0, 1}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
+    print_res(pdb1.query(query_vec1, "banana", 2)); // {0}
+
+    // Test build parallel
+    VectorMaton pdb2;
+    pdb2.set_vectors(vecs, 3, 5);
+    pdb2.set_strings(strings);
+    pdb2.build_parallel();
+    std::cout << "Parallel VectorMaton tests:" << std::endl;
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
+    print_res(pdb2.query(query_vec1, "ana", 2)); // {2, 3}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;
+    print_res(pdb2.query(query_vec1, "nana", 2)); // {1, 2}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'anana'." << std::endl;
+    print_res(pdb2.query(query_vec1, "anana", 2)); // {0, 1}
+    std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
+    print_res(pdb2.query(query_vec1, "banana", 2)); // {0}
     
     return 0;
 }

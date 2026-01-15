@@ -6,7 +6,7 @@
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...]");
         return 1;
     }
 
@@ -14,6 +14,7 @@ int main(int argc, char * argv[]) {
     std::string statistics_file = "";
     std::string index_in = "";
     std::string index_out = "";
+    int num_threads = 8;
     // Parse optional arguments
     if (argc > 7) {
         for (int i = 0; i < argc; i++) {
@@ -64,6 +65,18 @@ int main(int argc, char * argv[]) {
             if (std::string(argv[i]).find("--save-index=") == 0) {
                 index_out = std::string(argv[i]).substr(13);
                 LOG_INFO("Index files folder (save) set to ", index_out);
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--num-threads=") == 0) {
+                auto tmp = std::string(argv[i]).substr(14);
+                num_threads = std::atoi(tmp.c_str());
+                LOG_INFO("Number of threads set to ", num_threads);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -124,6 +137,14 @@ int main(int argc, char * argv[]) {
             return 1;
         }
     }
+
+    size_t string_size = 0, vector_size = 0;
+    for (int i = 0; i < strings.size(); i++) {
+        string_size += sizeof(std::string) + strings[i].capacity(); // size of each string
+        vector_size += sizeof(float) * vectors[0].size(); // size of each vector
+    }
+    LOG_INFO("Vector size: ", vector_size, " bytes");
+    LOG_INFO("String size: ", string_size, " bytes");
     
     // Read queries
     LOG_DEBUG("Query data file (string): ", argv[3]);
@@ -213,6 +234,7 @@ int main(int argc, char * argv[]) {
         pf.build();
         LOG_INFO("PreFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", pf.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)pf.size() / (string_size + vector_size));
         LOG_INFO("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
@@ -256,6 +278,7 @@ int main(int argc, char * argv[]) {
             LOG_INFO("PostFiltering index loaded in ", timeFormatting(currentTime() - start_time).str());
         }
         LOG_INFO("Total index size: ", pf.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)pf.size() / (string_size + vector_size));
         if (index_out != "") {
             LOG_INFO("Saving index to: ", index_out);
             unsigned long long start_time = currentTime();
@@ -323,7 +346,8 @@ int main(int argc, char * argv[]) {
             LOG_INFO("VectorMaton-full index loaded in ", timeFormatting(currentTime() - start_time).str());
         }
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_DEBUG("Total vertices in HNSW: ", std::to_string(vdb.vertex_num()));
+        LOG_INFO("Size ratio: ", (float)vdb.size() / (string_size + vector_size));
+        LOG_INFO("Total vertices in HNSW: ", std::to_string(vdb.vertex_num()));
         if (index_out != "") {
             LOG_INFO("Saving index to: ", index_out);
             unsigned long long start_time = currentTime();
@@ -392,7 +416,78 @@ int main(int argc, char * argv[]) {
             LOG_INFO("VectorMaton-smart index loaded in ", timeFormatting(currentTime() - start_time).str());
         }
         LOG_INFO("Total index size: ", vdb.size(), " bytes");
-        LOG_DEBUG("Total vertices in HNSW: ", std::to_string(vdb.vertex_num()));
+        LOG_INFO("Size ratio: ", (float)vdb.size() / (string_size + vector_size));
+        LOG_INFO("Total vertices in HNSW: ", std::to_string(vdb.vertex_num()));
+        if (index_out != "") {
+            LOG_INFO("Saving index to: ", index_out);
+            unsigned long long start_time = currentTime();
+            vdb.save_index(index_out.c_str());
+            LOG_INFO("VectorMaton-smart index saved in ", timeFormatting(currentTime() - start_time).str());
+        }
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef = 20; ef <= 200; ef += 20) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            vdb.set_ef(ef);
+            start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+                all_results.emplace_back(res);
+            }
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            // Calculate recall
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            // Write header
+            f_stats << "ef_search,time_us,recall,exact\n";
+            // Compute exact search time per query
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
+            // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+            }
+        }
+    }
+
+    if (std::strcmp(argv[argc - 1], "VectorMaton-parallel") == 0) {
+        LOG_INFO("Using VectorMaton-parallel");
+        VectorMaton vdb;
+        vdb.set_vectors(vec_array, dim, n);
+        vdb.set_strings(str_array);
+        if (index_in == "") {
+            LOG_INFO("Building VectorMaton-parallel index");
+            unsigned long long start_time = currentTime();
+            vdb.build_parallel(num_threads);
+            LOG_INFO("VectorMaton-parallel index built took ", timeFormatting(currentTime() - start_time).str());
+        }
+        else {
+            LOG_INFO("Loading index from: ", index_in);
+            unsigned long long start_time = currentTime();
+            vdb.load_index(index_in.c_str());
+            LOG_INFO("VectorMaton-parallel index loaded in ", timeFormatting(currentTime() - start_time).str());
+        }
+        LOG_INFO("Total index size: ", vdb.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)vdb.size() / (string_size + vector_size));
+        LOG_INFO("Total vertices in HNSW: ", std::to_string(vdb.vertex_num()));
         if (index_out != "") {
             LOG_INFO("Saving index to: ", index_out);
             unsigned long long start_time = currentTime();

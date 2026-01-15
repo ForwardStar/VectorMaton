@@ -3,6 +3,7 @@
 
 #include "headers.h"
 #include "sa.h"
+#include "mpmc_queue.h"
 
 class VectorMaton {
     private:
@@ -23,6 +24,7 @@ class VectorMaton {
 
         void set_vectors(float* vectors, int dimension, int num_elems);
         void set_strings(std::string* strings);
+        void build_parallel(int cores=8);
         void build_smart();
         void build_full();
         void load_index(const char* input_folder);

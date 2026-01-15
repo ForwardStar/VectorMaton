@@ -27,6 +27,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <omp.h>
 #include "hnswlib/hnswlib.h"
 
 // Calculate Euclidean distance between two vectors

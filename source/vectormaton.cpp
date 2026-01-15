@@ -35,6 +35,153 @@ void VectorMaton::clear_gsa() {
     }
 }
 
+void VectorMaton::build_parallel(int cores) {
+    build_gsa();
+    gsa.build_reverse();
+
+    // Smart build will inherit info from children
+    inherit_states = new int[gsa.st.size()];
+    size_ids = new int[gsa.st.size()];
+    candidate_ids = new int*[gsa.st.size()];
+    int* largest_state = new int[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        inherit_states[i] = -1, largest_state[i] = -1, size_ids[i] = 0, candidate_ids[i] = nullptr;
+    }
+
+    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    for (int i = 0; i < gsa.st.size(); i++) {
+        hnsws[i] = nullptr;
+    }
+    if (!space) {
+        space = new hnswlib::L2Space(dim);
+    }
+    MPMCQueue q(1 << (int(log2(gsa.st.size())) + 1));
+    std::atomic<int> num_init = 0;
+    #pragma omp parallel for num_threads(cores)
+    for (int i = 0; i < gsa.st.size(); i++) {
+        if (gsa.deg[i] == 0) {
+            if (!q.enqueue(i)) {
+                LOG_WARN("Enqueue failed for GSA state ", i);
+            }
+            num_init++;
+        }
+    }
+    LOG_DEBUG("Initial boundary states: ", num_init, ", initial queue size: ", q.size(), ", match: ", num_init == q.size() ? "yes" : "no");
+
+    int cur = 0, ten_percent = gsa.size_tot() / 10, tot_vertices = gsa.size_tot();
+    std::atomic<int> consumed = 0, built_vertices = 0;
+    std::mutex mtx;
+    #pragma omp parallel num_threads(cores)
+    {
+        int i = 0;
+        while (true) {
+            int c = consumed.load(std::memory_order_acquire);
+            if (c >= gsa.st.size())
+                break;
+
+            if (q.dequeue(i)) {
+                int prev = consumed.fetch_add(1, std::memory_order_acq_rel);
+                if (prev < gsa.st.size()) {
+                    auto& st = gsa.st[i];
+                    int prev_built = built_vertices.fetch_add(st.ids.size(), std::memory_order_acq_rel);
+                    if (prev_built >= cur) {
+                        mtx.lock();
+                        if (prev_built >= cur) {
+                            cur += ten_percent;
+                            LOG_DEBUG("Built states ", prev, "/", gsa.st.size(), " Built vertices: ", prev_built, "/", tot_vertices);
+                        }
+                        mtx.unlock();
+                    }
+                    if (st.ids.size() < min_build_threshold) {
+                        size_ids[i] = st.ids.size();
+                        candidate_ids[i] = new int[size_ids[i]];
+                        for (int j = 0; j < size_ids[i]; j++) {
+                            candidate_ids[i][j] = st.ids[j];
+                        }
+                        st.ids = std::vector<uint32_t>();
+                        // Enqueue
+                        for (auto prev : gsa.reverse_next[i]) {
+                            int val = gsa.deg[prev].fetch_sub(1);
+                            if (val == 1) {
+                                q.enqueue(prev);
+                            }
+                        }
+                        continue;
+                    }
+                    // First find a successor with largest built graph
+                    int target_sc = -1;
+                    for (auto ch : st.next) {
+                        if (largest_state[ch.second] != -1 && (target_sc == -1 || size_ids[largest_state[ch.second]] > size_ids[target_sc])) {
+                            target_sc = largest_state[ch.second];
+                        }
+                    }
+                    inherit_states[i] = target_sc;
+                    if (target_sc == -1) {
+                        // No successor has built a graph, built the graph with all vector ids
+                        int M = 16, ef_construction = 200;
+                        hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs, M, ef_construction);
+                        size_ids[i] = st.ids.size();
+                        candidate_ids[i] = new int[size_ids[i]];
+                        for (int j = 0; j < size_ids[i]; j++) {
+                            int id = st.ids[j];
+                            hnsws[i]->addPoint(id);
+                            candidate_ids[i][j] = id;
+                        }
+                        largest_state[i] = i;
+                        st.ids = std::vector<uint32_t>();
+                    }
+                    else {
+                        // Found the largest successor, inherit from this successor
+                        inherit_states[i] = target_sc;
+                        largest_state[i] = target_sc;
+                        // Find remaining vertices
+                        int l = 0, r = 0, cnt = 0;
+                        size_ids[i] = st.ids.size() - size_ids[target_sc];
+                        candidate_ids[i] = new int[size_ids[i]];
+                        while (l < st.ids.size() || r < size_ids[target_sc]) {
+                            if (r == size_ids[target_sc]) {
+                                candidate_ids[i][cnt++] = st.ids[l++];
+                            }
+                            else {
+                                if (st.ids[l] == candidate_ids[target_sc][r]) {
+                                    l++, r++;
+                                }
+                                else {
+                                    candidate_ids[i][cnt++] = st.ids[l++];
+                                }
+                            }
+                        }
+                        // Only build when meeting requirements
+                        if (size_ids[i] >= min_build_threshold) {
+                            int M = 16, ef_construction = 200;
+                            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs, M, ef_construction);
+                            for (int j = 0; j < size_ids[i]; j++) {
+                                int id = candidate_ids[i][j];
+                                hnsws[i]->addPoint(id);
+                            }
+                            if (size_ids[i] > size_ids[target_sc]) {
+                                // Update largest state
+                                largest_state[i] = i;
+                            }
+                        }
+                        st.ids = std::vector<uint32_t>();
+                    }
+
+                    // Enqueue
+                    for (auto prev : gsa.reverse_next[i]) {
+                        int val = gsa.deg[prev].fetch_sub(1);
+                        if (val == 1) {
+                            q.enqueue(prev);
+                        }
+                    }
+                }
+            } else {
+                #pragma omp flush
+            }
+        }
+    }
+}
+
 void VectorMaton::build_smart() {
     build_gsa();
     
@@ -297,9 +444,9 @@ size_t VectorMaton::size() {
         string_size += sizeof(std::string) + strs[i].capacity(); // size of each string
         vector_size += sizeof(float) * dim; // size of each vector
     }
-    LOG_DEBUG("String size: ", string_size, " bytes.");
-    LOG_DEBUG("Vector size: ", vector_size, " bytes.");
-    total_size += string_size + vector_size;
+    // LOG_DEBUG("String size: ", string_size, " bytes.");
+    // LOG_DEBUG("Vector size: ", vector_size, " bytes.");
+    // total_size += string_size + vector_size;
     // Auxiliary components
     size_t aux_size = sizeof(int) * gsa.st.size() * 3;
     for (int i = 0; i < gsa.st.size(); i++) {
@@ -378,7 +525,7 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
 
 VectorMaton::~VectorMaton() {
     for (int i = 0; i < gsa.st.size(); i++) {
-        delete hnsws[i];
+        if (hnsws[i]) delete hnsws[i];
     }
     delete [] hnsws;
     delete space;

@@ -57,10 +57,10 @@ void PostFiltering::save_index(const char* output_folder) {
 size_t PostFiltering::size() {
     size_t total_size = 0;
     total_size += hnsw->indexFileSize();
-    for (int i = 0; i < num_elements; i++) {
-        total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
-        total_size += sizeof(float) * dim; // size of each vector
-    }
+    // for (int i = 0; i < num_elements; i++) {
+    //     total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
+    //     total_size += sizeof(float) * dim; // size of each vector
+    // }
     return total_size;
 }
 

@@ -30,6 +30,11 @@ GeneralizedSuffixAutomaton::GeneralizedSuffixAutomaton(char* input_file) {
     f.close();
 }
 
+GeneralizedSuffixAutomaton::~GeneralizedSuffixAutomaton() {
+    if (deg) delete [] deg;
+    if (reverse_next) delete [] reverse_next;
+}
+
 int GeneralizedSuffixAutomaton::size() {
     return st.size();
 }
@@ -248,6 +253,19 @@ std::vector<int> GeneralizedSuffixAutomaton::topo_sort() const {
     }
     delete [] in_degree;
     return order;
+}
+
+void GeneralizedSuffixAutomaton::build_reverse() {
+    if (deg) delete [] deg;
+    if (reverse_next) delete [] reverse_next;
+    deg = new std::atomic<int>[st.size()];
+    reverse_next = new std::vector<int>[st.size()];
+    for (int i = 0; i < st.size(); i++) {
+        deg[i] = st[i].next.size();
+        for (auto e : st[i].next) {
+            reverse_next[e.second].emplace_back(i);
+        }
+    }
 }
 
 void GeneralizedSuffixAutomaton::dump(char* output_file) {

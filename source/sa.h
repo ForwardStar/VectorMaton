@@ -19,12 +19,17 @@ public:
         std::vector<uint32_t> ids;
     };
     std::vector<State> st;
+        
+    // Used for reverse topological sort.
+    std::atomic<int>* deg = nullptr;
+    std::vector<int>* reverse_next = nullptr;
 
     // Record which states are affected after inserting a string.
     std::vector<int> affected_states;
 
     GeneralizedSuffixAutomaton();
     GeneralizedSuffixAutomaton(char* input_file);
+    ~GeneralizedSuffixAutomaton();
 
     // Add a new string with integer ID 'id'. This will index all substrings of s
     // so future queries will return 'id' if a queried substring appears in s.
@@ -53,6 +58,9 @@ public:
 
     // Topological sort of states (for processing in order of links).
     std::vector<int> topo_sort() const;
+
+    // Build reverse edges for the GSA.
+    void build_reverse();
 
     // Dump the index to disk
     void dump(char* output_file);

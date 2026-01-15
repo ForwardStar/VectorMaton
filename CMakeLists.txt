@@ -4,6 +4,12 @@ cmake_minimum_required(VERSION 3.10)
 project(vectormaton CXX)
 
 find_package(OpenSSL REQUIRED)
+find_package(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+    message("OpenMP found")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 # Enable optimization
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -16,6 +22,7 @@ include_directories("./third_party/hnswlib")
 
 # Create executable
 add_executable(sa_test source/headers.h source/test_sa.cpp source/sa.h source/sa.cpp)
+add_executable(queue_test source/mpmc_queue.h source/test_queue.cpp)
 add_executable(hnsw_test source/headers.h source/test_hnsw.cpp)
 add_executable(vectormaton_test source/headers.h source/test_vectormaton.cpp source/sa.h source/sa.cpp source/vectormaton.h source/vectormaton.cpp)
 add_executable(main source/headers.h source/main.cpp source/sa.h source/sa.cpp source/vectormaton.h source/vectormaton.cpp source/exact.h source/exact.cpp source/pre_filtering.h source/pre_filtering.cpp source/post_filtering.h source/post_filtering.cpp)
