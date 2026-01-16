@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 s = ''.join(c for c in s if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
                 # Convert to lowercase
                 s = s.lower()
-                seq = item['Sequence']
+                seq = " ".join(list(item['Sequence']))
                 inputs = tokenizer(seq, return_tensors="pt", truncation=True, max_length=1024).to(device)
                 with torch.no_grad():
                     v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
