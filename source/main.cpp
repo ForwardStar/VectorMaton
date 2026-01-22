@@ -287,7 +287,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 20; ef <= 200; ef += 20) {
+        for (int ef = 200; ef <= 400; ef += 20) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
