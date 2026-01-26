@@ -6,7 +6,7 @@
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt]");
         return 1;
     }
 
@@ -14,6 +14,7 @@ int main(int argc, char * argv[]) {
     std::string statistics_file = "";
     std::string index_in = "";
     std::string index_out = "";
+    std::string ground_truth_file = "";
     int num_threads = 8;
     // Parse optional arguments
     if (argc > 7) {
@@ -77,6 +78,17 @@ int main(int argc, char * argv[]) {
                 auto tmp = std::string(argv[i]).substr(14);
                 num_threads = std::atoi(tmp.c_str());
                 LOG_INFO("Number of threads set to ", num_threads);
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--write-ground-truth=") == 0) {
+                ground_truth_file = std::string(argv[i]).substr(21);
+                LOG_INFO("Ground truth file set to ", ground_truth_file);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -224,6 +236,17 @@ int main(int argc, char * argv[]) {
     auto exact_time = currentTime() - start_time;
     LOG_INFO("ExactSearch query processing took ", timeFormatting(exact_time).str(), ", avg (us): ", (static_cast<float>(exact_time) / queried_strings.size()));
 
+    if (ground_truth_file != "") {
+        LOG_INFO("Writing ground truth data to '", ground_truth_file, "'");
+        std::ofstream f_gt(ground_truth_file);
+        for (size_t i = 0; i < exact_results.size(); ++i) {
+            for (const auto& id : exact_results[i]) {
+                f_gt << id << " ";
+            }
+            f_gt << "\n";
+        }
+    }
+
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
         PreFiltering pf;
@@ -258,14 +281,6 @@ int main(int argc, char * argv[]) {
         }
         double recall = static_cast<double>(total_recall) / effective;
         LOG_INFO("PreFiltering recall: ", recall);
-        LOG_INFO("Writing ground truth data to 'ground_truth.txt'");
-        std::ofstream f_gt("ground_truth.txt");
-        for (size_t i = 0; i < exact_results.size(); ++i) {
-            for (const auto& id : exact_results[i]) {
-                f_gt << id << " ";
-            }
-            f_gt << "\n";
-        }
     }
 
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
