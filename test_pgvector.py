@@ -4,7 +4,7 @@ import sys
 import time
 import pandas as pd
 
-if len(sys.argv) != 12:
+if len(sys.argv) != 11:
     print("Usage: python test_pgvector.py <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k> <dbname> <user> <host> <port> <ground_truth_file>")
     sys.exit(1)
 
@@ -21,36 +21,56 @@ vec_file = sys.argv[2]
 vectors = []
 strings = []
 n = 0
+table_name = vec_file.replace('.', '_').replace('/', '_')
 
 print("Loading data...")
-
-with open(vec_file) as vf, open(str_file) as sf:
-    vectors = vf.readlines()
-    strings = sf.readlines()
-    for i in range(len(vectors)):
-        vectors[i] = [float(x) for x in vectors[i].split()]
-    n = min(len(vectors), len(strings))
-    if len(vectors) > n:
-        vectors = vectors[:n]
-    if len(strings) > n:
-        strings = strings[:n]
-
-batch = [(vectors[i], strings[i].strip()) for i in range(n)]
-cur.executemany(
-    "INSERT INTO items (embedding, text) VALUES (%s, %s)",
-    batch
-)
+cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 conn.commit()
 
-cur.close()
-conn.close()
+batch = [(vectors[i], strings[i].strip()) for i in range(n)]
+table_exists = True
+# Create table, insert data and build index if it does not exist
+cur.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s);", (table_name,))
+if not cur.fetchone()[0]:
+    with open(vec_file) as vf, open(str_file) as sf:
+        vectors = vf.readlines()
+        strings = sf.readlines()
+        for i in range(len(vectors)):
+            vectors[i] = [float(x) for x in vectors[i].split()]
+        n = min(len(vectors), len(strings))
+        if len(vectors) > n:
+            vectors = vectors[:n]
+        if len(strings) > n:
+            strings = strings[:n]
+    table_exists = False
+    dim = len(vectors[0])
 
+    sql = f"""
+    CREATE TABLE {table_name} (
+        id SERIAL PRIMARY KEY,
+        embedding VECTOR({dim}),
+        text TEXT
+    );"""
+    cur.execute(sql)
+    conn.commit()
+    sql = f"""
+    INSERT INTO {table_name} (embedding, text) VALUES (%s, %s);"""
+    cur.executemany(sql, [(vectors[i], strings[i].strip()) for i in range(n)])
+    conn.commit()
+else:
+    print(f"Table {table_name} already exists. Skipping data insertion.")
 print("Done loading data.")
 
 print("Building HNSW index...")
-cur.execute("CREATE INDEX idx_vec_hnsw IF NOT EXISTS ON items hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 200);")
-conn.commit()
-
+if not table_exists:
+    sql = f"""DROP INDEX IF EXISTS idx_vec_hnsw;"""
+    cur.execute(sql)
+    conn.commit()
+    sql = f"""CREATE INDEX idx_vec_hnsw ON {table_name} USING hnsw (embedding vector_l2_ops) WITH (m = 16, ef_construction = 200);"""
+    cur.execute(sql)
+    conn.commit()
+else:
+    print(f"Index on table {table_name} may already exist. Skipping index creation.")
 print("Done building index.")
 
 # Execute queries
@@ -96,28 +116,28 @@ for ef_search in range(20, 401, 20):
         start = time.time()
 
         # PostgreSQL query: substring filter + vector distance
-        cur.execute(
-            """
-            SELECT id, embedding <-> %s AS dist
-            FROM items
+        sql = f"""
+            SELECT id, embedding <-> %s::vector AS dist
+            FROM {table_name}
             WHERE text LIKE %s
-            ORDER BY embedding <-> %s
+            ORDER BY embedding <-> %s::vector
             LIMIT %s
-            """,
-            (qvec, f"%{qstr}%", qvec, qk)
+        """
+        cur.execute(
+            sql,
+            (qvec, f"%{qstr.strip()}%", qvec, int(qk.strip()))
         )
 
         rows = cur.fetchall()
         elapsed = time.time() - start
         total_time += elapsed
 
-        neighbor_ids = [row[0] for row in rows]
+        neighbor_ids = [row[0] - 1 for row in rows]
 
         true_ids = set(ground_truth[i])
         if len(true_ids) > 0:
-            recall = len(set(neighbor_ids) & true_ids) / len(true_ids)
             effective += 1
-            total_recall += recall
+            total_recall += len(set(neighbor_ids) & true_ids) / len(true_ids)
 
     avg_time = total_time / n * 1e6  # convert to microseconds
     avg_recall = total_recall / effective
