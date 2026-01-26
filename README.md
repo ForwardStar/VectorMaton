@@ -55,3 +55,39 @@ Generate queries by:
 python3 generate_queries.py
 ```
 and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly generated containing floating numbers. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
+
+# Running example
+Following is a minimal running example.
+
+Firstly, compile the project:
+```sh
+> git submodule update --init --recursive
+> mkdir build && cd build
+> cmake ..
+> make
+```
+
+Then download datasets by:
+```sh
+> python3 generate_datasets.py
+```
+
+Then generate query data:
+```sh
+> python3 generate_queries.py
+Available datasets:
+0: arxiv-small
+1: swissprot
+2: code_search_net
+3: arxiv
+Enter the index of the dataset to use: 0
+Enter the desired string length for queries: 3
+Enter the number of queries to generate: 1000
+Enter value k for k-NN search: 10
+Enter the number of elements you want to select from the dataset (-1 for all): -1
+```
+
+Finally, run PreFiltering on the query data:
+```sh
+> ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt PreFiltering
+```
