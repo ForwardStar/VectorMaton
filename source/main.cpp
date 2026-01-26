@@ -258,6 +258,14 @@ int main(int argc, char * argv[]) {
         }
         double recall = static_cast<double>(total_recall) / effective;
         LOG_INFO("PreFiltering recall: ", recall);
+        LOG_INFO("Writing ground truth data to 'ground_truth.txt'");
+        std::ofstream f_gt("ground_truth.txt");
+        for (size_t i = 0; i < exact_results.size(); ++i) {
+            for (const auto& id : exact_results[i]) {
+                f_gt << id << " ";
+            }
+            f_gt << "\n";
+        }
     }
 
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
@@ -287,7 +295,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 200; ef <= 400; ef += 20) {
+        for (int ef = 20; ef <= 400; ef += 20) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;

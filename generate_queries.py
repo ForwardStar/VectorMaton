@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Generate queries
     s = int(input("Enter the desired string length for queries: "))
     num_queries = int(input("Enter the number of queries to generate: "))
-    max_k = int(input("Enter the maximum k value for k-NN search: "))
+    k = int(input("Enter value k for k-NN search: "))
     truncate_len = int(input("Enter the number of elements you want to select from the dataset (-1 for all): "))
     if truncate_len != -1:
         string_list = string_list[:truncate_len]
@@ -83,5 +83,4 @@ if __name__ == "__main__":
         for (st, vec) in result:
             sf.write(st + "\n")
             vf.write(" ".join(map(str, vec)) + "\n")
-            k = random.randint(1, max_k)
             kf.write(str(k) + "\n")
