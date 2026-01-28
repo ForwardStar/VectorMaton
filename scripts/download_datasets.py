@@ -109,6 +109,87 @@ if __name__ == "__main__":
     if not os.path.exists("datasets"):
         os.makedirs("datasets")
 
+    # Spam
+    if not os.path.exists("datasets/spam"):
+        os.makedirs("datasets/spam")
+        log.info("Downloading and generating spam dataset...")
+        start = time.perf_counter()
+        # Load dataset
+        import tarfile
+        download("https://spamassassin.apache.org/old/publiccorpus/20021010_spam.tar.bz2", "datasets/spam/20021010_spam.tar.bz2")
+        archive = tarfile.open("datasets/spam/20021010_spam.tar.bz2", "r:bz2")
+        archive.extractall("datasets/spam")
+        archive.close()
+        import re
+
+        from email import policy
+        from email.parser import BytesParser
+        
+        def parse_email(file_path):
+            with open(file_path, 'rb') as f:
+                # Use default policy to get EmailMessage if possible
+                try:
+                    msg = BytesParser(policy=policy.default).parse(f)
+                except Exception:
+                    # fallback for older Message objects
+                    msg = BytesParser(policy=policy.compat32).parse(f)
+
+            # Extract title/subject
+            title = msg['subject'] or "No Subject"
+
+            # Extract body content
+            content = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == 'text/plain':
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            charset = part.get_content_charset() or 'utf-8'
+                            try:
+                                content += payload.decode(charset, errors='replace')
+                            except LookupError:
+                                content += payload.decode('utf-8', errors='replace')
+            else:
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    charset = msg.get_content_charset() or 'utf-8'
+                    try:
+                        content = payload.decode(charset, errors='replace')
+                    except LookupError:
+                        content = payload.decode('utf-8', errors='replace')
+
+            # Clean whitespace
+            content = re.sub(r'\s+', ' ', content).strip()
+            title = title.strip()
+
+            return title, content
+        
+        def clean_content(text):
+            # Remove quoted replies and non-alphanumeric
+            text = re.sub(r">.*", "", text)
+            text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
+            text = re.sub(r"\s+", " ", text)
+            return text.lower().strip()
+        
+        from sentence_transformers import SentenceTransformer
+
+        # Load model
+        embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+        # Process
+        with open("datasets/spam/strings.txt", "w") as str_file, open("datasets/spam/vectors.txt", "w") as vec_file:
+            for file_path in os.listdir("datasets/spam/spam"):
+                title, content = parse_email(os.path.join("datasets/spam/spam", file_path))
+                clean_body = clean_content(content)
+                vector = embed_model.encode(clean_body).tolist()  # convert to list for JSON
+                title = ''.join(c for c in title if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
+                title = title.lower()
+                if title != "":
+                    str_file.write(title + "\n")
+                    vec_file.write(" ".join(map(str, vector)) + "\n")
+    else:
+        log.info("Spam dataset already exists. Skipped.")
+
     # Words
     if not os.path.exists("datasets/words"):
         os.makedirs("datasets/words")
@@ -123,12 +204,43 @@ if __name__ == "__main__":
         with open("datasets/words/vectors.txt", "w") as vec_file, open("datasets/words/strings.txt", "w") as str_file:
             for i, word in enumerate(words):
                 v = df_word_embeds.iloc[i]
+                word = ''.join(c for c in word if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
+                word = word.lower()
                 str_file.write(word + "\n")
                 vec_file.write(" ".join(map(str, v)) + "\n")
         log.info("Words dataset downloaded and processed!")
         end = time.perf_counter()
         elapsed = end - start
         log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("Words dataset already exists. Skipped.")
+
+    # MTG
+    if not os.path.exists("datasets/mtg"):
+        os.makedirs("datasets/mtg")
+        log.info("Downloading and generating MTG dataset...")
+        start = time.perf_counter()
+        # Load dataset
+        dataset = load_dataset("TrevorJS/mtg-scryfall-cropped-art-embeddings-open-clip-ViT-SO400M-14-SigLIP-384")
+        log.info(f"Dataset loaded. Size = {dataset['train'].num_rows} entries.")
+        with open("datasets/mtg/vectors.txt", "w") as vec_file, open("datasets/mtg/strings.txt", "w") as str_file:
+            for item in dataset['train']:
+                s = item['flavor_text']
+                if s is not None:
+                    # Remove all non-alphabet symbols
+                    s = ''.join(c for c in s if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
+                    # Convert to lowercase
+                    s = s.lower()
+                    v = item['open_clip_image_embeddings']
+                    if s != "":
+                        str_file.write(s + "\n")
+                        vec_file.write(" ".join(map(str, v)) + "\n")
+        log.info("MTG dataset downloaded and processed!")
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("MTG dataset already exists. Skipped.")
 
     # CodeSearchNet
     if not os.path.exists("datasets/code_search_net"):
@@ -153,8 +265,9 @@ if __name__ == "__main__":
                 inputs = tokenizer(code, return_tensors="pt", truncation=True, max_length=512).to(device)
                 with torch.no_grad():
                     v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
-                str_file.write(s + "\n")
-                vec_file.write(" ".join(map(str, v)) + "\n")
+                if s != "":
+                    str_file.write(s + "\n")
+                    vec_file.write(" ".join(map(str, v)) + "\n")
         log.info("CodeSearchNet dataset downloaded and processed!")
         end = time.perf_counter()
         elapsed = end - start
@@ -184,8 +297,9 @@ if __name__ == "__main__":
                 inputs = tokenizer(seq, return_tensors="pt", truncation=True, max_length=1024).to(device)
                 with torch.no_grad():
                     v = model(**inputs).last_hidden_state[:,0,:].squeeze(0).cpu().numpy()
-                vec_file.write(" ".join(map(str, v)) + "\n")
-                str_file.write(s + "\n")
+                if s != "":
+                    vec_file.write(" ".join(map(str, v)) + "\n")
+                    str_file.write(s + "\n")
         end = time.perf_counter()
         elapsed = end - start
         log.info(f"Time consumption: {format_time(elapsed)}")
@@ -208,8 +322,9 @@ if __name__ == "__main__":
                 # Convert to lowercase
                 s = s.lower()
                 v = item['vector']
-                str_file.write(s + "\n")
-                vec_file.write(" ".join(map(str, v)) + "\n")
+                if s != "":
+                    str_file.write(s + "\n")
+                    vec_file.write(" ".join(map(str, v)) + "\n")
         end = time.perf_counter()
         elapsed = end - start
         log.info(f"Time consumption: {format_time(elapsed)}")
@@ -232,8 +347,9 @@ if __name__ == "__main__":
                 # Convert to lowercase
                 s = s.lower()
                 v = item['dataset_embeddings']
-                str_file.write(s + "\n")
-                vec_file.write(" ".join(map(str, v)) + "\n")
+                if s != "":
+                    str_file.write(s + "\n")
+                    vec_file.write(" ".join(map(str, v)) + "\n")
         end = time.perf_counter()
         elapsed = end - start
         log.info(f"Time consumption: {format_time(elapsed)}")
