@@ -6,8 +6,60 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
 import time
+import pandas as pd
+import json
 
+headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
 
+def download(url, path):
+    try:
+        from pathlib import Path
+        from tqdm import tqdm
+    except:
+        print("Installing dependencies...")
+        from pip._internal import main
+        main(['install', 'pathlib'])
+        main(['install', 'tqdm'])
+        from pathlib import Path
+        from tqdm import tqdm
+    from urllib.request import urlopen, Request
+    print("Fetching from", url + "...")
+    path = Path(path)
+    blocksize = 1024 * 8
+    blocknum = 0
+    retry_times = 0
+    while True:
+        try:
+            with urlopen(Request(url, headers=headers), timeout=3) as resp:
+                total = resp.info().get("content-length", None)
+                with tqdm(
+                    unit="B",
+                    unit_scale=True,
+                    miniters=1,
+                    unit_divisor=1024,
+                    total=total if total is None else int(total),
+                ) as t, path.open("wb") as f:
+                    block = resp.read(blocksize)
+                    while block:
+                        f.write(block)
+                        blocknum += 1
+                        t.update(len(block))
+                        block = resp.read(blocksize)
+            break
+        except KeyboardInterrupt:
+            if path.is_file():
+                path.unlink()
+            raise
+        except:
+            retry_times += 1
+            if retry_times >= 20:
+                break
+            print("Timed out, retrying...")
+    if retry_times >= 20:
+        if path.is_file():
+            path.unlink()
+        raise ConnectionError("bad internet connection, check it and retry.")
+    
 class Logger:
     LEVELS = {
         "DEBUG": 10,
@@ -52,11 +104,31 @@ def format_time(seconds: float) -> str:
     else:
         return f"{seconds}s"
 
-
 if __name__ == "__main__":
     log = Logger(level="INFO")  # set threshold level
     if not os.path.exists("datasets"):
         os.makedirs("datasets")
+
+    # Words
+    if not os.path.exists("datasets/words"):
+        os.makedirs("datasets/words")
+        log.info("Downloading and generating Words dataset...")
+        start = time.perf_counter()
+        # Load dataset
+        download("https://huggingface.co/datasets/efarrall/word_embeddings/resolve/main/8000words_large.pkl?download=true", "datasets/words/8000words_large.pkl")
+        download("https://huggingface.co/datasets/efarrall/word_embeddings/resolve/main/word_list?download=true", "datasets/words/word_list.txt")
+        # Convert dataset to required format
+        df_word_embeds = pd.read_pickle("datasets/words/8000words_large.pkl")
+        words = json.load(open("datasets/words/word_list.txt", "r"))
+        with open("datasets/words/vectors.txt", "w") as vec_file, open("datasets/words/strings.txt", "w") as str_file:
+            for i, word in enumerate(words):
+                v = df_word_embeds.iloc[i]
+                str_file.write(word + "\n")
+                vec_file.write(" ".join(map(str, v)) + "\n")
+        log.info("Words dataset downloaded and processed!")
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
 
     # CodeSearchNet
     if not os.path.exists("datasets/code_search_net"):
