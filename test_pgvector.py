@@ -4,15 +4,12 @@ import sys
 import time
 import pandas as pd
 
-if len(sys.argv) != 11:
-    print("Usage: python test_pgvector.py <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k> <dbname> <user> <host> <port> <ground_truth_file>")
+if len(sys.argv) != 7:
+    print("Usage: python test_pgvector.py <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k> <ground_truth_file>")
     sys.exit(1)
 
 conn = psycopg2.connect(
-    dbname=sys.argv[6],
-    user=sys.argv[7],
-    host=sys.argv[8],
-    port=int(sys.argv[9])
+    dbname="postgres"
 )
 cur = conn.cursor()
 
@@ -21,11 +18,16 @@ vec_file = sys.argv[2]
 vectors = []
 strings = []
 n = 0
-table_name = vec_file.replace('.', '_').replace('/', '_')
+table_name = vec_file.replace('.', '_').replace('/', '_').replace('-', '_')
 
 print("Loading data...")
 cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+cur.execute("SET temp_buffers = '128GB';")
 conn.commit()
+cur.execute("SHOW temp_buffers;")
+conn.commit()
+buff_size = cur.fetchall()
+print(f"temp_buffers size set to: {buff_size[0][0]}")
 
 batch = [(vectors[i], strings[i].strip()) for i in range(n)]
 table_exists = True
@@ -46,7 +48,7 @@ if not cur.fetchone()[0]:
     dim = len(vectors[0])
 
     sql = f"""
-    CREATE TABLE {table_name} (
+    CREATE TEMP TABLE {table_name} (
         id SERIAL PRIMARY KEY,
         embedding VECTOR({dim}),
         text TEXT
@@ -96,7 +98,7 @@ with open(vec_query_file) as vf, open(str_query_file) as sf, open(k_query_file) 
     if len(k) > n:
         k = k[:n]
 
-ground_truth_file = sys.argv[10]
+ground_truth_file = sys.argv[6]
 ground_truth = []
 with open(ground_truth_file) as gtf:
     for line in gtf:
@@ -106,7 +108,8 @@ with open(ground_truth_file) as gtf:
 print("Executing queries...")
 recall = []
 time_taken = []
-for ef_search in range(20, 401, 20):
+ef_search = 16
+while ef_search <= 512:
     print(f"ef_search={ef_search}")
     cur.execute(f"SET hnsw.ef_search = {ef_search};")
     total_time = 0.0
@@ -117,7 +120,7 @@ for ef_search in range(20, 401, 20):
 
         # PostgreSQL query: substring filter + vector distance
         sql = f"""
-            SELECT id, embedding <-> %s::vector AS dist
+            SELECT id
             FROM {table_name}
             WHERE text LIKE %s
             ORDER BY embedding <-> %s::vector
@@ -125,7 +128,7 @@ for ef_search in range(20, 401, 20):
         """
         cur.execute(
             sql,
-            (qvec, f"%{qstr.strip()}%", qvec, int(qk.strip()))
+            (f"%{qstr.strip()}%", qvec, int(qk.strip()))
         )
 
         rows = cur.fetchall()
@@ -144,11 +147,12 @@ for ef_search in range(20, 401, 20):
     time_taken.append(avg_time)
     recall.append(avg_recall)
     print(f"Average Time: {avg_time} us, Average Recall: {avg_recall:.4f}")
+    ef_search *= 2
 
 print("Query done.")
 print("Write statistics to file...")
 df = pd.DataFrame({
-    'ef_search': list(range(20, 401, 20)),
+    'ef_search': [16, 32, 64, 128, 256, 512],
     'time_us': time_taken,
     'recall': recall
 })
