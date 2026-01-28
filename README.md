@@ -23,7 +23,7 @@ This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``
 
 The ``main`` is our experimental program. Run with:
 ```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering|PostFiltering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
+./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
 ```
 
 It will output recall and time consumption statistics of the corresponding method. To show debug messages, add ``--debug`` option when executing the ``main`` program. To limit the number of vectors and strings inserted, add ``--data-size=<n>`` to only select the first n vectors and strings of the data file. To write statistics to a csv file, add ``--statistics-file=output_statistics.csv`` to output the info to ``output_statistics.csv``. Add ``--load-index=index_files_folder`` to load index from disk, add ``--save-index=index_files_folder`` to save the index to disk. Add ``--num-threads=...`` when using ``VectorMaton-parallel``. Add ``--write-ground-truth=ground_truth.txt`` to write ground truth results to ``ground_truth.txt``.

@@ -1,5 +1,6 @@
 #include "headers.h"
 #include "exact.h"
+#include "opt_query.h"
 #include "pre_filtering.h"
 #include "post_filtering.h"
 #include "vectormaton.h"
@@ -247,6 +248,60 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
+        LOG_INFO("Using OptQuery");
+        OptQuery oq;
+        oq.set_vectors(vec_array, dim, n);
+        oq.set_strings(str_array);
+        LOG_INFO("Building OptQuery index");
+        unsigned long long start_time = currentTime();
+        oq.build();
+        LOG_INFO("OptQuery index built took ", timeFormatting(currentTime() - start_time).str());
+        LOG_INFO("Total index size: ", oq.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)oq.size() / (string_size + vector_size));
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef = 16; ef <= 512; ef *= 2) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = oq.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], ef);
+                all_results.emplace_back(res);
+            }
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            // Calculate recall
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            // Write header
+            f_stats << "ef_search,time_us,recall,exact\n";
+            // Compute exact search time per query
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
+            // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+            }
+        }
+    }
+
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
         PreFiltering pf;
@@ -310,7 +365,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 20; ef <= 400; ef += 20) {
+        for (int ef = 16; ef <= 512; ef *= 2) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
@@ -379,7 +434,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 20; ef <= 200; ef += 20) {
+        for (int ef = 16; ef <= 512; ef *= 2) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();
@@ -449,7 +504,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 20; ef <= 200; ef += 20) {
+        for (int ef = 16; ef <= 512; ef *= 2) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();
@@ -519,7 +574,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 20; ef <= 200; ef += 20) {
+        for (int ef = 16; ef <= 512; ef *= 2) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();

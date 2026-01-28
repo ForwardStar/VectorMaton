@@ -44,7 +44,7 @@ def load_curve(csv_path):
     return df["time_us"].values, df["recall"].values
 
 
-def main(filepath1, filepath2):
+def main(filepath1, filepath2, filepath3, filepath4=None):
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 
     for i in range(2, 5):
@@ -52,43 +52,59 @@ def main(filepath1, filepath2):
 
         csv1 = os.path.join(filepath1, f"{i}.csv")
         csv2 = os.path.join(filepath2, f"{i}.csv")
+        csv3 = os.path.join(filepath3, f"{i}.csv")
 
         # Load curves
         time1, recall1 = load_curve(csv1)
         qps1 = 1000 / time1 * 1000000
         time2, recall2 = load_curve(csv2)
         qps2 = 1000 / time2 * 1000000
+        time3, recall3 = load_curve(csv3)
+        qps3 = 1000 / time3 * 1000000
+
+        # Load point
+        # point_filepath4 = os.path.join(filepath4, f"{i}")
+        # time4_us = extract_time_us_from_log(point_filepath4)
+        # recall4 = 1.0
 
         # Plot curves
-        ax.plot(recall1, qps1, marker="o", label="PostFiltering")
-        ax.plot(recall2, qps2, marker="s", label="VectorMaton")
+        ax.plot(recall1, qps1, marker="o", label="PostFiltering", markersize=6)
+        ax.plot(recall2, qps2, marker="s", label="pgvector", markersize=6)
+        ax.plot(recall3, qps3, marker="^", label="VectorMaton", markersize=6)
+
+        # Plot point
+        # ax.scatter([recall4], [1000 / time4_us * 1000000], color='red', marker='*', s=200, label="PreFiltering")
 
         ax.set_title(f"Length of p = {i}", fontsize=30)
         ax.set_xlabel("Recall @ 10", fontsize=30)
         if i == 2:
             ax.set_ylabel("QPS", fontsize=30)
+        ax.set_yscale("log")
 
         ax.grid(True)
         ax.tick_params(axis='both', which='major', labelsize=20)
         ax.yaxis.get_offset_text().set_fontsize(20)  # <-- this is the 1e7
         ax.xaxis.get_offset_text().set_fontsize(20)  # for x-axis if needed
 
-        # Only show legend on the first subplot to avoid clutter
-        if i == 2:
-            ax.legend(fontsize=20)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels,
+        loc="upper center",           # center horizontally
+        ncol=4, fontsize=30)
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.8])
     if not os.path.exists("figures"):
         os.makedirs("figures")
     plt.savefig("figures/recall_qps_curves.pdf")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python recall_qps.py <PostFiltering folder> <VectorMaton folder>")
+    if len(sys.argv) != 5:
+        print("Usage: python recall_qps.py <PostFiltering folder> <pgvector folder> <VectorMaton folder>")
         sys.exit(1)
 
     filepath1 = sys.argv[1]
     filepath2 = sys.argv[2]
+    filepath3 = sys.argv[3]
+    # filepath4 = sys.argv[4]
 
-    main(filepath1, filepath2)
+    main(filepath1, filepath2, filepath3)
