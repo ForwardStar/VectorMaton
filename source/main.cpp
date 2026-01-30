@@ -263,15 +263,17 @@ int main(int argc, char * argv[]) {
         std::vector<std::map<std::string, float>> statistics;
         for (int ef = 16; ef <= 512; ef *= 2) {
             LOG_DEBUG("Set ef_search to ", ef);
+            oq.set_ef(ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
             for (size_t i = 0; i < queried_strings.size(); ++i) {
-                auto res = oq.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], ef);
+                auto res = oq.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
                 all_results.emplace_back(res);
             }
+            float time_cost = currentTime() - start_time;
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
-            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
             // Calculate recall
             double total_recall = 0;
             int effective = 0;
@@ -373,9 +375,10 @@ int main(int argc, char * argv[]) {
                 auto res = pf.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], ef);
                 all_results.emplace_back(res);
             }
+            float time_cost = currentTime() - start_time;
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
-            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
             // Calculate recall
             double total_recall = 0;
             int effective = 0;
@@ -443,9 +446,10 @@ int main(int argc, char * argv[]) {
                 auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
                 all_results.emplace_back(res);
             }
+            float time_cost = currentTime() - start_time;
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
-            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
             // Calculate recall
             double total_recall = 0;
             int effective = 0;
@@ -513,9 +517,10 @@ int main(int argc, char * argv[]) {
                 auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
                 all_results.emplace_back(res);
             }
+            float time_cost = currentTime() - start_time;
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
-            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
             // Calculate recall
             double total_recall = 0;
             int effective = 0;
@@ -583,9 +588,10 @@ int main(int argc, char * argv[]) {
                 auto res = vdb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
                 all_results.emplace_back(res);
             }
+            float time_cost = currentTime() - start_time;
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
-            statistics.back()["time_us"] = static_cast<float>(currentTime() - start_time) / queried_strings.size();
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
             // Calculate recall
             double total_recall = 0;
             int effective = 0;

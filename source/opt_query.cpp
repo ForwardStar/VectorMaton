@@ -12,7 +12,7 @@ void OptQuery::set_strings(std::string* strings) {
 
 void OptQuery::set_ef(int ef) {
     for (auto &pair : hnsw) {
-        pair.second->ef_ = ef;
+        pair.second->setEf(ef);
     }
 }
 
@@ -67,7 +67,7 @@ std::vector<int> OptQuery::query(const float* vec, const std::string &s, int k, 
         return results;
     }
     if (ef_search != 0) {
-        hnsw[s]->ef_ = ef_search;
+        hnsw[s]->setEf(ef_search);
     }
     auto tmp = hnsw[s]->searchKnnCloserFirst(vec, k);
     for (auto& pair : tmp) {

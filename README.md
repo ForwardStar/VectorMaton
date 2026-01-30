@@ -94,3 +94,31 @@ Finally, run PreFiltering on the query data:
 ```sh
 > ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt PreFiltering
 ```
+
+# Simple way to reproduce the full experimental results
+Firstly, fetch the submodules and compile VectorMaton (and resolve dependency issues if needed):
+```sh
+git submodule update --init --recursive
+mkdir build && cd build
+cmake ..
+make -j
+cd ..
+```
+
+Then prepare dataset (may need hours to finish):
+```sh
+python3 scripts/download_datasets.py
+```
+
+Finally, run all experiments:
+```sh
+sh scripts/run-all.sh
+```
+
+Plot recall-qps curves and memory plot by:
+```sh
+python3 scripts/recall_qps.py
+python3 scripts/memory.py
+```
+
+You will see results in the ``figures`` folder.
