@@ -31,7 +31,7 @@ do
     if [ ! -d "results/OptQuery/spam" ]; then
         mkdir results/OptQuery/spam
     fi
-    ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/spam/$s &
+    ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/spam/$s.csv > results/OptQuery/spam/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/spam" ]; then
         mkdir results/PostFiltering/spam
@@ -50,7 +50,7 @@ do
     python3 test_pgvector.py datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/spam/$s.csv
 done
 
-# Run Words
+# # Run Words
 for s in 2 3 4
 do
     python3 scripts/generate_queries.py datasets/words/strings.txt datasets/words/vectors.txt $s 1000 10 -1
@@ -63,7 +63,7 @@ do
     if [ ! -d "results/OptQuery/words" ]; then
         mkdir results/OptQuery/words
     fi
-    ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/words/$s &
+    ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/words/$s.csv > results/OptQuery/words/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/words" ]; then
         mkdir results/PostFiltering/words
@@ -82,7 +82,7 @@ do
     python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
 done
 
-# Run mtg
+# # Run mtg
 for s in 2 3 4
 do
     python3 scripts/generate_queries.py datasets/mtg/strings.txt datasets/mtg/vectors.txt $s 1000 10 -1
@@ -92,10 +92,10 @@ do
     fi
     ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/mtg/$s &
     # OptQuery
-    if [ ! -d "results/OptQuery/mtg" ]; then
-        mkdir results/OptQuery/mtg
-    fi
-    ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/mtg/$s &
+    # if [ ! -d "results/OptQuery/mtg" ]; then
+    #     mkdir results/OptQuery/mtg
+    # fi
+    # ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/mtg/$s.csv > results/OptQuery/mtg/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/mtg" ]; then
         mkdir results/PostFiltering/mtg
@@ -114,10 +114,10 @@ do
     python3 test_pgvector.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/mtg/$s.csv
 done
 
-# Run arxiv-small
+# # Run arxiv-small
 for s in 2 3 4
 do
-    python3 generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1
+    python3 scripts/generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1
     # PreFiltering
     if [ ! -d "results/PreFiltering/arxiv-small" ]; then
         mkdir results/PreFiltering/arxiv-small
@@ -127,7 +127,7 @@ do
     # if [ ! -d "results/OptQuery/arxiv-small" ]; then
     #     mkdir results/OptQuery/arxiv-small
     # fi
-    # ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/arxiv-small/$s &
+    # ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/arxiv-small/$s.csv > results/OptQuery/arxiv-small/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/arxiv-small" ]; then
         mkdir results/PostFiltering/arxiv-small
@@ -146,10 +146,10 @@ do
     python3 test_pgvector.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/arxiv-small/$s.csv
 done
 
-# Run swissprot
+# # Run swissprot
 for s in 2 3 4
 do
-    python3 generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1
+    python3 scripts/generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1
     # PreFiltering
     if [ ! -d "results/PreFiltering/swissprot" ]; then
         mkdir results/PreFiltering/swissprot
@@ -159,7 +159,7 @@ do
     # if [ ! -d "results/OptQuery/swissprot" ]; then
     #     mkdir results/OptQuery/swissprot
     # fi
-    # ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/swissprot/$s &
+    # ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/swissprot/$s.csv > results/OptQuery/swissprot/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/swissprot" ]; then
         mkdir results/PostFiltering/swissprot
@@ -181,7 +181,7 @@ done
 # Run code_search_net
 for s in 2 3 4
 do
-    python3 generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1
+    python3 scripts/generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1
     # PreFiltering
     if [ ! -d "results/PreFiltering/code_search_net" ]; then
         mkdir results/PreFiltering/code_search_net
@@ -191,7 +191,7 @@ do
     # if [ ! -d "results/OptQuery/code_search_net" ]; then
     #     mkdir results/OptQuery/code_search_net
     # fi
-    # ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings.txt vectors.txt k.txt OptQuery > results/OptQuery/code_search_net/$s &
+    # ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings.txt vectors.txt k.txt OptQuery --statistics-file=results/OptQuery/code_search_net/$s.csv > results/OptQuery/code_search_net/$s &
     # PostFiltering
     if [ ! -d "results/PostFiltering/code_search_net" ]; then
         mkdir results/PostFiltering/code_search_net
