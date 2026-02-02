@@ -248,6 +248,8 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    std::vector<int> ef_search = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+
     if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
         LOG_INFO("Using OptQuery");
         OptQuery oq;
@@ -261,7 +263,7 @@ int main(int argc, char * argv[]) {
         LOG_INFO("Size ratio: ", (float)oq.size() / (string_size + vector_size));
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 16; ef <= 512; ef *= 2) {
+        for (int ef : ef_search) {
             LOG_DEBUG("Set ef_search to ", ef);
             oq.set_ef(ef);
             start_time = currentTime();
@@ -367,7 +369,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 16; ef <= 512; ef *= 2) {
+        for (int ef : ef_search) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
@@ -437,7 +439,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 16; ef <= 512; ef *= 2) {
+        for (int ef : ef_search) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();
@@ -508,7 +510,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 16; ef <= 512; ef *= 2) {
+        for (int ef : ef_search) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();
@@ -579,7 +581,7 @@ int main(int argc, char * argv[]) {
         }
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef = 16; ef <= 512; ef *= 2) {
+        for (int ef : ef_search) {
             LOG_DEBUG("Set ef_search to ", ef);
             vdb.set_ef(ef);
             start_time = currentTime();

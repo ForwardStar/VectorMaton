@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
+import numpy as np
 
 plt.rcParams.update({'font.family': 'Times New Roman'})
 for font in fm.findSystemFonts(fontpaths=None, fontext='ttf'):
@@ -16,20 +17,28 @@ for font in fm.findSystemFonts(fontpaths=None, fontext='ttf'):
         rcParams['mathtext.fontset'] = 'custom'
         rcParams['mathtext.rm'] = font_name
 
-def extract_time_us_from_log(filepath):
+def extract_avg_time_us_from_log(filepath):
     """
-    Extract the time in microseconds from a log file.
-    Expected pattern: took <number>μs
+    Extract the average time (in microseconds) from a log line.
+
+    Expected pattern:
+    avg (us): <number>
+
+    Example:
+    avg (us): 5.2246e+06
     """
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
 
-    match = re.search(r"took\s+(\d+)\s*μs", content)
+    match = re.search(
+        r"avg\s*\(us\)\s*:\s*([0-9.+\-eE]+)",
+        content
+    )
+
     if not match:
-        raise ValueError(f"Could not find time in microseconds in file: {filepath}")
+        raise ValueError(f"Could not find avg (us) in file: {filepath}")
 
     return float(match.group(1))
-
 
 def load_curve(csv_path):
     """
@@ -46,54 +55,59 @@ def load_curve(csv_path):
     except:
         return None, None
 
-def plot_dataset_row(dataset, methods, axes_row):
-    # axes_row is length-3 array: [ax0, ax1, ax2]
+def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
+    # axes_block: list/array of length 3
 
     for p_len in range(2, 5):
-        ax = axes_row[p_len - 2]
+        ax = axes_block[p_len - 2]
 
         csvs = []
         for method in methods:
             csv_path = os.path.join("results", method, dataset, f"{p_len}.csv")
             csvs.append(csv_path)
 
-        qpss = []
-        recalls = []
+        qpss, recalls = [], []
         for csv in csvs:
             time, recall = load_curve(csv)
             qps = None
             if time is not None:
-                qps = 1000 / time * 1_000_000
+                qps = 1_000_000 / time
 
             if recall is not None:
-                change = True
-                while change:
-                    change = False
-                    for i in range(1, len(recall)):
-                        if recall[i] == recall[i - 1]:
-                            new_recall = []
-                            new_qps = []
-                            for j in range(len(recall)):
-                                if j != i:
-                                    new_recall.append(recall[j])
-                                    new_qps.append(qps[j])
-                            recall = new_recall[:]
-                            qps = new_qps[:]
-                            change = True
-                            break
+                i = 1
+                while i < len(recall):
+                    if recall[i] == recall[i - 1]:
+                        recall = np.delete(recall, i)
+                        qps = np.delete(qps, i)
+                    else:
+                        i += 1
 
             qpss.append(qps)
             recalls.append(recall)
+            # Sort by recall
+            if recall is not None and qps is not None:
+                sorted_indices = np.argsort(recall)
+                recalls[-1] = recall[sorted_indices]
+                qpss[-1] = qps[sorted_indices]
 
-        # PreFiltering point
         filepath_prefiltering = os.path.join(
             "results", "PreFiltering", dataset, f"{p_len}"
         )
-        time_prefiltering = extract_time_us_from_log(filepath_prefiltering)
+        time_prefiltering = extract_avg_time_us_from_log(filepath_prefiltering)
 
         markers = ['o', 's', '^', 'd', 'v', 'x', '*']
         cs = plt.colormaps['tab10']
         colors = [cs(i) for i in range(len(methods))]
+
+        if time_prefiltering is not None:
+            qps_pref = 1_000_000 / time_prefiltering
+            qps_min = float('inf')
+            for qps in qpss:
+                if qps is not None and len(qps) > 0:
+                    qps_min = min(qps_min, np.min(qps))
+            if qps_pref * 100 >= qps_min:
+                ax.plot(1.0, qps_pref, marker='*', color='black',
+                        label="PreFiltering", markersize=10)
 
         for i in range(len(methods)):
             if qpss[i] is not None:
@@ -102,67 +116,71 @@ def plot_dataset_row(dataset, methods, axes_row):
                     marker=markers[i],
                     color=colors[i],
                     label=methods[i],
-                    markersize=6
+                    markersize=10
                 )
 
-        if time_prefiltering is not None:
-            least_qps = float('inf')
-            for qps in qpss:
-                if qps is not None and len(qps) > 0:
-                    least_qps = min(least_qps, min(qps))
-
-            qps_pref = 1000 / time_prefiltering * 1_000_000
-            if least_qps == float('inf') or qps_pref >= least_qps / 100:
-                ax.plot(
-                    1.0, qps_pref,
-                    marker=markers[-1],
-                    color=colors[-1],
-                    label="PreFiltering",
-                    markersize=6
-                )
-
-        ax.set_title(f"Length of p = {p_len}", fontsize=26)
-        ax.set_xlabel("Recall @ 10", fontsize=26)
+        ax.set_title(f"{ds_brief}, |p| = {p_len}", fontsize=25, fontweight='bold')
+        ax.set_xlabel("Recall @ 10", fontsize=25)
+        if left_block and p_len == 2:
+            ax.set_ylabel("QPS", fontsize=25)
         ax.set_yscale("log")
         ax.grid(True)
-        ax.tick_params(axis='both', which='major', labelsize=18)
-        ax.yaxis.get_offset_text().set_fontsize(18)
+        ax.tick_params(axis='both', labelsize=20)
+
+def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
+    """
+    Place caption centered below a group of 3 subplots.
+    pad is the vertical gap in figure coordinates.
+    """
+    # Bounding box covering all three axes
+    x0 = min(ax.get_position().x0 for ax in axes_block)
+    x1 = max(ax.get_position().x1 for ax in axes_block)
+    y0 = min(ax.get_position().y0 for ax in axes_block)
+
+    x_center = (x0 + x1) / 2
+    y = y0 - pad
+
+    fig.text(
+        x_center, y,
+        text,
+        ha="center",
+        va="top",
+        fontsize=fontsize
+    )
 
 if __name__ == "__main__":
     methods = ["OptQuery", "PostFiltering", "pgvector", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
+    ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
     n = len(datasets)
     fig, axes = plt.subplots(
-        n, 3,
-        figsize=(15, 5 * n),
+        n // 2, 6,
+        figsize=(28, 2.5 * n),
         sharey=True
     )
 
-    for row_idx, dataset in enumerate(datasets):
-        plot_dataset_row(dataset, methods, axes[row_idx])
+    for i, dataset in enumerate(datasets):
+        if i % 2 == 0:
+            plot_3panel_block(dataset, methods, ds_briefs[i], axes[i // 2, 0:3], left_block=True)
+        else:
+            plot_3panel_block(dataset, methods, ds_briefs[i], axes[i // 2, 3:6])
 
-        # Dataset caption (row label)
-        fig.text(
-            0.02,                     # left margin
-            1 - (row_idx + 0.5) / n,  # vertical center of the row
-            dataset,
-            va='center',
-            ha='left',
-            fontsize=30,
-            rotation=90
-        )
+        # add_block_caption(fig, left_block,  f"{dataset} (Index A)")
+        # add_block_caption(fig, right_block, f"{dataset} (Index B)")
+
 
     # Global legend (only once)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes[0, 2].get_legend_handles_labels()
     fig.legend(
         handles, labels,
         loc="upper center",
-        ncol=4,
-        fontsize=28
+        ncol=5,
+        fontsize=35,
+        handlelength=1.2,
+        markerscale=1.5
     )
-
-    plt.tight_layout(rect=[0.05, 0, 1, 0.93])
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_all_datasets.pdf")
