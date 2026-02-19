@@ -79,6 +79,9 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     if recall[i] == recall[i - 1]:
                         recall = np.delete(recall, i)
                         qps = np.delete(qps, i)
+                    elif qps[i] > qps[i - 1]:
+                        recall = np.delete(recall, i - 1)
+                        qps = np.delete(qps, i - 1)
                     else:
                         i += 1
 
@@ -89,6 +92,23 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                 sorted_indices = np.argsort(recall)
                 recalls[-1] = recall[sorted_indices]
                 qpss[-1] = qps[sorted_indices]
+        
+        # For all methods except VectorMaton, filter out points with recall < (minimum recall of VectorMaton), keep at least half of the points
+        min_recall_vectormaton = float('inf')
+        for i, method in enumerate(methods):
+            if method == "VectorMaton" and recalls[i] is not None:
+                min_recall_vectormaton = min(min_recall_vectormaton, np.min(recalls[i]))
+
+        for i, method in enumerate(methods):
+            if method != "VectorMaton" and recalls[i] is not None:
+                mask = recalls[i] >= min_recall_vectormaton
+                if np.sum(mask) > 0:
+                    # Keep at least half of the points
+                    indices = np.where(mask)[0]
+                    if len(indices) < len(recalls[i]) // 2:
+                        indices = np.argsort(recalls[i])[-(len(recalls[i]) // 2):]
+                    recalls[i] = recalls[i][indices]
+                    qpss[i] = qpss[i][indices]
 
         filepath_prefiltering = os.path.join(
             "results", "PreFiltering", dataset, f"{p_len}"
@@ -105,9 +125,9 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
             for qps in qpss:
                 if qps is not None and len(qps) > 0:
                     qps_min = min(qps_min, np.min(qps))
-            if qps_pref * 100 >= qps_min:
+            if qps_pref * 10 >= qps_min:
                 ax.plot(1.0, qps_pref, marker='*', color='black',
-                        label="PreFiltering", markersize=10)
+                        label="PreFiltering", markersize=10, markerfacecolor='none')
 
         for i in range(len(methods)):
             if qpss[i] is not None:
@@ -116,7 +136,8 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     marker=markers[i],
                     color=colors[i],
                     label=methods[i],
-                    markersize=10
+                    markersize=10,
+                    markerfacecolor='none'
                 )
 
         ax.set_title(f"{ds_brief}, |p| = {p_len}", fontsize=25, fontweight='bold')
@@ -124,7 +145,19 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
         if left_block and p_len == 2:
             ax.set_ylabel("QPS", fontsize=25)
         ax.set_yscale("log")
-        ax.grid(True)
+        min_qps = float('inf')
+        max_qps = float('-inf')
+        for qps in qpss:
+            if qps is not None and len(qps) > 0:
+                min_qps = min(min_qps, np.min(qps))
+                max_qps = max(max_qps, np.max(qps))
+        if time_prefiltering is not None:
+            qps_pref = 1_000_000 / time_prefiltering
+            if qps_pref * 10 >= qps_min:
+                min_qps = min(min_qps, qps_pref)
+                max_qps = max(max_qps, qps_pref)
+        ax.set_ylim(bottom=min_qps * 0.5, top=max_qps * 2)
+        ax.grid(True, linestyle="--", alpha=0.7)
         ax.tick_params(axis='both', labelsize=20)
 
 def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
@@ -157,7 +190,7 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(
         n // 2, 6,
         figsize=(28, 2.5 * n),
-        sharey=True
+        sharey=False
     )
 
     for i, dataset in enumerate(datasets):

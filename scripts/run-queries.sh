@@ -41,7 +41,11 @@ do
     if [ ! -d "results/VectorMaton/spam" ]; then
         mkdir results/VectorMaton/spam
     fi
-    ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/spam/$s --statistics-file=results/VectorMaton/spam/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart > results/VectorMaton/spam/$s --statistics-file=results/VectorMaton/spam/$s.csv --save-index=results/VectorMaton/spam/index &
+    else
+        ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart > results/VectorMaton/spam/$s --statistics-file=results/VectorMaton/spam/$s.csv --load-index=results/VectorMaton/spam/index &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/spam" ]; then
@@ -73,7 +77,11 @@ do
     if [ ! -d "results/VectorMaton/words" ]; then
         mkdir results/VectorMaton/words
     fi
-    ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/words/$s --statistics-file=results/VectorMaton/words/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --save-index=results/VectorMaton/words/index > results/VectorMaton/words/$s --statistics-file=results/VectorMaton/words/$s.csv &
+    else
+        ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --load-index=results/VectorMaton/words/index > results/VectorMaton/words/$s --statistics-file=results/VectorMaton/words/$s.csv &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/words" ]; then
@@ -105,7 +113,11 @@ do
     if [ ! -d "results/VectorMaton/mtg" ]; then
         mkdir results/VectorMaton/mtg
     fi
-    ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/mtg/$s --statistics-file=results/VectorMaton/mtg/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --save-index=results/VectorMaton/mtg/index > results/VectorMaton/mtg/$s --statistics-file=results/VectorMaton/mtg/$s.csv &
+    else
+        ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --load-index=results/VectorMaton/mtg/index > results/VectorMaton/mtg/$s --statistics-file=results/VectorMaton/mtg/$s.csv &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/mtg" ]; then
@@ -137,7 +149,11 @@ do
     if [ ! -d "results/VectorMaton/arxiv-small" ]; then
         mkdir results/VectorMaton/arxiv-small
     fi
-    ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/arxiv-small/$s --statistics-file=results/VectorMaton/arxiv-small/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --save-index=results/VectorMaton/arxiv-small/index > results/VectorMaton/arxiv-small/$s --statistics-file=results/VectorMaton/arxiv-small/$s.csv &
+    else
+        ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --load-index=results/VectorMaton/arxiv-small/index > results/VectorMaton/arxiv-small/$s --statistics-file=results/VectorMaton/arxiv-small/$s.csv &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/arxiv-small" ]; then
@@ -169,7 +185,11 @@ do
     if [ ! -d "results/VectorMaton/swissprot" ]; then
         mkdir results/VectorMaton/swissprot
     fi
-    ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/swissprot/$s --statistics-file=results/VectorMaton/swissprot/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --save-index=results/VectorMaton/swissprot/index > results/VectorMaton/swissprot/$s --statistics-file=results/VectorMaton/swissprot/$s.csv &
+    else
+        ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --load-index=results/VectorMaton/swissprot/index > results/VectorMaton/swissprot/$s --statistics-file=results/VectorMaton/swissprot/$s.csv &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/swissprot" ]; then
@@ -201,7 +221,11 @@ do
     if [ ! -d "results/VectorMaton/code_search_net" ]; then
         mkdir results/VectorMaton/code_search_net
     fi
-    ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings.txt vectors.txt k.txt VectorMaton-parallel --num-threads=32 > results/VectorMaton/code_search_net/$s --statistics-file=results/VectorMaton/code_search_net/$s.csv &
+    if [ "$s" -eq 2 ]; then
+        ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --save-index=results/VectorMaton/code_search_net/index > results/VectorMaton/code_search_net/$s --statistics-file=results/VectorMaton/code_search_net/$s.csv &
+    else
+        ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings.txt vectors.txt k.txt VectorMaton-smart --load-index=results/VectorMaton/code_search_net/index > results/VectorMaton/code_search_net/$s --statistics-file=results/VectorMaton/code_search_net/$s.csv &
+    fi
     wait
     # pgvector
     if [ ! -d "results/pgvector/code_search_net" ]; then

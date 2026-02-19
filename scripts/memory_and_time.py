@@ -26,9 +26,11 @@ hatches = ['/', '\\', 'x']
 size_pattern = re.compile(r"Total index size:\s*(\d+)\s*bytes")
 vector_pattern = re.compile(r"Vector size:\s*(\d+)\s*bytes")
 string_pattern = re.compile(r"String size:\s*(\d+)\s*bytes")
+time_pattern = re.compile(r"index built took\s*(\d+)μs")
 
 # Store results: {method: [sizes aligned with datasets or None]}
 results = {method: [] for method in methods}
+time_results = {method: [] for method in methods}
 
 for method in methods:
     for dataset in datasets:
@@ -36,6 +38,8 @@ for method in methods:
         size = None
         vector_size = None
         string_size = None
+
+        index_time = None
 
         if os.path.exists(filepath):
             with open(filepath, "r") as f:
@@ -49,43 +53,78 @@ for method in methods:
                             m = string_pattern.search(line)
                             if m:
                                 string_size = int(m.group(1))
-                    match = size_pattern.search(line)
-                    if match:
-                        size = int(match.group(1))
-                        break
+
+                    if size is None:
+                        m = size_pattern.search(line)
+                        if m:
+                            size = int(m.group(1))
+
+                    if index_time is None:
+                        m = time_pattern.search(line)
+                        if m:
+                            index_time = int(m.group(1))  # microseconds
 
         # if method == "VectorMaton" and vector_size is not None and string_size is not None:
         #     results["Data size"].append(vector_size + string_size)
-        
+
         results[method].append(size)
+        time_results[method].append(index_time)
 
 # Plot
 x = range(len(datasets))
-bar_width = 0.3
+bar_width = 0.2
 
-plt.figure(figsize=(12, 5))
+fig, axes = plt.subplots(1, 2, figsize=(18, 6))
+ax_mem, ax_time = axes
 
 for i, method in enumerate(methods):
-    xs = []
-    ys = []
+    xs, ys = [], []
 
     for j, size in enumerate(results[method]):
         if size is not None:
             xs.append(j + (i - 0.5) * bar_width)
-            ys.append(size / (1024 * 1024))  # convert to MB
+            ys.append(size / (1024 * 1024))  # MB
 
-    plt.bar(xs, ys, width=bar_width, label=method, color=colors[i], hatch=hatches[i])
+    ax_mem.bar(xs, ys, width=bar_width,
+               label=method, color=colors[i], hatch=hatches[i], edgecolor=colors[i], facecolor='none')
 
-plt.xticks(x, ds_brief, fontsize=25)
-plt.tick_params(axis='y', labelsize=25)
-plt.ylabel("Index Size (MB)", fontsize=30)
-plt.yscale("log")
-plt.legend(
-    loc="lower center",
-    bbox_to_anchor=(0.5, 1.02),
+ax_mem.set_xticks(x)
+ax_mem.set_xticklabels(ds_brief, fontsize=25)
+ax_mem.tick_params(axis='y', labelsize=25)
+ax_mem.set_ylabel("Size (MB)", fontsize=30)
+ax_mem.set_yscale("log")
+ax_mem.set_xlabel("(a) Index size", fontsize=30, fontweight='bold')
+ax_mem.grid(True, axis="y", linestyle="--", alpha=0.7)
+
+for i, method in enumerate(methods):
+    xs, ys = [], []
+
+    for j, t in enumerate(time_results[method]):
+        if t is not None:
+            xs.append(j + (i - 0.5) * bar_width)
+            ys.append(t / 1e6)  # seconds
+
+    ax_time.bar(xs, ys, width=bar_width,
+                label=method, color=colors[i], hatch=hatches[i], edgecolor=colors[i], facecolor='none')
+
+ax_time.set_xticks(x)
+ax_time.set_xticklabels(ds_brief, fontsize=25)
+ax_time.tick_params(axis='y', labelsize=25)
+ax_time.set_ylabel("Time (s)", fontsize=30)
+ax_time.set_yscale("log")
+ax_time.set_xlabel("(b) Index time", fontsize=30, fontweight='bold')
+ax_time.grid(True, axis="y", linestyle="--", alpha=0.7)
+
+handles, labels = ax_mem.get_legend_handles_labels()
+
+fig.legend(
+    handles,
+    labels,
+    loc="upper center",
     ncol=len(methods),
-    fontsize=30
+    fontsize=35
 )
-plt.tight_layout()
+
+plt.tight_layout(rect=[0, 0, 1, 0.8])
 os.makedirs("figures", exist_ok=True)
-plt.savefig("figures/memory.pdf")
+plt.savefig("figures/memory_and_time.pdf")
