@@ -18,6 +18,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 PCTS = list(range(10, 101, 10))
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
+DATASETS_BRIEF = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
 
 def parse_metrics(log_path):
@@ -83,7 +84,7 @@ def main():
                 color=cs(3),
             )
 
-        ax.set_title(dataset, fontsize=25, fontweight="bold")
+        ax.set_title(DATASETS_BRIEF[i], fontsize=25, fontweight="bold")
         ax.set_xlabel("Total string length", fontsize=25)
         ax.set_ylabel("Index size (MB)", fontsize=25)
         ax.grid(True, linestyle="--", alpha=0.7)
