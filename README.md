@@ -112,13 +112,16 @@ python3 scripts/download_datasets.py
 
 Finally, run all experiments:
 ```sh
-sh scripts/run-all.sh
+sh scripts/run-queries.sh
+sh scripts/run-scalability.sh
+sh scripts/run-parallel.sh
 ```
 
-Plot recall-qps curves and memory plot by:
+Plot by:
 ```sh
 python3 scripts/recall_qps.py
-python3 scripts/memory.py
+python3 scripts/memory_and_time.py
+python3 scripts/plot_scalability.py
 ```
 
 You will see results in the ``figures`` folder.

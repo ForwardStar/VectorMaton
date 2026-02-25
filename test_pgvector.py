@@ -108,8 +108,8 @@ with open(ground_truth_file) as gtf:
 print("Executing queries...")
 recall = []
 time_taken = []
-ef_search = 16
-while ef_search <= 512:
+ef_search_values = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768]
+for ef_search in ef_search_values:
     print(f"ef_search={ef_search}")
     cur.execute(f"SET hnsw.ef_search = {ef_search};")
     total_time = 0.0
@@ -147,12 +147,11 @@ while ef_search <= 512:
     time_taken.append(avg_time)
     recall.append(avg_recall)
     print(f"Average Time: {avg_time} us, Average Recall: {avg_recall:.4f}")
-    ef_search *= 2
 
 print("Query done.")
 print("Write statistics to file...")
 df = pd.DataFrame({
-    'ef_search': [16, 32, 64, 128, 256, 512],
+    'ef_search': ef_search_values,
     'time_us': time_taken,
     'recall': recall
 })
