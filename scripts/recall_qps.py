@@ -36,6 +36,7 @@ def extract_avg_time_us_from_log(filepath):
     )
 
     if not match:
+        return 1e10
         raise ValueError(f"Could not find avg (us) in file: {filepath}")
 
     return float(match.group(1))
@@ -76,12 +77,12 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
             if recall is not None:
                 i = 1
                 while i < len(recall):
-                    if recall[i] == recall[i - 1]:
-                        recall = np.delete(recall, i)
-                        qps = np.delete(qps, i)
-                    elif qps[i] > qps[i - 1]:
+                    if qps[i] >= qps[i - 1]:
                         recall = np.delete(recall, i - 1)
                         qps = np.delete(qps, i - 1)
+                    elif recall[i] <= recall[i - 1] + 1e-2:
+                        recall = np.delete(recall, i)
+                        qps = np.delete(qps, i)
                     else:
                         i += 1
 
@@ -127,7 +128,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     qps_min = min(qps_min, np.min(qps))
             if qps_pref * 10 >= qps_min:
                 ax.plot(1.0, qps_pref, marker='*', color='black',
-                        label="PreFiltering", markersize=10, markerfacecolor='none')
+                        label="PreFiltering", markersize=15, markerfacecolor='none')
 
         for i in range(len(methods)):
             if qpss[i] is not None:
@@ -136,7 +137,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     marker=markers[i],
                     color=colors[i],
                     label=methods[i],
-                    markersize=10,
+                    markersize=15,
                     markerfacecolor='none'
                 )
 
@@ -182,7 +183,7 @@ def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
     )
 
 if __name__ == "__main__":
-    methods = ["OptQuery", "PostFiltering", "pgvector", "VectorMaton"]
+    methods = ["OptQuery", "PostFiltering", "pgvector", "elasticsearch", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
     ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     fig.legend(
         handles, labels,
         loc="upper center",
-        ncol=5,
+        ncol=6,
         fontsize=35,
         handlelength=1.2,
         markerscale=1.5

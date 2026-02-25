@@ -14,7 +14,7 @@ for dataset in swissprot code_search_net; do
     mkdir -p "${output_dir}"
 
     # The binary requires query files as positional arguments.
-    python3 scripts/generate_queries.py "${strings_file}" "${vectors_file}" 2 1000 10 -1
+    python3 scripts/generate_queries.py "${strings_file}" "${vectors_file}" 2 10 10 -1
 
     for num_threads in ${THREADS}; do
         log_file="${output_dir}/${num_threads}.log"

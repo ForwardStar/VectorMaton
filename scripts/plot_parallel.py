@@ -53,11 +53,11 @@ def collect_points(dataset):
 
 
 def main():
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=False)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5), sharey=False)
     axes_flat = axes.flatten()
 
     cs = plt.colormaps["tab10"]
-    color = cs(3)
+    color = cs(4)
 
     for i, dataset in enumerate(DATASETS):
         x, y = collect_points(dataset)
@@ -77,18 +77,22 @@ def main():
             ax.plot(
                 x,
                 y,
-                marker="d",
+                marker="v",
                 linestyle="-",
                 markersize=10,
                 markerfacecolor="none",
                 color=color,
             )
 
-        ax.set_title(DATASETS_BRIEF[i], fontsize=25, fontweight="bold")
-        ax.set_xlabel("# Threads", fontsize=25)
-        ax.set_ylabel("Index construction time (s)", fontsize=25)
+        ax.set_title(DATASETS_BRIEF[i], fontsize=30, fontweight="bold")
+        ax.set_xlabel("# Threads", fontsize=30)
+        ax.set_ylabel("Time (s)", fontsize=30)
         ax.grid(True, linestyle="--", alpha=0.7)
-        ax.tick_params(axis="both", labelsize=20)
+        ax.tick_params(axis="both", labelsize=25)
+        ax.set_xscale("log", base=2)
+        ax.set_yscale("log", base=2)
+        ax.set_xticks(THREADS)
+        ax.set_xticklabels([str(t) for t in THREADS], fontsize=25)
 
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)

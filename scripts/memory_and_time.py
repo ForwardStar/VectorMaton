@@ -3,8 +3,11 @@ import re
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
+from matplotlib.patches import Patch, Rectangle
+from matplotlib.legend_handler import HandlerBase
 
 plt.rcParams.update({'font.family': 'Times New Roman'})
+plt.rcParams['hatch.linewidth'] = 2.8
 for font in fm.findSystemFonts(fontpaths=None, fontext='ttf'):
     if "Libertine_R" in font:
         font_prop = fm.FontProperties(fname=font)
@@ -19,8 +22,9 @@ datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net
 ds_brief = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 methods = ["OptQuery", "VectorMaton"]
 cs = plt.colormaps['tab10']
-colors = [cs(0), cs(3), cs(4)]
-hatches = ['/', '\\', 'x']
+colors = [cs(0), cs(4)]
+hatches = ['\\', '/']
+hatch_colors = [colors[0], colors[1]]
 
 # Regex to extract index size
 size_pattern = re.compile(r"Total index size:\s*(\d+)\s*bytes")
@@ -71,11 +75,52 @@ for method in methods:
         time_results[method].append(index_time)
 
 # Plot
-x = range(len(datasets))
-bar_width = 0.2
+x = list(range(len(datasets)))
+bar_width = 0.4
 
-fig, axes = plt.subplots(1, 2, figsize=(18, 6))
+fig, axes = plt.subplots(1, 2, figsize=(18, 7))
 ax_mem, ax_time = axes
+
+class HandlerOverlayPatch(HandlerBase):
+    def create_artists(self, legend, orig_handle, xdescent, ydescent,
+                       width, height, fontsize, trans):
+        base_proto, hatch_proto = orig_handle
+        x0, y0 = xdescent, ydescent
+        artists = []
+        for proto in (base_proto, hatch_proto):
+            p = Rectangle(
+                (x0, y0), width, height,
+                facecolor=proto.get_facecolor(),
+                edgecolor=proto.get_edgecolor(),
+                hatch=proto.get_hatch(),
+                linewidth=proto.get_linewidth(),
+            )
+            p.set_transform(trans)
+            artists.append(p)
+        return artists
+
+def draw_bars(ax, xs, ys, i, label):
+    # Layer 1: hollow bar with black border for shape readability
+    ax.bar(
+        xs,
+        ys,
+        width=bar_width,
+        label=label,
+        facecolor='none',
+        edgecolor='black',
+        linewidth=2.4,
+    )
+
+    # Layer 2: hatch-only overlay in the designated method color
+    ax.bar(
+        xs,
+        ys,
+        width=bar_width,
+        facecolor='none',
+        edgecolor=hatch_colors[i],
+        hatch=hatches[i],
+        linewidth=0.1,
+    )
 
 for i, method in enumerate(methods):
     xs, ys = [], []
@@ -85,8 +130,7 @@ for i, method in enumerate(methods):
             xs.append(j + (i - 0.5) * bar_width)
             ys.append(size / (1024 * 1024))  # MB
 
-    ax_mem.bar(xs, ys, width=bar_width,
-               label=method, color=colors[i], hatch=hatches[i], edgecolor=colors[i], facecolor='none')
+    draw_bars(ax_mem, xs, ys, i, method)
 
 ax_mem.set_xticks(x)
 ax_mem.set_xticklabels(ds_brief, fontsize=25)
@@ -104,8 +148,7 @@ for i, method in enumerate(methods):
             xs.append(j + (i - 0.5) * bar_width)
             ys.append(t / 1e6)  # seconds
 
-    ax_time.bar(xs, ys, width=bar_width,
-                label=method, color=colors[i], hatch=hatches[i], edgecolor=colors[i], facecolor='none')
+    draw_bars(ax_time, xs, ys, i, method)
 
 ax_time.set_xticks(x)
 ax_time.set_xticklabels(ds_brief, fontsize=25)
@@ -115,14 +158,19 @@ ax_time.set_yscale("log")
 ax_time.set_xlabel("(b) Index time", fontsize=30, fontweight='bold')
 ax_time.grid(True, axis="y", linestyle="--", alpha=0.7)
 
-handles, labels = ax_mem.get_legend_handles_labels()
-
 fig.legend(
-    handles,
-    labels,
+    handles=[
+        (
+            Patch(facecolor='none', edgecolor='black', linewidth=2.4),
+            Patch(facecolor='none', edgecolor=hatch_colors[i], linewidth=0.1, hatch=hatches[i]),
+        )
+        for i in range(len(methods))
+    ],
+    labels=methods,
     loc="upper center",
     ncol=len(methods),
-    fontsize=35
+    fontsize=45,
+    handler_map={tuple: HandlerOverlayPatch()},
 )
 
 plt.tight_layout(rect=[0, 0, 1, 0.8])
