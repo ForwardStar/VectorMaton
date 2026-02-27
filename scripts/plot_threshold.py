@@ -9,6 +9,7 @@ from matplotlib import rcParams
 
 
 plt.rcParams.update({"font.family": "Times New Roman"})
+plt.rcParams["hatch.linewidth"] = 2.8
 for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
     if "Libertine_R" in font:
         font_prop = fm.FontProperties(fname=font)
@@ -25,13 +26,34 @@ INDEX_BUILD_TIME_RE = re.compile(r"index built took\s*([0-9]+)\s*(?:μs|us)")
 MIN_RECALL = 0.5
 
 
+def draw_hatched_bars(ax, labels, values, colors, hatches, width=0.55):
+    for label, value, color, hatch in zip(labels, values, colors, hatches):
+        ax.bar(
+            [label],
+            [value],
+            width=width,
+            facecolor="none",
+            edgecolor="black",
+            linewidth=2.0,
+        )
+        ax.bar(
+            [label],
+            [value],
+            width=width,
+            facecolor="none",
+            edgecolor=color,
+            hatch=hatch,
+            linewidth=0.1,
+        )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Plot threshold-study recall-QPS and index size."
     )
     parser.add_argument(
         "--run-root",
-        default="results/threshold/VectorMaton-smart/arxiv-small/len2_k10_q1000",
+        default="results/threshold/VectorMaton-smart/arxiv-small/len2to4_k10_q1000",
         help="Root directory that contains threshold_* subdirectories.",
     )
     parser.add_argument(
@@ -93,17 +115,25 @@ def main():
     args = parse_args()
     cs = plt.colormaps["tab10"]
     markers = ["o", "s", "^", "d"]
+    hatches = ["\\", "/", "x", "-", "+", "o", ".", "*"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(20, 5))
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(17, 5),
+        gridspec_kw={"width_ratios": [1.5, 1, 1]},
+    )
     ax_curve, ax_size, ax_time = axes
 
     plotted_any_curve = False
     bar_labels = []
     bar_values_gb = []
     bar_colors = []
+    bar_hatches = []
     time_labels = []
     build_times_s = []
     time_colors = []
+    time_hatches = []
 
     for idx, t in enumerate(THRESHOLDS):
         threshold_dir = os.path.join(args.run_root, f"threshold_{t}")
@@ -117,7 +147,7 @@ def main():
                 recall,
                 qps,
                 marker=markers[idx % len(markers)],
-                markersize=7,
+                markersize=10,
                 markerfacecolor="none",
                 linewidth=2,
                 color=cs(idx),
@@ -127,15 +157,17 @@ def main():
 
         index_size_bytes = load_index_size_bytes(log_path)
         if index_size_bytes is not None:
-            bar_labels.append(f"T={t}")
+            bar_labels.append(f"{t}")
             bar_values_gb.append(index_size_bytes / (1024 ** 3))
             bar_colors.append(cs(idx))
+            bar_hatches.append(hatches[idx % len(hatches)])
 
         index_build_time_s = load_index_build_time_s(log_path)
         if index_build_time_s is not None:
-            time_labels.append(f"T={t}")
+            time_labels.append(f"{t}")
             build_times_s.append(index_build_time_s)
             time_colors.append(cs(idx))
+            time_hatches.append(hatches[idx % len(hatches)])
 
     if plotted_any_curve:
         ax_curve.set_xlabel("Recall @ 10", fontsize=25)
@@ -157,7 +189,13 @@ def main():
         ax_curve.set_axis_off()
 
     if bar_labels:
-        ax_size.bar(bar_labels, bar_values_gb, color=bar_colors, edgecolor="black", alpha=0.9)
+        draw_hatched_bars(
+            ax_size,
+            bar_labels,
+            bar_values_gb,
+            bar_colors,
+            bar_hatches,
+        )
     ax_size.set_xlabel("Threshold", fontsize=25)
     ax_size.set_ylabel("Index size (GB)", fontsize=25)
     ax_size.tick_params(axis="both", labelsize=20)
@@ -165,7 +203,13 @@ def main():
     ax_size.set_title("Index size by T", fontsize=25, fontweight="bold")
 
     if time_labels:
-        ax_time.bar(time_labels, build_times_s, color=time_colors, edgecolor="black", alpha=0.9)
+        draw_hatched_bars(
+            ax_time,
+            time_labels,
+            build_times_s,
+            time_colors,
+            time_hatches,
+        )
     ax_time.set_xlabel("Threshold", fontsize=25)
     ax_time.set_ylabel("Index time (s)", fontsize=25)
     ax_time.tick_params(axis="both", labelsize=20)

@@ -2,7 +2,7 @@ import random
 import os
 import sys
 
-def generate_queries(string_list, vector_size, s, num_queries):
+def generate_queries(string_list, vector_size, s, num_queries, mixed_length=False):
     """
     Generate queries: (substring of length s, random vector).
 
@@ -11,20 +11,29 @@ def generate_queries(string_list, vector_size, s, num_queries):
         vector_size (int): Size of the original vectors.
         s (int): Desired substring length.
         num_queries (int): Number of queries to generate.
+        mixed_length (bool): If true, query length is uniformly sampled from 2 to 4.
 
     Returns:
         list[tuple[str, list[float]]]: List of queries.
     """
     queries = []
     for _ in range(num_queries):
-        # pick a base string that is at least length s
-        candidates = [st for st in string_list if len(st) >= s]
+        curr_s = s
+        min_s = s
+        if mixed_length:
+            min_s = 2
+            curr_s = random.randint(2, 4)
+
+        # pick a base string that is at least length min_s
+        candidates = [st for st in string_list if len(st) >= min_s]
         if not candidates:
-            raise ValueError(f"No strings long enough for substring length {s}.")
+            raise ValueError(f"No strings long enough for substring length {min_s}.")
         
         base_string = random.choice(candidates)
-        start = random.randint(0, len(base_string) - s)
-        substring = base_string[start:start+s]
+        if mixed_length:
+            curr_s = random.randint(2, min(4, len(base_string)))
+        start = random.randint(0, len(base_string) - curr_s)
+        substring = base_string[start:start+curr_s]
 
         # generate a random vector
         random_vector = [random.random() for _ in range(vector_size)]
@@ -42,13 +51,16 @@ if __name__ == "__main__":
     num_queries = 1000
     k = 10
 
-    if len(sys.argv) != 1:
-        string_file_path = sys.argv[1]
-        vector_file_path = sys.argv[2]
-        s = int(sys.argv[3])
-        num_queries = int(sys.argv[4])
-        k = int(sys.argv[5])
-        truncate_len = int(sys.argv[6])
+    mixed_length = "--mixed-length" in sys.argv
+    argv = [arg for arg in sys.argv[1:] if arg != "--mixed-length"]
+
+    if len(argv) != 0:
+        string_file_path = argv[0]
+        vector_file_path = argv[1]
+        s = int(argv[2])
+        num_queries = int(argv[3])
+        k = int(argv[4])
+        truncate_len = int(argv[5])
         if not os.path.exists(vector_file_path) or not os.path.exists(string_file_path):
             print("Vector or string file not found.")
             exit(1)
@@ -98,11 +110,11 @@ if __name__ == "__main__":
         if truncate_len != -1:
             string_list = string_list[:truncate_len]
 
-    result = generate_queries(string_list, vector_size, s, num_queries)
+    result = generate_queries(string_list, vector_size, s, num_queries, mixed_length=mixed_length)
 
     suffix = ""
-    if len(sys.argv) > 7:
-        suffix = "_" + sys.argv[7]
+    if len(argv) > 6:
+        suffix = "_" + argv[6]
     # Print the generated queries to "strings.txt", "vectors.txt", and "k.txt"
     with open(f"strings{suffix}.txt", "w") as sf, open(f"vectors{suffix}.txt", "w") as vf, open(f"k{suffix}.txt", "w") as kf:
         for (st, vec) in result:

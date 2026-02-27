@@ -30,11 +30,11 @@ fi
 
 mkdir -p "${RESULT_ROOT}"
 
-RUN_ROOT="${RESULT_ROOT}/${METHOD}/${DATASET_NAME}/len${QUERY_STRING_LEN}_k${K_VALUE}_q${NUM_QUERIES}"
+RUN_ROOT="${RESULT_ROOT}/${METHOD}/${DATASET_NAME}/len2to4_k${K_VALUE}_q${NUM_QUERIES}"
 QUERY_DIR="${RUN_ROOT}/queries"
 mkdir -p "${QUERY_DIR}"
 
-echo "==> Generating queries (${NUM_QUERIES}, |p|=${QUERY_STRING_LEN}, k=${K_VALUE}) on ${DATASET_NAME}"
+echo "==> Generating mixed-length queries (${NUM_QUERIES}, |p| in [2,4], k=${K_VALUE}) on ${DATASET_NAME}"
 (
     cd "${QUERY_DIR}"
     python3 "${REPO_ROOT}/scripts/generate_queries.py" \
@@ -44,7 +44,8 @@ echo "==> Generating queries (${NUM_QUERIES}, |p|=${QUERY_STRING_LEN}, k=${K_VAL
         "${NUM_QUERIES}" \
         "${K_VALUE}" \
         "${TRUNCATE_LEN}" \
-        threshold
+        threshold \
+        --mixed-length
 )
 
 QUERY_STRINGS="${QUERY_DIR}/strings_threshold.txt"
@@ -64,6 +65,7 @@ printf "threshold,exact_baseline_avg_us,exact_baseline_qps,max_recall,max_recall
 run_threshold() {
     threshold="$1"
     OUT_DIR="${RUN_ROOT}/threshold_${threshold}"
+    INDEX_DIR="${OUT_DIR}/index"
     LOG_FILE="${OUT_DIR}/run.log"
     STATS_FILE="${OUT_DIR}/stats.csv"
     RECALL_QPS_FILE="${OUT_DIR}/recall_qps.csv"
@@ -81,6 +83,7 @@ run_threshold() {
         "${METHOD}" \
         "--set-min-build-threshold=${threshold}" \
         "--statistics-file=${STATS_FILE}" \
+        "--save-index=${INDEX_DIR}" \
         > "${LOG_FILE}" 2>&1
 
     if [ ! -f "${STATS_FILE}" ]; then
