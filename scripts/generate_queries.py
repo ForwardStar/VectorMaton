@@ -100,9 +100,9 @@ if __name__ == "__main__":
 
     result = generate_queries(string_list, vector_size, s, num_queries)
 
-    suffix = "_"
+    suffix = ""
     if len(sys.argv) > 7:
-        suffix += sys.argv[7]
+        suffix = "_" + sys.argv[7]
     # Print the generated queries to "strings.txt", "vectors.txt", and "k.txt"
     with open(f"strings{suffix}.txt", "w") as sf, open(f"vectors{suffix}.txt", "w") as vf, open(f"k{suffix}.txt", "w") as kf:
         for (st, vec) in result:

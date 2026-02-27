@@ -7,7 +7,7 @@
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...]");
         return 1;
     }
 
@@ -17,6 +17,7 @@ int main(int argc, char * argv[]) {
     std::string index_out = "";
     std::string ground_truth_file = "";
     int num_threads = 8;
+    int min_build_threshold = -1;
     // Parse optional arguments
     if (argc > 7) {
         for (int i = 0; i < argc; i++) {
@@ -90,6 +91,18 @@ int main(int argc, char * argv[]) {
             if (std::string(argv[i]).find("--write-ground-truth=") == 0) {
                 ground_truth_file = std::string(argv[i]).substr(21);
                 LOG_INFO("Ground truth file set to ", ground_truth_file);
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--set-min-build-threshold=") == 0) {
+                auto tmp = std::string(argv[i]).substr(26);
+                min_build_threshold = std::atoi(tmp.c_str());
+                LOG_INFO("Minimum build threshold set to ", min_build_threshold);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -487,6 +500,10 @@ int main(int argc, char * argv[]) {
         VectorMaton vdb;
         vdb.set_vectors(vec_array, dim, n);
         vdb.set_strings(str_array);
+        if (min_build_threshold > 0) {
+            LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
+            vdb.set_min_build_threshold(min_build_threshold);
+        }
         if (index_in == "") {
             LOG_INFO("Building VectorMaton-smart index");
             unsigned long long start_time = currentTime();
@@ -558,6 +575,10 @@ int main(int argc, char * argv[]) {
         VectorMaton vdb;
         vdb.set_vectors(vec_array, dim, n);
         vdb.set_strings(str_array);
+        if (min_build_threshold > 0) {
+            LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
+            vdb.set_min_build_threshold(min_build_threshold);
+        }
         if (index_in == "") {
             LOG_INFO("Building VectorMaton-parallel index");
             unsigned long long start_time = currentTime();

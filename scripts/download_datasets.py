@@ -11,6 +11,43 @@ import json
 
 headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
 
+
+def _synthetic_alpha_string(seed: int, length: int = 50) -> str:
+    # Deterministic pseudo-random lowercase string for vector-only datasets (e.g., SIFT).
+    x = ((seed + 1) * 2654435761) & 0xFFFFFFFF
+    chars = []
+    for _ in range(length):
+        x = (1664525 * x + 1013904223) & 0xFFFFFFFF
+        chars.append(chr(ord('a') + (x % 26)))
+    return "".join(chars)
+
+
+def _load_fvecs_memmap(path: str):
+    with open(path, "rb") as f:
+        dim_arr = np.fromfile(f, dtype=np.int32, count=1)
+        if dim_arr.size == 0:
+            raise ValueError(f"Empty fvecs file: {path}")
+        dim = int(dim_arr[0])
+
+    record_bytes = 4 * (dim + 1)
+    file_size = os.path.getsize(path)
+    if file_size % record_bytes != 0:
+        raise ValueError(f"Invalid fvecs file size for {path}.")
+
+    nvecs = file_size // record_bytes
+    data = np.memmap(path, dtype=np.float32, mode="r", shape=(nvecs, dim + 1))
+    dims = data[:, 0].view(np.int32)
+    if not np.all(dims == dim):
+        raise ValueError(f"Inconsistent dimensions in fvecs file: {path}")
+    return data[:, 1:], dim, nvecs
+
+
+def _find_existing_file(candidates):
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(f"None of the expected files were found: {candidates}")
+
 def download(url, path):
     try:
         from pathlib import Path
@@ -355,3 +392,42 @@ if __name__ == "__main__":
         log.info(f"Time consumption: {format_time(elapsed)}")
     else:
         log.info("ArXiv-small dataset already exists. Skipped.")
+
+    # SIFT (TEXMEX)
+    sift_vectors_path = "datasets/sift/vectors.txt"
+    sift_strings_path = "datasets/sift/strings.txt"
+    if not (os.path.exists(sift_vectors_path) and os.path.exists(sift_strings_path)):
+        os.makedirs("datasets/sift", exist_ok=True)
+        log.info("Downloading and generating SIFT dataset...")
+        start = time.perf_counter()
+        import tarfile
+
+        sift_archive = "datasets/sift/sift.tar.gz"
+        if not os.path.exists(sift_archive):
+            try:
+                download("ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz", sift_archive)
+            except Exception:
+                log.warning("FTP download failed, retrying with HTTP mirror.")
+                download("http://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz", sift_archive)
+
+        with tarfile.open(sift_archive, "r:gz") as archive:
+            archive.extractall("datasets/sift")
+
+        sift_base_fvecs = _find_existing_file([
+            "datasets/sift/sift_base.fvecs",
+            "datasets/sift/sift/sift_base.fvecs",
+        ])
+        vectors, dim, nvecs = _load_fvecs_memmap(sift_base_fvecs)
+        log.info(f"SIFT base vectors loaded. Size = {nvecs} entries, dim = {dim}.")
+
+        with open(sift_vectors_path, "w") as vec_file, open(sift_strings_path, "w") as str_file:
+            for i in range(nvecs):
+                str_file.write(_synthetic_alpha_string(i) + "\n")
+                vec_file.write(" ".join(map(str, vectors[i])) + "\n")
+
+        log.info("SIFT dataset downloaded and processed!")
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info("SIFT dataset already exists. Skipped.")

@@ -85,6 +85,13 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                         qps = np.delete(qps, i)
                     else:
                         i += 1
+                i = 0
+                while i < len(recall):
+                    if recall[i] <= 0.1:
+                        recall = np.delete(recall, i)
+                        qps = np.delete(qps, i)
+                    else:
+                        i += 1
 
             qpss.append(qps)
             recalls.append(recall)
@@ -183,7 +190,7 @@ def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
     )
 
 if __name__ == "__main__":
-    methods = ["OptQuery", "PostFiltering", "pgvector", "elasticsearch", "VectorMaton"]
+    methods = ["OptQuery", "PostFiltering", "pgvector", "ElasticSearch", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
     ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
