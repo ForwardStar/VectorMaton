@@ -1,12 +1,12 @@
 #include "vectormaton.h"
 
-void VectorMaton::set_vectors(float* vectors, int dimension, int num_elems) {
+void VectorMaton::set_vectors(const std::vector<float>& vectors, int dimension) {
     vecs = vectors;
     dim = dimension;
-    num_elements = num_elems;
+    num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
 }
 
-void VectorMaton::set_strings(std::string* strings) {
+void VectorMaton::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
 }
 
@@ -33,6 +33,13 @@ void VectorMaton::clear_gsa() {
     for (int i = 0; i < gsa.st.size(); i++) {
         gsa.st[i].ids = std::vector<uint32_t>();
     }
+}
+
+void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) {
+    if (static_cast<int>(vec.size()) != dim) return;
+    vecs.insert(vecs.end(), vec.begin(), vec.end());
+    strs.push_back(str);
+    num_elements++;
 }
 
 void VectorMaton::build_parallel(int cores) {
@@ -119,7 +126,7 @@ void VectorMaton::build_parallel(int cores) {
                     if (target_sc == -1) {
                         // No successor has built a graph, built the graph with all vector ids
                         int M = 16, ef_construction = 200;
-                        hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs, M, ef_construction);
+                        hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
                         size_ids[i] = st.ids.size();
                         candidate_ids[i] = new int[size_ids[i]];
                         for (int j = 0; j < size_ids[i]; j++) {
@@ -154,7 +161,7 @@ void VectorMaton::build_parallel(int cores) {
                         // Only build when meeting requirements
                         if (size_ids[i] >= min_build_threshold) {
                             int M = 16, ef_construction = 200;
-                            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs, M, ef_construction);
+                            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs.data(), M, ef_construction);
                             for (int j = 0; j < size_ids[i]; j++) {
                                 int id = candidate_ids[i][j];
                                 hnsws[i]->addPoint(id);
@@ -230,7 +237,7 @@ void VectorMaton::build_smart() {
         if (target_sc == -1) {
             // No successor has built a graph, built the graph with all vector ids
             int M = 16, ef_construction = 200;
-            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs, M, ef_construction);
+            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
             size_ids[i] = st.ids.size();
             candidate_ids[i] = new int[size_ids[i]];
             for (int j = 0; j < size_ids[i]; j++) {
@@ -265,7 +272,7 @@ void VectorMaton::build_smart() {
             // Only build when meeting requirements
             if (size_ids[i] >= min_build_threshold) {
                 int M = 16, ef_construction = 200;
-                hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs, M, ef_construction);
+                hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs.data(), M, ef_construction);
                 for (int j = 0; j < size_ids[i]; j++) {
                     int id = candidate_ids[i][j];
                     hnsws[i]->addPoint(id);
@@ -313,7 +320,7 @@ void VectorMaton::build_full() {
             candidate_ids[i][j] = st.ids[j];
         }
         int M = 16, ef_construction = 200;
-        hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs, M, ef_construction);
+        hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
         for (auto id : st.ids) {
             hnsws[i]->addPoint(id);
         }
@@ -365,7 +372,7 @@ void VectorMaton::load_index(const char* input_folder) {
         fs::path hnsw_file = in_path / buf.data();
         std::string tmp = hnsw_file.string();
         if (fs::exists(hnsw_file)) {
-            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, tmp, vecs);
+            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, tmp, vecs.data());
         }
         else {
             hnsws[i] = nullptr;
@@ -487,7 +494,7 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
         // No graph built on this state, brute-force
         for (int j = 0; j < size_ids[i]; j++) {
             int id = candidate_ids[i][j];
-            local_res.emplace_back(distance(vecs + id * dim, vec, dim), id);
+            local_res.emplace_back(distance(vecs.data() + id * dim, vec, dim), id);
         }
         std::sort(local_res.begin(), local_res.end());
         if (local_res.size() > k) local_res.resize(k);

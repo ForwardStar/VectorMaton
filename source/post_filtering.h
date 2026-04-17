@@ -5,19 +5,19 @@
 
 class PostFiltering {
     private:
-        float* vecs; // It is user's responsibility to manage the memory of vecs
-        std::string* strs; // It is user's responsibility to manage the memory of strs
+        std::vector<float> vecs;
+        std::vector<std::string> strs;
         int dim = 0, num_elements = 0;
 
     public:
         hnswlib::L2Space* space = nullptr;
         hnswlib::HierarchicalNSW<float>* hnsw = nullptr;
 
-        void set_vectors(float* vectors, int dimension, int num_elems);
-        void set_strings(std::string* strings);
+        void set_vectors(const std::vector<float>& vectors, int dimension);
+        void set_strings(const std::vector<std::string>& strings);
         void set_ef(int ef);
         void build();
-        void insert(int id);
+        void insert(const std::vector<float>& vec, const std::string& str);
         void load_index(const char* input_folder);
         void save_index(const char* output_folder);
         size_t size();

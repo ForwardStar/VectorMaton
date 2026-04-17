@@ -6,8 +6,8 @@
 
 class PreFiltering {
     private:
-        float* vecs; // It is user's responsibility to manage the memory of vecs
-        std::string* strs; // It is user's responsibility to manage the memory of strs
+        std::vector<float> vecs;
+        std::vector<std::string> strs;
         int dim = 0, num_elements = 0;
         void build_gsa();
         void clear_gsa();
@@ -15,10 +15,10 @@ class PreFiltering {
     public:
         GeneralizedSuffixAutomaton gsa;
 
-        void set_vectors(float* vectors, int dimension, int num_elems);
-        void set_strings(std::string* strings);
+        void set_vectors(const std::vector<float>& vectors, int dimension);
+        void set_strings(const std::vector<std::string>& strings);
         void build();
-        void insert(int id);
+        void insert(const std::vector<float>& vec, const std::string& str);
         size_t size();
         std::vector<int> query(const float* vec, const std::string &s, int k, int threshold=2048);
         

@@ -2,13 +2,12 @@
 #include <iostream>
 
 int main() {
-    float* vecs;
-    vecs = new float[15];
+    std::vector<float> vecs(15);
     for (int i = 0; i < 15; i++) {
         vecs[i] = i + 1;
     }
     
-    std::string strings[5] = {
+    std::vector<std::string> strings = {
         "banana",
         "anana",
         "nana",
@@ -18,7 +17,7 @@ int main() {
 
     VectorMaton db;
     db.set_min_build_threshold(0);
-    db.set_vectors(vecs, 3, 5);
+    db.set_vectors(vecs, 3);
     db.set_strings(strings);
     db.build_full();
 
@@ -43,7 +42,7 @@ int main() {
 
     // Test build_smart
     VectorMaton pdb;
-    pdb.set_vectors(vecs, 3, 5);
+    pdb.set_vectors(vecs, 3);
     pdb.set_strings(strings);
     pdb.build_smart();
     std::cout << "Smart VectorMaton tests:" << std::endl;
@@ -59,7 +58,7 @@ int main() {
     // Test save/load index
     pdb.save_index("test_vectormaton");
     VectorMaton pdb1;
-    pdb1.set_vectors(vecs, 3, 5);
+    pdb1.set_vectors(vecs, 3);
     pdb1.set_strings(strings);
     pdb1.load_index("test_vectormaton");
     std::cout << "Load VectorMaton tests:" << std::endl;
@@ -74,7 +73,7 @@ int main() {
 
     // Test build parallel
     VectorMaton pdb2;
-    pdb2.set_vectors(vecs, 3, 5);
+    pdb2.set_vectors(vecs, 3);
     pdb2.set_strings(strings);
     pdb2.build_parallel();
     std::cout << "Parallel VectorMaton tests:" << std::endl;

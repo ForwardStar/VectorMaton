@@ -1,12 +1,12 @@
 #include "exact.h"
 
-void ExactSearch::set_vectors(float* vectors, int dimension, int max_elems) {
+void ExactSearch::set_vectors(const std::vector<float>& vectors, int dimension) {
     vecs = vectors;
     dim = dimension;
-    max_elements = max_elems;
+    max_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
 }
 
-void ExactSearch::set_strings(std::string* strings) {
+void ExactSearch::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
 }
 
@@ -18,7 +18,7 @@ std::vector<int> ExactSearch::query(const float* vec, const std::string &s, int 
         }
     }
     std::sort(results.begin(), results.end(), [&](int a, int b) {
-        return distance(vecs + a * dim, vec, dim) < distance(vecs + b * dim, vec, dim);
+        return distance(vecs.data() + a * dim, vec, dim) < distance(vecs.data() + b * dim, vec, dim);
     });
     if (results.size() > k) {
         results.resize(k);

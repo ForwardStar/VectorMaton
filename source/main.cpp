@@ -219,28 +219,21 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    // Turn vectors into float*
+    // Flatten vectors into contiguous storage.
     int n = vectors.size(), dim = vectors[0].size();
-    float* vec_array = new float[n * dim];
+    std::vector<float> flat_vectors(n * dim);
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < dim; ++j) {
-            vec_array[i * dim + j] = vectors[i][j];
+            flat_vectors[i * dim + j] = vectors[i][j];
         }
     }
     vectors = std::vector<std::vector<float>>();
 
-    // Turn strings into std::string*
-    std::string* str_array = new std::string[n];
-    for (size_t i = 0; i < n; ++i) {
-        str_array[i] = strings[i];
-    }
-    strings = std::vector<std::string>();
-
     std::vector<std::vector<int>> exact_results;
     LOG_INFO("Doing ExactSearch for baseline comparison");
     ExactSearch es;
-    es.set_vectors(vec_array, dim, n);
-    es.set_strings(str_array);
+    es.set_vectors(flat_vectors, dim);
+    es.set_strings(strings);
     unsigned long long start_time = currentTime();
     std::vector<std::vector<int>> all_results;
     for (size_t i = 0; i < queried_strings.size(); ++i) {
@@ -266,8 +259,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
         LOG_INFO("Using OptQuery");
         OptQuery oq;
-        oq.set_vectors(vec_array, dim, n);
-        oq.set_strings(str_array);
+        oq.set_vectors(flat_vectors, dim);
+        oq.set_strings(strings);
         LOG_INFO("Building OptQuery index");
         unsigned long long start_time = currentTime();
         oq.build();
@@ -322,8 +315,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
         PreFiltering pf;
-        pf.set_vectors(vec_array, dim, n);
-        pf.set_strings(str_array);
+        pf.set_vectors(flat_vectors, dim);
+        pf.set_strings(strings);
         LOG_INFO("Building PreFiltering index");
         unsigned long long start_time = currentTime();
         pf.build();
@@ -358,8 +351,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
         LOG_INFO("Using PostFiltering");
         PostFiltering pf;
-        pf.set_vectors(vec_array, dim, n);
-        pf.set_strings(str_array);
+        pf.set_vectors(flat_vectors, dim);
+        pf.set_strings(strings);
         if (index_in == "") {
             LOG_INFO("Building PostFiltering index");
             unsigned long long start_time = currentTime();
@@ -427,8 +420,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
         LOG_INFO("Using VectorMaton-full");
         VectorMaton vdb;
-        vdb.set_vectors(vec_array, dim, n);
-        vdb.set_strings(str_array);
+        vdb.set_vectors(flat_vectors, dim);
+        vdb.set_strings(strings);
         if (index_in == "") {
             LOG_INFO("Building VectorMaton-full index");
             unsigned long long start_time = currentTime();
@@ -498,8 +491,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorMaton-smart") == 0) {
         LOG_INFO("Using VectorMaton-smart");
         VectorMaton vdb;
-        vdb.set_vectors(vec_array, dim, n);
-        vdb.set_strings(str_array);
+        vdb.set_vectors(flat_vectors, dim);
+        vdb.set_strings(strings);
         if (min_build_threshold > 0) {
             LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
             vdb.set_min_build_threshold(min_build_threshold);
@@ -573,8 +566,8 @@ int main(int argc, char * argv[]) {
     if (std::strcmp(argv[argc - 1], "VectorMaton-parallel") == 0) {
         LOG_INFO("Using VectorMaton-parallel");
         VectorMaton vdb;
-        vdb.set_vectors(vec_array, dim, n);
-        vdb.set_strings(str_array);
+        vdb.set_vectors(flat_vectors, dim);
+        vdb.set_strings(strings);
         if (min_build_threshold > 0) {
             LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
             vdb.set_min_build_threshold(min_build_threshold);
@@ -644,9 +637,6 @@ int main(int argc, char * argv[]) {
             }
         }
     }
-
-    delete [] vec_array;
-    delete [] str_array;
 
     return 0;
 }

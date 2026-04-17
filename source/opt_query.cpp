@@ -1,12 +1,12 @@
 #include "opt_query.h"
 
-void OptQuery::set_vectors(float* vectors, int dimension, int num_elems) {
+void OptQuery::set_vectors(const std::vector<float>& vectors, int dimension) {
     vecs = vectors;
     dim = dimension;
-    num_elements = num_elems;
+    num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
 }
 
-void OptQuery::set_strings(std::string* strings) {
+void OptQuery::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
 }
 
@@ -24,7 +24,7 @@ void OptQuery::build() {
                 if (hnsw.find(substring) == hnsw.end()) {
                     // Create new HNSW index for this substring
                     space = new hnswlib::L2Space(dim);
-                    hnsw[substring] = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs, 16, 200);
+                    hnsw[substring] = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs.data(), 16, 200);
                 }
                 if (str_to_ids.find(substring) == str_to_ids.end()) {
                     str_to_ids[substring] = std::unordered_set<int>();
@@ -39,15 +39,26 @@ void OptQuery::build() {
     str_to_ids = std::unordered_map<std::string, std::unordered_set<int>>(); // free memory
 }
 
-void OptQuery::insert(int id) {
-    if (id < 0 || id >= num_elements) return;
+void OptQuery::insert(const std::vector<float>& vec, const std::string& str) {
+    if (static_cast<int>(vec.size()) != dim) return;
+    vecs.insert(vecs.end(), vec.begin(), vec.end());
+    strs.push_back(str);
+    num_elements++;
+    const int id = num_elements - 1;
+
+    for (auto &pair : hnsw) {
+        if (num_elements > static_cast<int>(pair.second->max_elements_)) {
+            pair.second->resizeIndex(num_elements);
+        }
+        pair.second->external_data_ = reinterpret_cast<const char*>(vecs.data());
+    }
     for (int j = 0; j < strs[id].size(); j++) {
         for (int k = 1; k <= strs[id].size() - j; k++) {
             std::string substring = strs[id].substr(j, k);
             if (hnsw.find(substring) == hnsw.end()) {
                 // Create new HNSW index for this substring
                 space = new hnswlib::L2Space(dim);
-                hnsw[substring] = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs, 16, 200);
+                hnsw[substring] = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs.data(), 16, 200);
             }
             if (str_to_ids.find(substring) == str_to_ids.end()) {
                 str_to_ids[substring] = std::unordered_set<int>();
