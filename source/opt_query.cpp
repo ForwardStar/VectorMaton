@@ -39,6 +39,27 @@ void OptQuery::build() {
     str_to_ids = std::unordered_map<std::string, std::unordered_set<int>>(); // free memory
 }
 
+void OptQuery::insert(int id) {
+    if (id < 0 || id >= num_elements) return;
+    for (int j = 0; j < strs[id].size(); j++) {
+        for (int k = 1; k <= strs[id].size() - j; k++) {
+            std::string substring = strs[id].substr(j, k);
+            if (hnsw.find(substring) == hnsw.end()) {
+                // Create new HNSW index for this substring
+                space = new hnswlib::L2Space(dim);
+                hnsw[substring] = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs, 16, 200);
+            }
+            if (str_to_ids.find(substring) == str_to_ids.end()) {
+                str_to_ids[substring] = std::unordered_set<int>();
+            }
+            if (str_to_ids[substring].find(id) == str_to_ids[substring].end()) {
+                str_to_ids[substring].insert(id);
+                hnsw[substring]->addPoint(id);
+            }
+        }
+    }
+}
+
 void OptQuery::load_index(const char* input_folder) {
     // TODO
 }

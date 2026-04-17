@@ -12,7 +12,6 @@ class ExactSearch {
     public:
         void set_vectors(float* vectors, int dimension, int max_elems);
         void set_strings(std::string* strings);
-        void build();
         std::vector<int> query(const float* vec, const std::string &s, int k);
 
         ExactSearch() {};

@@ -33,6 +33,11 @@ void PreFiltering::build() {
     build_gsa();
 }
 
+void PreFiltering::insert(int id) {
+    if (id < 0 || id >= num_elements) return;
+    gsa.add_string(id, strs[id]);
+}
+
 size_t PreFiltering::size() {
     size_t total_size = 0;
     for (int i = 0; i < num_elements; i++) {

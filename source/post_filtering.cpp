@@ -24,6 +24,15 @@ void PostFiltering::build() {
     }
 }
 
+void PostFiltering::insert(int id) {
+    if (id < 0 || id >= num_elements) return;
+    if (!hnsw) {
+        space = new hnswlib::L2Space(dim);
+        hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs, 16, 200);
+    }
+    hnsw->addPoint(id);
+}
+
 void PostFiltering::load_index(const char* input_folder) {
     namespace fs = std::filesystem;
     fs::path in_path(input_folder);

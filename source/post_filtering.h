@@ -17,6 +17,7 @@ class PostFiltering {
         void set_strings(std::string* strings);
         void set_ef(int ef);
         void build();
+        void insert(int id);
         void load_index(const char* input_folder);
         void save_index(const char* output_folder);
         size_t size();

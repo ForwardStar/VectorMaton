@@ -27,6 +27,7 @@ class VectorMaton {
         void build_parallel(int cores=8);
         void build_smart();
         void build_full();
+        void insert(int id);
         void load_index(const char* input_folder);
         void save_index(const char* output_folder);
         size_t size();

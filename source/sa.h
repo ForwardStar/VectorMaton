@@ -24,9 +24,6 @@ public:
     std::atomic<int>* deg = nullptr;
     std::vector<int>* reverse_next = nullptr;
 
-    // Record which states are affected after inserting a string.
-    std::vector<int> affected_states;
-
     GeneralizedSuffixAutomaton();
     GeneralizedSuffixAutomaton(char* input_file);
     ~GeneralizedSuffixAutomaton();
