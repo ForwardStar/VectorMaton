@@ -2,13 +2,13 @@ import random
 import os
 import sys
 
-def generate_queries(string_list, vector_size, s, num_queries, mixed_length=False):
+def generate_queries(string_list, vector_list, s, num_queries, mixed_length=False):
     """
     Generate queries: (substring of length s, random vector).
 
     Args:
         string_list (list[str]): List of original strings.
-        vector_size (int): Size of the original vectors.
+        vector_list (list[list[float]]): List of original vectors.
         s (int): Desired substring length.
         num_queries (int): Number of queries to generate.
         mixed_length (bool): If true, query length is uniformly sampled from 2 to 4.
@@ -36,7 +36,7 @@ def generate_queries(string_list, vector_size, s, num_queries, mixed_length=Fals
         substring = base_string[start:start+curr_s]
 
         # generate a random vector
-        random_vector = [random.random() for _ in range(vector_size)]
+        random_vector = random.choice(vector_list)
 
         queries.append((substring, random_vector))
     
@@ -45,8 +45,8 @@ def generate_queries(string_list, vector_size, s, num_queries, mixed_length=Fals
 # Example usage:
 if __name__ == "__main__":
     # Sample string list and vector size
+    vector_list = [[random.random() for _ in range(128)] for _ in range(6)]
     string_list = ["cat", "dog", "bird", "fish", "lion", "tiger"]
-    vector_size = 128
     s = 2
     num_queries = 1000
     k = 10
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             print("Vector or string file not found.")
             exit(1)
         with open(vector_file_path, "r") as vf:
-            vector_size = len(vf.readline().strip().split())
+            vector_list = [list(map(float, line.strip().split())) for line in vf.readlines()]
         with open(string_file_path, "r") as sf:
             string_list = [line.strip() for line in sf.readlines()]
         if truncate_len != -1:
@@ -98,7 +98,7 @@ if __name__ == "__main__":
             print("Vectors or strings file not found in the selected dataset.")
             exit(1)
         with open(vector_file_path, "r") as vf:
-            vector_size = len(vf.readline().strip().split())
+            vector_list = [list(map(float, line.strip().split())) for line in vf.readlines()]
         with open(string_file_path, "r") as sf:
             string_list = [line.strip() for line in sf.readlines()]
         
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         if truncate_len != -1:
             string_list = string_list[:truncate_len]
 
-    result = generate_queries(string_list, vector_size, s, num_queries, mixed_length=mixed_length)
+    result = generate_queries(string_list, vector_list, s, num_queries, mixed_length=mixed_length)
 
     suffix = ""
     if len(argv) > 6:
