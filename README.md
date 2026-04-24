@@ -58,7 +58,7 @@ Generate queries by:
 ```sh
 python3 generate_queries.py
 ```
-and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly generated containing floating numbers. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
+and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly sampled from the original dataset. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
 
 # Running example
 Following is a minimal running example.
@@ -116,6 +116,8 @@ Finally, run all experiments:
 sh scripts/run-queries.sh
 sh scripts/run-scalability.sh
 sh scripts/run-parallel.sh
+sh scripts/run-sift.sh
+sh scripts/run-threshold.sh
 ```
 
 Plot by:
@@ -123,6 +125,8 @@ Plot by:
 python3 scripts/recall_qps.py
 python3 scripts/memory_and_time.py
 python3 scripts/plot_scalability.py
+python3 scripts/plot_threshold.py
+python3 scripts/plot_sift.py
 ```
 
 You will see results in the ``figures`` folder.
