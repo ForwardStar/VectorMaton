@@ -42,9 +42,9 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
     num_elements++;
     gsa.add_string(num_elements - 1, str);
     // Expand inherit_states, size_ids, candidate_ids and hnsws for the new states
-    while (inherit_states.size() < gsa.st.size()) {
-        int new_state = inherit_states.size(), num_ids = gsa.st[new_state].ids.size();
-        inherit_states.emplace_back(-1);
+    while (candidate_ids.size() < gsa.st.size()) {
+        int new_state = candidate_ids.size(), num_ids = gsa.st[new_state].ids.size();
+        if (inherit_states.size() > 0) inherit_states.emplace_back(-1);
         candidate_ids.emplace_back(std::vector<int>());
         hnsws.emplace_back(nullptr);
     }
@@ -64,7 +64,7 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
                 }
             }
         }
-        else if (inherit_states[state] == -1) {
+        else if (inherit_states.size() == 0 || inherit_states[state] == -1) {
             // For old states without inheritance, if it is not processed before, add the new vector to candidate list and index
             if (candidate_ids[state].back() != num_elements - 1) {
                 candidate_ids[state].emplace_back(num_elements - 1);

@@ -88,7 +88,8 @@ int main() {
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
     print_res(pdb2.query(query_vec1, "banana", 2)); // {0}
 
-    // Test insert
+    // Test insert-build-partial
+    std::cout << "Testing insertion for build-partial:" << std::endl;
     VectorMaton pdb3;
     pdb3.set_min_build_threshold(0);
     pdb3.set_vectors(vecs, 3);
@@ -99,6 +100,17 @@ int main() {
     pdb3.insert(new_vec, new_str);
     std::cout << "After insertion of {12.0, 13.0, 14.0} with string 'ana':" << std::endl;
     print_res(pdb3.query(query_vec1, "ana", 3)); // {2, 3, 5}
-    
+
+    // Test insert-build-full
+    std::cout << "Testing insertion for build-full:" << std::endl;
+    VectorMaton pdb4;
+    pdb4.set_min_build_threshold(0);
+    pdb4.set_vectors(vecs, 3);
+    pdb4.set_strings(strings);
+    pdb4.build_full();
+    pdb4.insert(new_vec, new_str);
+    std::cout << "After insertion of {12.0, 13.0, 14.0} with string 'ana':" << std::endl;
+    print_res(pdb4.query(query_vec1, "ana", 3)); // {2, 3, 5}
+
     return 0;
 }
