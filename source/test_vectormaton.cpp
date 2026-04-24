@@ -42,6 +42,7 @@ int main() {
 
     // Test build_smart
     VectorMaton pdb;
+    pdb.set_min_build_threshold(0);
     pdb.set_vectors(vecs, 3);
     pdb.set_strings(strings);
     pdb.build_smart();
@@ -73,6 +74,7 @@ int main() {
 
     // Test build parallel
     VectorMaton pdb2;
+    pdb2.set_min_build_threshold(0);
     pdb2.set_vectors(vecs, 3);
     pdb2.set_strings(strings);
     pdb2.build_parallel();
@@ -85,6 +87,18 @@ int main() {
     print_res(pdb2.query(query_vec1, "anana", 2)); // {0, 1}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'banana'." << std::endl;
     print_res(pdb2.query(query_vec1, "banana", 2)); // {0}
+
+    // Test insert
+    VectorMaton pdb3;
+    pdb3.set_min_build_threshold(0);
+    pdb3.set_vectors(vecs, 3);
+    pdb3.set_strings(strings);
+    pdb3.build_smart();
+    std::vector<float> new_vec = {12.0, 13.0, 14.0};
+    std::string new_str = "ana";
+    pdb3.insert(new_vec, new_str);
+    std::cout << "After insertion of {12.0, 13.0, 14.0} with string 'ana':" << std::endl;
+    print_res(pdb3.query(query_vec1, "ana", 3)); // {2, 3, 5}
     
     return 0;
 }

@@ -38,8 +38,83 @@ void VectorMaton::clear_gsa() {
 void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) {
     if (static_cast<int>(vec.size()) != dim) return;
     vecs.insert(vecs.end(), vec.begin(), vec.end());
-    strs.push_back(str);
+    strs.emplace_back(str);
     num_elements++;
+    gsa.add_string(num_elements - 1, str);
+    // Expand inherit_states, size_ids, candidate_ids and hnsws for the new states
+    while (inherit_states.size() < gsa.st.size()) {
+        int new_state = inherit_states.size(), num_ids = gsa.st[new_state].ids.size();
+        inherit_states.emplace_back(-1);
+        candidate_ids.emplace_back(std::vector<int>());
+        hnsws.emplace_back(nullptr);
+    }
+    for (int state : gsa.affected_states) {
+        if (candidate_ids[state].empty()) {
+            // For brand new states, construct index directly (without inheriting from children)
+            candidate_ids[state].resize(gsa.st[state].ids.size());
+            for (int j = 0; j < candidate_ids[state].size(); j++) {
+                candidate_ids[state][j] = gsa.st[state].ids[j];
+            }
+            gsa.st[state].ids = std::vector<uint32_t>();
+            if (candidate_ids[state].size() >= min_build_threshold) {
+                int M = 16, ef_construction = 200;
+                hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
+                for (int id : candidate_ids[state]) {
+                    hnsws[state]->addPoint(id);
+                }
+            }
+        }
+        else if (inherit_states[state] == -1) {
+            // For old states without inheritance, if it is not processed before, add the new vector to candidate list and index
+            if (candidate_ids[state].back() != num_elements - 1) {
+                candidate_ids[state].emplace_back(num_elements - 1);
+                gsa.st[state].ids = std::vector<uint32_t>();
+                if (hnsws[state]) {
+                    hnsws[state]->resizeIndex(candidate_ids[state].size());
+                    hnsws[state]->addPoint(num_elements - 1);
+                }
+                else if (candidate_ids[state].size() >= min_build_threshold) {
+                    int M = 16, ef_construction = 200;
+                    hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
+                    for (int id : gsa.st[state].ids) {
+                        hnsws[state]->addPoint(id);
+                    }
+                }
+            }
+        }
+        else {
+            // For old states with inheritance, if it is not processed before, process it and its inherited states recursively
+            if (candidate_ids[state].back() != num_elements - 1) {
+                int now = state;
+                std::vector<int> to_process = {now};
+                while (inherit_states[now] != -1 && gsa.st[now].ids.size() > 0 && gsa.st[now].ids.back() == num_elements - 1) {
+                    now = inherit_states[now];
+                    to_process.emplace_back(now);
+                }
+                for (int i = to_process.size() - 1; i >= 0; i--) {
+                    int s = to_process[i];
+                    if (gsa.st[s].ids.size() > 0 && gsa.st[s].ids.back() == num_elements - 1) {
+                        gsa.st[s].ids = std::vector<uint32_t>();
+                        if (inherit_states[s] != -1 && candidate_ids[inherit_states[s]].size() > 0 && candidate_ids[inherit_states[s]].back() == num_elements - 1) {
+                            continue;
+                        }
+                        candidate_ids[s].emplace_back(num_elements - 1);
+                        if (hnsws[s]) {
+                            hnsws[s]->resizeIndex(candidate_ids[s].size());
+                            hnsws[s]->addPoint(num_elements - 1);
+                        }
+                        else if (candidate_ids[s].size() >= min_build_threshold) {
+                            int M = 16, ef_construction = 200;
+                            hnsws[s] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[s].size(), vecs.data(), M, ef_construction);
+                            for (int id : gsa.st[s].ids) {
+                                hnsws[s]->addPoint(id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void VectorMaton::build_parallel(int cores) {
@@ -47,15 +122,14 @@ void VectorMaton::build_parallel(int cores) {
     gsa.build_reverse();
 
     // Smart build will inherit info from children
-    inherit_states = new int[gsa.st.size()];
-    size_ids = new int[gsa.st.size()];
-    candidate_ids = new int*[gsa.st.size()];
+    inherit_states.assign(gsa.st.size(), -1);
+    candidate_ids.assign(gsa.st.size(), std::vector<int>());
     int* largest_state = new int[gsa.st.size()];
     for (int i = 0; i < gsa.st.size(); i++) {
-        inherit_states[i] = -1, largest_state[i] = -1, size_ids[i] = 0, candidate_ids[i] = nullptr;
+        largest_state[i] = -1;
     }
 
-    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    hnsws.assign(gsa.st.size(), nullptr);
     for (int i = 0; i < gsa.st.size(); i++) {
         hnsws[i] = nullptr;
     }
@@ -100,9 +174,9 @@ void VectorMaton::build_parallel(int cores) {
                         mtx.unlock();
                     }
                     if (st.ids.size() < min_build_threshold) {
-                        size_ids[i] = st.ids.size();
-                        candidate_ids[i] = new int[size_ids[i]];
-                        for (int j = 0; j < size_ids[i]; j++) {
+                        int num_ids = st.ids.size();
+                        candidate_ids[i].resize(num_ids);
+                        for (int j = 0; j < num_ids; j++) {
                             candidate_ids[i][j] = st.ids[j];
                         }
                         st.ids = std::vector<uint32_t>();
@@ -118,7 +192,7 @@ void VectorMaton::build_parallel(int cores) {
                     // First find a successor with largest built graph
                     int target_sc = -1;
                     for (auto ch : st.next) {
-                        if (largest_state[ch.second] != -1 && (target_sc == -1 || size_ids[largest_state[ch.second]] > size_ids[target_sc])) {
+                        if (largest_state[ch.second] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.second]].size() > candidate_ids[target_sc].size())) {
                             target_sc = largest_state[ch.second];
                         }
                     }
@@ -127,9 +201,9 @@ void VectorMaton::build_parallel(int cores) {
                         // No successor has built a graph, built the graph with all vector ids
                         int M = 16, ef_construction = 200;
                         hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
-                        size_ids[i] = st.ids.size();
-                        candidate_ids[i] = new int[size_ids[i]];
-                        for (int j = 0; j < size_ids[i]; j++) {
+                        int num_ids = st.ids.size();
+                        candidate_ids[i].resize(num_ids);
+                        for (int j = 0; j < num_ids; j++) {
                             int id = st.ids[j];
                             hnsws[i]->addPoint(id);
                             candidate_ids[i][j] = id;
@@ -143,10 +217,10 @@ void VectorMaton::build_parallel(int cores) {
                         largest_state[i] = target_sc;
                         // Find remaining vertices
                         int l = 0, r = 0, cnt = 0;
-                        size_ids[i] = st.ids.size() - size_ids[target_sc];
-                        candidate_ids[i] = new int[size_ids[i]];
-                        while (l < st.ids.size() || r < size_ids[target_sc]) {
-                            if (r == size_ids[target_sc]) {
+                        int num_ids = st.ids.size() - candidate_ids[target_sc].size();
+                        candidate_ids[i].resize(num_ids);
+                        while (l < st.ids.size() || r < candidate_ids[target_sc].size()) {
+                            if (r == candidate_ids[target_sc].size()) {
                                 candidate_ids[i][cnt++] = st.ids[l++];
                             }
                             else {
@@ -159,14 +233,14 @@ void VectorMaton::build_parallel(int cores) {
                             }
                         }
                         // Only build when meeting requirements
-                        if (size_ids[i] >= min_build_threshold) {
+                        if (candidate_ids[i].size() >= min_build_threshold) {
                             int M = 16, ef_construction = 200;
-                            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs.data(), M, ef_construction);
-                            for (int j = 0; j < size_ids[i]; j++) {
+                            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[i].size(), vecs.data(), M, ef_construction);
+                            for (int j = 0; j < candidate_ids[i].size(); j++) {
                                 int id = candidate_ids[i][j];
                                 hnsws[i]->addPoint(id);
                             }
-                            if (size_ids[i] > size_ids[target_sc]) {
+                            if (candidate_ids[i].size() > candidate_ids[target_sc].size()) {
                                 // Update largest state
                                 largest_state[i] = i;
                             }
@@ -193,15 +267,14 @@ void VectorMaton::build_smart() {
     build_gsa();
     
     // Smart build will inherit info from children
-    inherit_states = new int[gsa.st.size()];
-    size_ids = new int[gsa.st.size()];
-    candidate_ids = new int*[gsa.st.size()];
+    inherit_states.assign(gsa.st.size(), -1);
+    candidate_ids.assign(gsa.st.size(), std::vector<int>());
     int* largest_state = new int[gsa.st.size()];
     for (int i = 0; i < gsa.st.size(); i++) {
-        inherit_states[i] = -1, largest_state[i] = -1, size_ids[i] = 0, candidate_ids[i] = nullptr;
+        largest_state[i] = -1;
     }
 
-    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    hnsws.assign(gsa.st.size(), nullptr);
     for (int i = 0; i < gsa.st.size(); i++) {
         hnsws[i] = nullptr;
     }
@@ -218,9 +291,8 @@ void VectorMaton::build_smart() {
         built_vertices += gsa.st[i].ids.size();
         auto& st = gsa.st[i];
         if (st.ids.size() < min_build_threshold) {
-            size_ids[i] = st.ids.size();
-            candidate_ids[i] = new int[size_ids[i]];
-            for (int j = 0; j < size_ids[i]; j++) {
+            candidate_ids[i].resize(st.ids.size());
+            for (int j = 0; j < st.ids.size(); j++) {
                 candidate_ids[i][j] = st.ids[j];
             }
             st.ids = std::vector<uint32_t>();
@@ -229,7 +301,7 @@ void VectorMaton::build_smart() {
         // First find a successor with largest built graph
         int target_sc = -1;
         for (auto ch : st.next) {
-            if (largest_state[ch.second] != -1 && (target_sc == -1 || size_ids[largest_state[ch.second]] > size_ids[target_sc])) {
+            if (largest_state[ch.second] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.second]].size() > candidate_ids[target_sc].size())) {
                 target_sc = largest_state[ch.second];
             }
         }
@@ -238,9 +310,9 @@ void VectorMaton::build_smart() {
             // No successor has built a graph, built the graph with all vector ids
             int M = 16, ef_construction = 200;
             hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
-            size_ids[i] = st.ids.size();
-            candidate_ids[i] = new int[size_ids[i]];
-            for (int j = 0; j < size_ids[i]; j++) {
+            int num_ids = st.ids.size();
+            candidate_ids[i].resize(num_ids);
+            for (int j = 0; j < num_ids; j++) {
                 int id = st.ids[j];
                 hnsws[i]->addPoint(id);
                 candidate_ids[i][j] = id;
@@ -254,10 +326,10 @@ void VectorMaton::build_smart() {
             largest_state[i] = target_sc;
             // Find remaining vertices
             int l = 0, r = 0, cnt = 0;
-            size_ids[i] = st.ids.size() - size_ids[target_sc];
-            candidate_ids[i] = new int[size_ids[i]];
-            while (l < st.ids.size() || r < size_ids[target_sc]) {
-                if (r == size_ids[target_sc]) {
+            int num_ids = st.ids.size() - candidate_ids[target_sc].size();
+            candidate_ids[i].resize(num_ids);
+            while (l < st.ids.size() || r < candidate_ids[target_sc].size()) {
+                if (r == candidate_ids[target_sc].size()) {
                     candidate_ids[i][cnt++] = st.ids[l++];
                 }
                 else {
@@ -270,14 +342,14 @@ void VectorMaton::build_smart() {
                 }
             }
             // Only build when meeting requirements
-            if (size_ids[i] >= min_build_threshold) {
+            if (candidate_ids[i].size() >= min_build_threshold) {
                 int M = 16, ef_construction = 200;
-                hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, size_ids[i], vecs.data(), M, ef_construction);
-                for (int j = 0; j < size_ids[i]; j++) {
+                hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[i].size(), vecs.data(), M, ef_construction);
+                for (int j = 0; j < candidate_ids[i].size(); j++) {
                     int id = candidate_ids[i][j];
                     hnsws[i]->addPoint(id);
                 }
-                if (size_ids[i] > size_ids[target_sc]) {
+                if (candidate_ids[i].size() > candidate_ids[target_sc].size()) {
                     // Update largest state
                     largest_state[i] = i;
                 }
@@ -292,14 +364,10 @@ void VectorMaton::build_smart() {
 
 void VectorMaton::build_full() {
     build_gsa();
-    size_ids = new int[gsa.st.size()];
-    candidate_ids = new int*[gsa.st.size()];
-    for (int i = 0; i < gsa.st.size(); i++) {
-        size_ids[i] = 0, candidate_ids[i] = nullptr;
-    }
+    candidate_ids.assign(gsa.st.size(), std::vector<int>());
 
     // Build graph index
-    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    hnsws.assign(gsa.st.size(), nullptr);
     for (int i = 0; i < gsa.st.size(); i++) {
         hnsws[i] = nullptr;
     }
@@ -314,9 +382,8 @@ void VectorMaton::build_full() {
         }
         built_vertices += gsa.st[i].ids.size();
         auto& st = gsa.st[i];
-        size_ids[i] = st.ids.size();
-        candidate_ids[i] = new int[size_ids[i]];
-        for (int j = 0; j < size_ids[i]; j++) {
+        candidate_ids[i].resize(st.ids.size());
+        for (int j = 0; j < st.ids.size(); j++) {
             candidate_ids[i][j] = st.ids[j];
         }
         int M = 16, ef_construction = 200;
@@ -344,26 +411,27 @@ void VectorMaton::load_index(const char* input_folder) {
     fs::path internal_file = in_path / "internal.in";
     LOG_DEBUG("Loading VectorMaton internal data from ", internal_file.string());
     std::ifstream f(internal_file.string());
-    inherit_states = new int[gsa.st.size()];
+    inherit_states.assign(gsa.st.size(), -1);
     for (int i = 0; i < gsa.st.size(); i++) {
         f >> inherit_states[i];
     }
-    size_ids = new int[gsa.st.size()];
+    int* size_ids = new int[gsa.st.size()];
     for (int i = 0; i < gsa.st.size(); i++) {
         f >> size_ids[i];
     }
-    candidate_ids = new int*[gsa.st.size()];
+    candidate_ids.assign(gsa.st.size(), std::vector<int>());
     for (int i = 0; i < gsa.st.size(); i++) {
-        candidate_ids[i] = new int[size_ids[i]];
+        candidate_ids[i].resize(size_ids[i]);
         for (int j = 0; j < size_ids[i]; j++) {
             f >> candidate_ids[i][j];
         }
     }
+    delete [] size_ids;
     f.close();
 
     LOG_DEBUG("Loading HNSW data");
     space = new hnswlib::L2Space(dim);
-    hnsws = new hnswlib::HierarchicalNSW<float>*[gsa.st.size()];
+    hnsws.assign(gsa.st.size(), nullptr);
     for (int i = 0; i < gsa.st.size(); i++) {
         std::string s = "hnsw";
         s += std::to_string(i);
@@ -403,11 +471,11 @@ void VectorMaton::save_index(const char* output_folder) {
     }
     f << "\n";
     for (int i = 0; i < gsa.st.size(); i++) {
-        f << size_ids[i] << " ";
+        f << candidate_ids[i].size() << " ";
     }
     f << "\n";
     for (int i = 0; i < gsa.st.size(); i++) {
-        for (int j = 0; j < size_ids[i]; j++) {
+        for (int j = 0; j < candidate_ids[i].size(); j++) {
             f << candidate_ids[i][j] << " ";
         }
         f << "\n";
@@ -457,7 +525,7 @@ size_t VectorMaton::size() {
     // Auxiliary components
     size_t aux_size = sizeof(int) * gsa.st.size() * 3;
     for (int i = 0; i < gsa.st.size(); i++) {
-        aux_size += sizeof(int) * size_ids[i];
+        aux_size += sizeof(int) * candidate_ids[i].size();
     }
     LOG_DEBUG("Auxiliary components' size: ", aux_size, " bytes.");
     total_size += aux_size;
@@ -468,8 +536,8 @@ size_t VectorMaton::vertex_num() {
     size_t total_vertices = 0;
     for (int i = 0; i < gsa.st.size(); i++) {
         if (!hnsws[i]) continue;
-        total_vertices += size_ids[i];
-        if (size_ids[i] != hnsws[i]->max_elements_) {
+        total_vertices += candidate_ids[i].size();
+        if (candidate_ids[i].size() != hnsws[i]->max_elements_) {
             LOG_ERROR("Vertex number for state ", i, " does not match!");
         }
     }
@@ -492,7 +560,7 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
     std::vector<std::pair<float, hnswlib::labeltype>> local_res;
     if (!hnsws[i]) {
         // No graph built on this state, brute-force
-        for (int j = 0; j < size_ids[i]; j++) {
+        for (int j = 0; j < candidate_ids[i].size(); j++) {
             int id = candidate_ids[i][j];
             local_res.emplace_back(distance(vecs.data() + id * dim, vec, dim), id);
         }
@@ -500,13 +568,15 @@ std::vector<int> VectorMaton::query(const float* vec, const std::string &s, int 
         if (local_res.size() > k) local_res.resize(k);
     }
     else {
+        hnsws[i]->external_data_ = (const char*)vecs.data();
         local_res = hnsws[i]->searchKnnCloserFirst(vec, k);
     }
     std::vector<std::pair<float, hnswlib::labeltype>> inherit_res;
-    if (inherit_states && inherit_states[i] != -1) {
+    if (inherit_states.size() > 0 && inherit_states[i] != -1) {
         if (!hnsws[inherit_states[i]]) {
             LOG_ERROR("HNSW for state ", i, "'s inherited state ", inherit_states[i], " should have been built but is not built!");
         }
+        hnsws[inherit_states[i]]->external_data_ = (const char*)vecs.data();
         inherit_res = hnsws[inherit_states[i]]->searchKnnCloserFirst(vec, k);
     }
     std::vector<int> results;
@@ -534,14 +604,5 @@ VectorMaton::~VectorMaton() {
     for (int i = 0; i < gsa.st.size(); i++) {
         if (hnsws[i]) delete hnsws[i];
     }
-    delete [] hnsws;
     delete space;
-    if (inherit_states) delete [] inherit_states;
-    if (candidate_ids) {
-        for (int i = 0; i < gsa.st.size(); i++) {
-            delete [] candidate_ids[i];
-        }
-        delete [] candidate_ids;
-    }
-    if (size_ids) delete [] size_ids;
 }

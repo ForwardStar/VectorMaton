@@ -19,6 +19,7 @@ public:
         std::vector<uint32_t> ids;
     };
     std::vector<State> st;
+    std::vector<int> affected_states; // states affected by the last added string, used for insertion
         
     // Used for reverse topological sort.
     std::atomic<int>* deg = nullptr;

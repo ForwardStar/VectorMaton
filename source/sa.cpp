@@ -64,6 +64,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             for (auto old_id : st[x].ids) { // copy ids
                 st[cur].ids.emplace_back(old_id);
             }
+            affected_states.emplace_back(cur);
             int p = last;
             while (p != -1 && st[p].next[c] == x) {
                 st[p].next[c] = cur;
@@ -76,7 +77,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
         // Propagate IDs
         int p = last;
         while (p != -1) {
-            if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+            if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id), affected_states.emplace_back(p); else break;
             p = st[p].link;
         }
         return;
@@ -120,7 +121,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
     last = cur;
     p = last;
     while (p != -1) {
-        if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id); else break;
+        if (st[p].ids.empty() || st[p].ids.back() != id) st[p].ids.emplace_back(id), affected_states.emplace_back(p); else break;
         p = st[p].link;
     }
 }
@@ -130,6 +131,8 @@ void GeneralizedSuffixAutomaton::add_string(uint32_t id, const std::string &s) {
     // so the string is added as a separate sequence (avoiding cross-string suffixes).
     last = 0;
     st[0].ids.emplace_back(id);
+    affected_states.clear();
+    affected_states.emplace_back(0);
     for (char c : s) {
         if (c >= 'a' && c <= 'z') {
             sa_extend(c, id);

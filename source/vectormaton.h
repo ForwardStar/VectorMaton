@@ -15,12 +15,11 @@ class VectorMaton {
         void clear_gsa();
 
     public:
-        int* inherit_states = nullptr; // inherited state id
-        int* size_ids = nullptr; // how many vectors are maintained in this state?
-        int** candidate_ids = nullptr; // maintained vector ids in this state (others are inherited from inherit_states)
+        std::vector<int> inherit_states = {}; // inherited state id
+        std::vector<std::vector<int>> candidate_ids = {}; // maintained vector ids in this state (others are inherited from inherit_states)
         GeneralizedSuffixAutomaton gsa;
         hnswlib::L2Space* space = nullptr;
-        hnswlib::HierarchicalNSW<float>** hnsws = nullptr;
+        std::vector<hnswlib::HierarchicalNSW<float>*> hnsws;
 
         void set_vectors(const std::vector<float>& vectors, int dimension);
         void set_strings(const std::vector<std::string>& strings);
