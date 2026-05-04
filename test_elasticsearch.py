@@ -46,7 +46,7 @@ def escape_wildcard_value(value: str) -> str:
 
 
 def build_client(args):
-    kwargs = {"hosts": [args.host], "request_timeout": args.request_timeout}
+    kwargs = {"hosts": [args.host], "request_timeout": args.request_timeout, "verify_certs": False, "ssl_show_warn": False}
     if args.username:
         kwargs["basic_auth"] = (args.username, args.password or "")
     return Elasticsearch(**kwargs)
@@ -178,9 +178,9 @@ def parse_args():
     parser.add_argument("vector_query_file")
     parser.add_argument("k_file")
     parser.add_argument("ground_truth_file")
-    parser.add_argument("--host", default=os.getenv("ELASTICSEARCH_URL", "http://localhost:9200"))
-    parser.add_argument("--username", default=os.getenv("ELASTICSEARCH_USERNAME"))
-    parser.add_argument("--password", default=os.getenv("ELASTICSEARCH_PASSWORD"))
+    parser.add_argument("--host", default="https://localhost:9200")
+    parser.add_argument("--username", default="elastic")
+    parser.add_argument("--password", default="123456")
     parser.add_argument("--index-name", default=None)
     parser.add_argument("--request-timeout", type=int, default=60)
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the index.")
