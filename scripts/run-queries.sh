@@ -62,7 +62,7 @@ if [ ! -d "results/VectorMaton" ]; then
 fi
 
 # Run spam
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/spam/strings.txt datasets/spam/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -119,7 +119,7 @@ do
 done
 
 # # Run Words
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/words/strings.txt datasets/words/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -175,7 +175,7 @@ do
 done
 
 # # Run mtg
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/mtg/strings.txt datasets/mtg/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -229,7 +229,7 @@ do
 done
 
 # # Run arxiv-small
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -283,7 +283,7 @@ do
 done
 
 # # Run swissprot
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -337,7 +337,7 @@ do
 done
 
 # Run code_search_net
-for s in 2 3 4
+for s in 2 3 4 5 6 7 8
 do
     python3 scripts/generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1 queries
     # PreFiltering

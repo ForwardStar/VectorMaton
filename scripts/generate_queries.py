@@ -2,9 +2,13 @@ import random
 import os
 import sys
 
+VECTOR_SHIFT_RANGE = 0.01
+
 def generate_queries(string_list, vector_list, s, num_queries, mixed_length=False):
     """
     Generate queries: (substring of length s, random vector).
+    Half of query vectors are sampled directly from the dataset; the rest are
+    sampled from the dataset and shifted by a small random per-dimension offset.
 
     Args:
         string_list (list[str]): List of original strings.
@@ -17,7 +21,7 @@ def generate_queries(string_list, vector_list, s, num_queries, mixed_length=Fals
         list[tuple[str, list[float]]]: List of queries.
     """
     queries = []
-    for _ in range(num_queries):
+    for query_idx in range(num_queries):
         curr_s = s
         min_s = s
         if mixed_length:
@@ -36,7 +40,12 @@ def generate_queries(string_list, vector_list, s, num_queries, mixed_length=Fals
         substring = base_string[start:start+curr_s]
 
         # generate a random vector
-        random_vector = random.choice(vector_list)
+        random_vector = list(random.choice(vector_list))
+        if query_idx >= num_queries // 2:
+            random_vector = [
+                value + random.uniform(-VECTOR_SHIFT_RANGE, VECTOR_SHIFT_RANGE)
+                for value in random_vector
+            ]
 
         queries.append((substring, random_vector))
     
