@@ -6,6 +6,7 @@ void PreFiltering::build_gsa() {
     for (int i = 0; i < num_elements; i++) {
         gsa.add_string(i, strs[i]);
     }
+    updatePeakMemoryUsage(peak_memory_usage);
     LOG_DEBUG("GSA built in ", timeFormatting(currentTime() - start_time).str());
     LOG_DEBUG("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));
 
@@ -23,14 +24,17 @@ void PreFiltering::set_vectors(const std::vector<float>& vectors, int dimension)
     vecs = vectors;
     dim = dimension;
     num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PreFiltering::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PreFiltering::build() {
     build_gsa();
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PreFiltering::insert(const std::vector<float>& vec, const std::string& str) {
@@ -40,6 +44,7 @@ void PreFiltering::insert(const std::vector<float>& vec, const std::string& str)
     strs.push_back(str);
     num_elements++;
     gsa.add_string(id, strs[id]);
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 size_t PreFiltering::size() {

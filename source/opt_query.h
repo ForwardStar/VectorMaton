@@ -13,6 +13,7 @@ class OptQuery {
         hnswlib::L2Space* space = nullptr;
         std::unordered_map<std::string, hnswlib::HierarchicalNSW<float>*> hnsw;
         std::unordered_map<std::string, std::unordered_set<int>> str_to_ids;
+        long long peak_memory_usage = 0;
 
         void set_vectors(const std::vector<float>& vectors, int dimension);
         void set_strings(const std::vector<std::string>& strings);

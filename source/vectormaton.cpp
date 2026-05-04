@@ -4,10 +4,12 @@ void VectorMaton::set_vectors(const std::vector<float>& vectors, int dimension) 
     vecs = vectors;
     dim = dimension;
     num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void VectorMaton::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void VectorMaton::build_gsa() {
@@ -16,6 +18,7 @@ void VectorMaton::build_gsa() {
     for (int i = 0; i < num_elements; i++) {
         gsa.add_string(i, strs[i]);
     }
+    updatePeakMemoryUsage(peak_memory_usage);
     LOG_DEBUG("GSA built in ", timeFormatting(currentTime() - start_time).str());
     LOG_DEBUG("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));
 
@@ -33,6 +36,7 @@ void VectorMaton::clear_gsa() {
     for (int i = 0; i < gsa.st.size(); i++) {
         gsa.st[i].ids = std::vector<uint32_t>();
     }
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) {
@@ -114,6 +118,8 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
                 }
             }
         }
+        
+        updatePeakMemoryUsage(peak_memory_usage);
     }
 }
 
@@ -261,6 +267,8 @@ void VectorMaton::build_parallel(int cores) {
             }
         }
     }
+    
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void VectorMaton::build_smart() {
@@ -356,6 +364,7 @@ void VectorMaton::build_smart() {
             }
             st.ids = std::vector<uint32_t>();
         }
+        updatePeakMemoryUsage(peak_memory_usage);
     }
 
     delete [] largest_state;
@@ -392,6 +401,7 @@ void VectorMaton::build_full() {
             hnsws[i]->addPoint(id);
         }
         st.ids = std::vector<uint32_t>();
+        updatePeakMemoryUsage(peak_memory_usage);
     }
     
     // clear_gsa();
@@ -445,6 +455,8 @@ void VectorMaton::load_index(const char* input_folder) {
         else {
             hnsws[i] = nullptr;
         }
+
+        updatePeakMemoryUsage(peak_memory_usage);
     }
 }
 

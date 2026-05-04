@@ -4,10 +4,12 @@ void OptQuery::set_vectors(const std::vector<float>& vectors, int dimension) {
     vecs = vectors;
     dim = dimension;
     num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void OptQuery::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void OptQuery::set_ef(int ef) {
@@ -35,8 +37,10 @@ void OptQuery::build() {
                 }
             }
         }
+        updatePeakMemoryUsage(peak_memory_usage);
     }
     str_to_ids = std::unordered_map<std::string, std::unordered_set<int>>(); // free memory
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void OptQuery::insert(const std::vector<float>& vec, const std::string& str) {
@@ -69,6 +73,7 @@ void OptQuery::insert(const std::vector<float>& vec, const std::string& str) {
             }
         }
     }
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void OptQuery::load_index(const char* input_folder) {

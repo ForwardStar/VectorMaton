@@ -14,6 +14,7 @@ class PreFiltering {
 
     public:
         GeneralizedSuffixAutomaton gsa;
+        long long peak_memory_usage = 0;
 
         void set_vectors(const std::vector<float>& vectors, int dimension);
         void set_strings(const std::vector<std::string>& strings);

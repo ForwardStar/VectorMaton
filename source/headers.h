@@ -30,6 +30,33 @@
 #include <omp.h>
 #include "hnswlib/hnswlib.h"
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#endif
+
+static long long peakMemoryBytes() {
+#if defined(__unix__) || defined(__APPLE__)
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        return -1;
+    }
+#if defined(__APPLE__)
+    return static_cast<long long>(usage.ru_maxrss);
+#else
+    return static_cast<long long>(usage.ru_maxrss) * 1024;
+#endif
+#else
+    return -1;
+#endif
+}
+
+inline void updatePeakMemoryUsage(long long& peak_memory_usage) {
+    long long current_peak = peakMemoryBytes();
+    if (current_peak > peak_memory_usage) {
+        peak_memory_usage = current_peak;
+    }
+}
+
 // Calculate Euclidean distance between two vectors
 inline float distance(const float* a, const float* b, size_t size) {
     float dist = 0.0;

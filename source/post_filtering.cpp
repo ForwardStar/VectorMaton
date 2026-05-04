@@ -4,10 +4,12 @@ void PostFiltering::set_vectors(const std::vector<float>& vectors, int dimension
     vecs = vectors;
     dim = dimension;
     num_elements = dim == 0 ? 0 : static_cast<int>(vecs.size()) / dim;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PostFiltering::set_strings(const std::vector<std::string>& strings) {
     strs = strings;
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PostFiltering::set_ef(int ef) {
@@ -20,8 +22,10 @@ void PostFiltering::build() {
         hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs.data(), 16, 200);
         for (int i = 0; i < num_elements; i++) {
             hnsw->addPoint(i);
+            updatePeakMemoryUsage(peak_memory_usage);
         }
     }
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PostFiltering::insert(const std::vector<float>& vec, const std::string& str) {
@@ -43,6 +47,7 @@ void PostFiltering::insert(const std::vector<float>& vec, const std::string& str
         hnsw = new hnswlib::HierarchicalNSW<float>(space, num_elements, vecs.data(), 16, 200);
     }
     hnsw->addPoint(id);
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PostFiltering::load_index(const char* input_folder) {
@@ -59,6 +64,7 @@ void PostFiltering::load_index(const char* input_folder) {
     else {
         hnsw = nullptr;
     }
+    updatePeakMemoryUsage(peak_memory_usage);
 }
 
 void PostFiltering::save_index(const char* output_folder) {

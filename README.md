@@ -96,6 +96,36 @@ Finally, run PreFiltering on the query data:
 > ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt PreFiltering
 ```
 
+# External baselines
+The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. They assume that Elasticsearch and PostgreSQL/pgvector are already running locally. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
+
+For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. After that, launch it simply by:
+```sh
+/path/to/elasticsearch-9.3.0/bin/elasticsearch
+```
+
+And reset the password to ``123456``:
+```sh
+/path/to/elasticsearch-9.3.0/bin/elasticsearch-reset-password -u elastic -i
+```
+
+For PostgreSQL, we install it by Anaconda:
+```sh
+conda create -n pg_env -c conda-forge postgresql
+conda activate pg_env
+```
+
+Initialize its data folder:
+```sh
+rm -rf ./pgdata
+initdb -D ./pgdata
+```
+
+Then launch it by:
+```sh
+pg_ctl -D ./pgdata -l logfile start
+```
+
 # Simple way to reproduce the full experimental results
 Firstly, fetch the submodules and compile VectorMaton (and resolve dependency issues if needed):
 ```sh
@@ -105,6 +135,8 @@ cmake ..
 make -j
 cd ..
 ```
+
+Also, follow the above instructions to prepare for external baselines ElasticSearch and PostgreSQL.
 
 Then prepare dataset (may need hours to finish):
 ```sh

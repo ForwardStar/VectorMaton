@@ -5,6 +5,16 @@
 #include "post_filtering.h"
 #include "vectormaton.h"
 
+static void logPeakMemoryConsumption(const std::string& method_name, long long peak_memory_usage, long long baseline_peak_memory) {
+    if (peak_memory_usage < 0 || baseline_peak_memory < 0) {
+        LOG_WARN(method_name, " peak memory consumption is unavailable on this platform");
+        return;
+    }
+    long long method_peak_memory = std::max(0LL, peak_memory_usage - baseline_peak_memory);
+    LOG_INFO(method_name, " peak memory consumption: ", method_peak_memory, " bytes (",
+             static_cast<double>(method_peak_memory) / (1024.0 * 1024.0), " MiB)");
+}
+
 int main(int argc, char * argv[]) {
     if (argc < 7) {
         LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...]");
@@ -249,6 +259,7 @@ int main(int argc, char * argv[]) {
 
     std::vector<std::vector<int>> exact_results;
     LOG_INFO("Doing ExactSearch for baseline comparison");
+    long long exact_peak_memory_before = peakMemoryBytes();
     ExactSearch es;
     es.set_vectors(base_vectors, dim);
     es.set_strings(strings);
@@ -260,6 +271,7 @@ int main(int argc, char * argv[]) {
     }
     auto exact_time = currentTime() - start_time;
     LOG_INFO("ExactSearch query processing took ", timeFormatting(exact_time).str(), ", avg (us): ", (static_cast<float>(exact_time) / queried_strings.size()));
+    logPeakMemoryConsumption("ExactSearch", es.peak_memory_usage, exact_peak_memory_before);
 
     if (ground_truth_file != "") {
         LOG_INFO("Writing ground truth data to '", ground_truth_file, "'");
@@ -276,6 +288,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
         LOG_INFO("Using OptQuery");
+        long long optquery_peak_memory_before = peakMemoryBytes();
         OptQuery oq;
         oq.set_vectors(base_vectors, dim);
         oq.set_strings(strings);
@@ -294,6 +307,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("OptQuery", oq.peak_memory_usage, optquery_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef : ef_search) {
@@ -341,6 +355,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
+        long long prefiltering_peak_memory_before = peakMemoryBytes();
         PreFiltering pf;
         pf.set_vectors(base_vectors, dim);
         pf.set_strings(strings);
@@ -359,6 +374,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("PreFiltering", pf.peak_memory_usage, prefiltering_peak_memory_before);
         LOG_INFO("Processing queries");
         start_time = currentTime();
         std::vector<std::vector<int>> all_results;
@@ -386,6 +402,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
         LOG_INFO("Using PostFiltering");
+        long long postfiltering_peak_memory_before = peakMemoryBytes();
         PostFiltering pf;
         pf.set_vectors(base_vectors, dim);
         pf.set_strings(strings);
@@ -418,6 +435,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("PostFiltering", pf.peak_memory_usage, postfiltering_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef : ef_search) {
@@ -464,6 +482,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
         LOG_INFO("Using VectorMaton-full");
+        long long vectormaton_peak_memory_before = peakMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);
@@ -497,6 +516,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("VectorMaton-full", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef : ef_search) {
@@ -544,6 +564,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-smart") == 0) {
         LOG_INFO("Using VectorMaton-smart");
+        long long vectormaton_peak_memory_before = peakMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);
@@ -581,6 +602,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("VectorMaton-smart", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef : ef_search) {
@@ -628,6 +650,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-parallel") == 0) {
         LOG_INFO("Using VectorMaton-parallel");
+        long long vectormaton_peak_memory_before = peakMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);
@@ -665,6 +688,7 @@ int main(int argc, char * argv[]) {
             }
             LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
         }
+        logPeakMemoryConsumption("VectorMaton-parallel", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
         for (int ef : ef_search) {
