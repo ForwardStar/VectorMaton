@@ -62,7 +62,7 @@ if [ ! -d "results/VectorMaton" ]; then
 fi
 
 # Run spam
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/spam/strings.txt datasets/spam/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -103,7 +103,11 @@ do
         if [ ! -d "results/pgvector/spam" ]; then
             mkdir results/pgvector/spam
         fi
-        python3 test_pgvector.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/spam/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/spam/$s.csv
+        else
+            python3 test_pgvector.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/spam/$s.csv
+        fi
     fi
     # Elasticsearch
     if should_run "ElasticSearch"; then
@@ -119,7 +123,7 @@ do
 done
 
 # # Run Words
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/words/strings.txt datasets/words/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -160,7 +164,11 @@ do
         if [ ! -d "results/pgvector/words" ]; then
             mkdir results/pgvector/words
         fi
-        python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
+        else
+            python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
+        fi
     fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/words" ]; then
@@ -175,7 +183,7 @@ do
 done
 
 # # Run mtg
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/mtg/strings.txt datasets/mtg/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -214,7 +222,11 @@ do
         if [ ! -d "results/pgvector/mtg" ]; then
             mkdir results/pgvector/mtg
         fi
-        python3 test_pgvector.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/mtg/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/mtg/$s.csv
+        else
+            python3 test_pgvector.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/mtg/$s.csv
+        fi
     fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/mtg" ]; then
@@ -229,7 +241,7 @@ do
 done
 
 # # Run arxiv-small
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -268,7 +280,11 @@ do
         if [ ! -d "results/pgvector/arxiv-small" ]; then
             mkdir results/pgvector/arxiv-small
         fi
-        python3 test_pgvector.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/arxiv-small/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/arxiv-small/$s.csv
+        else
+            python3 test_pgvector.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/arxiv-small/$s.csv
+        fi
     fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/arxiv-small" ]; then
@@ -283,7 +299,7 @@ do
 done
 
 # # Run swissprot
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -322,7 +338,11 @@ do
         if [ ! -d "results/pgvector/swissprot" ]; then
             mkdir results/pgvector/swissprot
         fi
-        python3 test_pgvector.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/swissprot/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/swissprot/$s.csv
+        else
+            python3 test_pgvector.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/swissprot/$s.csv
+        fi
     fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/swissprot" ]; then
@@ -337,7 +357,7 @@ do
 done
 
 # Run code_search_net
-for s in 2 3 4 5 6 7 8
+for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -376,7 +396,11 @@ do
         if [ ! -d "results/pgvector/code_search_net" ]; then
             mkdir results/pgvector/code_search_net
         fi
-        python3 test_pgvector.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/code_search_net/$s.csv
+        if [ "$s" -eq 2 ]; then
+            python3 test_pgvector.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/code_search_net/$s.csv
+        else
+            python3 test_pgvector.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/code_search_net/$s.csv
+        fi
     fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/code_search_net" ]; then

@@ -259,7 +259,7 @@ int main(int argc, char * argv[]) {
 
     std::vector<std::vector<int>> exact_results;
     LOG_INFO("Doing ExactSearch for baseline comparison");
-    long long exact_peak_memory_before = peakMemoryBytes();
+    long long exact_peak_memory_before = currentMemoryBytes();
     ExactSearch es;
     es.set_vectors(base_vectors, dim);
     es.set_strings(strings);
@@ -288,7 +288,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
         LOG_INFO("Using OptQuery");
-        long long optquery_peak_memory_before = peakMemoryBytes();
+        long long optquery_peak_memory_before = currentMemoryBytes();
         OptQuery oq;
         oq.set_vectors(base_vectors, dim);
         oq.set_strings(strings);
@@ -355,7 +355,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "PreFiltering") == 0) {
         LOG_INFO("Using PreFiltering");
-        long long prefiltering_peak_memory_before = peakMemoryBytes();
+        long long prefiltering_peak_memory_before = currentMemoryBytes();
         PreFiltering pf;
         pf.set_vectors(base_vectors, dim);
         pf.set_strings(strings);
@@ -402,7 +402,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
         LOG_INFO("Using PostFiltering");
-        long long postfiltering_peak_memory_before = peakMemoryBytes();
+        long long postfiltering_peak_memory_before = currentMemoryBytes();
         PostFiltering pf;
         pf.set_vectors(base_vectors, dim);
         pf.set_strings(strings);
@@ -482,7 +482,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-full") == 0) {
         LOG_INFO("Using VectorMaton-full");
-        long long vectormaton_peak_memory_before = peakMemoryBytes();
+        long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);
@@ -564,7 +564,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-smart") == 0) {
         LOG_INFO("Using VectorMaton-smart");
-        long long vectormaton_peak_memory_before = peakMemoryBytes();
+        long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);
@@ -650,7 +650,7 @@ int main(int argc, char * argv[]) {
 
     if (std::strcmp(argv[argc - 1], "VectorMaton-parallel") == 0) {
         LOG_INFO("Using VectorMaton-parallel");
-        long long vectormaton_peak_memory_before = peakMemoryBytes();
+        long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
         vdb.set_strings(strings);

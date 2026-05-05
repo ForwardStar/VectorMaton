@@ -30,30 +30,29 @@
 #include <omp.h>
 #include "hnswlib/hnswlib.h"
 
-#if defined(__unix__) || defined(__APPLE__)
-#include <sys/resource.h>
-#endif
-
-static long long peakMemoryBytes() {
-#if defined(__unix__) || defined(__APPLE__)
-    struct rusage usage;
-    if (getrusage(RUSAGE_SELF, &usage) != 0) {
-        return -1;
+static long long currentMemoryBytes() {
+#if defined(__linux__)
+    std::ifstream status("/proc/self/status");
+    std::string line;
+    while (std::getline(status, line)) {
+        if (line.rfind("VmRSS:", 0) == 0) {
+            std::istringstream iss(line.substr(6));
+            long long value = 0;
+            std::string unit;
+            iss >> value >> unit;
+            return value * 1024;
+        }
     }
-#if defined(__APPLE__)
-    return static_cast<long long>(usage.ru_maxrss);
-#else
-    return static_cast<long long>(usage.ru_maxrss) * 1024;
-#endif
+    return -1;
 #else
     return -1;
 #endif
 }
 
 inline void updatePeakMemoryUsage(long long& peak_memory_usage) {
-    long long current_peak = peakMemoryBytes();
-    if (current_peak > peak_memory_usage) {
-        peak_memory_usage = current_peak;
+    long long current_memory = currentMemoryBytes();
+    if (current_memory > peak_memory_usage) {
+        peak_memory_usage = current_memory;
     }
 }
 

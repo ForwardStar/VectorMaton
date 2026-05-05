@@ -22,6 +22,24 @@ def load_vectors_and_strings(vec_file: str, str_file: str):
     return vectors[:n], strings[:n]
 
 
+def split_base_and_insertions(vectors, strings, insertion_percentage: float):
+    if insertion_percentage < 0 or insertion_percentage > 100:
+        raise ValueError("--insertion-percentage must be in [0, 100].")
+
+    insertion_count = int(len(vectors) * insertion_percentage / 100)
+    base_count = len(vectors) - insertion_count
+    if vectors and base_count == 0:
+        raise ValueError("--insertion-percentage leaves no base vectors to build the index.")
+
+    return (
+        vectors[:base_count],
+        strings[:base_count],
+        vectors[base_count:],
+        strings[base_count:],
+        base_count,
+    )
+
+
 def load_queries(vec_query_file: str, str_query_file: str, k_query_file: str):
     with open(vec_query_file) as vf, open(str_query_file) as sf, open(k_query_file) as kf:
         vectors = [[float(x) for x in line.split()] for line in vf]
@@ -52,6 +70,26 @@ def build_client(args):
     return Elasticsearch(**kwargs)
 
 
+def bulk_index_documents(es: Elasticsearch, index_name: str, vectors, strings, id_offset: int = 0):
+    actions = (
+        {
+            "_index": index_name,
+            "_id": id_offset + i,  # keep 0-based ids to match ground truth convention
+            "_source": {"embedding": vectors[i], "text": strings[i], "text_keyword": strings[i]},
+        }
+        for i in range(len(vectors))
+    )
+    ok, failed = 0, 0
+    for success, _ in helpers.streaming_bulk(es, actions, chunk_size=500, max_retries=2):
+        if success:
+            ok += 1
+        else:
+            failed += 1
+    if failed:
+        raise RuntimeError(f"Failed to index {failed} documents.")
+    return ok, failed
+
+
 def ensure_index(es: Elasticsearch, index_name: str, vectors, strings, rebuild: bool):
     if rebuild and es.indices.exists(index=index_name):
         print(f"Deleting existing index: {index_name}")
@@ -59,7 +97,7 @@ def ensure_index(es: Elasticsearch, index_name: str, vectors, strings, rebuild: 
 
     if es.indices.exists(index=index_name):
         print(f"Index {index_name} already exists. Skipping data insertion.")
-        return
+        return False
 
     if not vectors:
         raise ValueError("No vectors loaded.")
@@ -88,27 +126,13 @@ def ensure_index(es: Elasticsearch, index_name: str, vectors, strings, rebuild: 
     )
 
     print("Bulk indexing documents...")
-    actions = (
-        {
-            "_index": index_name,
-            "_id": i,  # keep 0-based ids to match ground truth convention
-            "_source": {"embedding": vectors[i], "text": strings[i], "text_keyword": strings[i]},
-        }
-        for i in range(len(vectors))
-    )
-    ok, failed = 0, 0
-    for success, _ in helpers.streaming_bulk(es, actions, chunk_size=500, max_retries=2):
-        if success:
-            ok += 1
-        else:
-            failed += 1
+    ok, failed = bulk_index_documents(es, index_name, vectors, strings)
     print(f"Indexed {ok} documents, failed {failed}.")
-    if failed:
-        raise RuntimeError(f"Failed to index {failed} documents.")
 
     es.indices.put_settings(index=index_name, settings={"refresh_interval": "1s"})
     es.indices.refresh(index=index_name)
     print("Index ready.")
+    return True
 
 
 def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_truth, candidates_list):
@@ -184,6 +208,12 @@ def parse_args():
     parser.add_argument("--index-name", default=None)
     parser.add_argument("--request-timeout", type=int, default=60)
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the index.")
+    parser.add_argument(
+        "--insertion-percentage",
+        type=float,
+        default=0.0,
+        help="Percentage of tail data to insert after building the index.",
+    )
     return parser.parse_args()
 
 
@@ -201,8 +231,33 @@ def main():
 
     print("Loading data...")
     vectors, strings = load_vectors_and_strings(args.vector_data_file, args.string_data_file)
+    base_vectors, base_strings, insertion_vectors, insertion_strings, base_count = split_base_and_insertions(
+        vectors,
+        strings,
+        args.insertion_percentage,
+    )
+    if insertion_vectors:
+        print(
+            f"Using {len(base_vectors)} base vectors and "
+            f"{len(insertion_vectors)} insertion vectors."
+        )
     index_name = args.index_name or f"vectormaton_{sanitize_name(args.vector_data_file)}"
-    ensure_index(es, index_name, vectors, strings, args.rebuild)
+    created_index = ensure_index(es, index_name, base_vectors, base_strings, args.rebuild)
+    if insertion_vectors:
+        if created_index:
+            print(f"Inserting additional {len(insertion_vectors)} documents into Elasticsearch index...")
+            start = time.time()
+            ok, failed = bulk_index_documents(
+                es,
+                index_name,
+                insertion_vectors,
+                insertion_strings,
+                id_offset=base_count,
+            )
+            es.indices.refresh(index=index_name)
+            print(f"Inserted {ok} documents, failed {failed}, took {(time.time() - start) * 1e6:.0f} us.")
+        else:
+            print("Skipping insertion because the Elasticsearch index already exists.")
     print("Done loading data.")
 
     print("Loading queries and ground truth...")
