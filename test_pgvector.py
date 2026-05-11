@@ -2,6 +2,7 @@ import argparse
 import psycopg2
 import numpy as np
 import sys
+import threading
 import time
 import pandas as pd
 
@@ -43,6 +44,133 @@ def split_base_and_insertions(vectors, strings, insertion_percentage):
     )
 
 
+def format_bytes(value):
+    if value is None:
+        return "unavailable"
+
+    units = ["B", "KiB", "MiB", "GiB", "TiB"]
+    size = float(value)
+    for unit in units:
+        if abs(size) < 1024.0 or unit == units[-1]:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+
+
+def unavailable_memory_stats(backend_pid):
+    return {
+        "pg_backend_pid": backend_pid,
+        "pg_backend_vm_size_bytes": None,
+        "pg_backend_rss_bytes": None,
+        "pg_backend_rss_high_watermark_bytes": None,
+        "pg_backend_rss_anon_bytes": None,
+        "pg_backend_rss_file_bytes": None,
+        "pg_backend_rss_shmem_bytes": None,
+    }
+
+
+def collect_memory_stats(backend_pid):
+    status_path = f"/proc/{backend_pid}/status"
+    keys = {
+        "VmSize": "pg_backend_vm_size_bytes",
+        "VmRSS": "pg_backend_rss_bytes",
+        "VmHWM": "pg_backend_rss_high_watermark_bytes",
+        "RssAnon": "pg_backend_rss_anon_bytes",
+        "RssFile": "pg_backend_rss_file_bytes",
+        "RssShmem": "pg_backend_rss_shmem_bytes",
+    }
+    memory_stats = unavailable_memory_stats(backend_pid)
+
+    try:
+        with open(status_path) as status_file:
+            for line in status_file:
+                name, _, value = line.partition(":")
+                if name not in keys:
+                    continue
+                parts = value.strip().split()
+                if not parts:
+                    continue
+                memory_stats[keys[name]] = int(parts[0]) * 1024
+    except OSError as exc:
+        print(f"Could not read PostgreSQL backend memory from {status_path}: {exc}")
+
+    return memory_stats
+
+
+def add_memory_deltas(memory_stats, baseline_stats):
+    stats_with_deltas = dict(memory_stats)
+    for key, value in memory_stats.items():
+        if not key.endswith("_bytes"):
+            continue
+        baseline_value = baseline_stats.get(key)
+        delta_key = key.replace("_bytes", "_delta_from_baseline_bytes")
+        stats_with_deltas[delta_key] = (
+            value - baseline_value
+            if value is not None and baseline_value is not None
+            else None
+        )
+    return stats_with_deltas
+
+
+class MemoryPeakTracker:
+    def __init__(self, collect_fn, interval=0.05):
+        self.collect_fn = collect_fn
+        self.interval = interval
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.peak_stats = None
+
+    def _sample(self):
+        while not self.stop_event.is_set():
+            self.record()
+            self.stop_event.wait(self.interval)
+
+    def record(self):
+        stats = self.collect_fn()
+        if self.peak_stats is None:
+            self.peak_stats = dict(stats)
+            return
+        for key, value in stats.items():
+            if not key.endswith("_bytes") or value is None:
+                continue
+            previous = self.peak_stats.get(key)
+            if previous is None or value > previous:
+                self.peak_stats[key] = value
+
+    def start(self):
+        self.record()
+        self.thread = threading.Thread(target=self._sample, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.record()
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join()
+        self.record()
+        return self.peak_stats
+
+
+def print_memory_stats(label, memory_stats):
+    print(f"pgvector PostgreSQL backend memory ({label}):")
+    print(f"  backend pid: {memory_stats['pg_backend_pid']}")
+    print(f"  RSS: {format_bytes(memory_stats['pg_backend_rss_bytes'])}")
+    print(f"  RSS high watermark: {format_bytes(memory_stats['pg_backend_rss_high_watermark_bytes'])}")
+    print(f"  anonymous RSS: {format_bytes(memory_stats['pg_backend_rss_anon_bytes'])}")
+    print(f"  file RSS: {format_bytes(memory_stats['pg_backend_rss_file_bytes'])}")
+    print(f"  shared RSS: {format_bytes(memory_stats['pg_backend_rss_shmem_bytes'])}")
+    if "pg_backend_rss_delta_from_baseline_bytes" in memory_stats:
+        print(
+            "  RSS delta from baseline: "
+            f"{format_bytes(memory_stats['pg_backend_rss_delta_from_baseline_bytes'])}"
+        )
+
+
+def add_build_peak_delta_columns(df, memory_stats):
+    df["build_peak_memory_bytes"] = memory_stats.get(
+        "pg_backend_rss_delta_from_baseline_bytes"
+    )
+
+
 args = parse_args()
 
 conn = psycopg2.connect(
@@ -67,6 +195,8 @@ cur.execute("SHOW temp_buffers;")
 conn.commit()
 buff_size = cur.fetchall()
 print(f"temp_buffers size set to: {buff_size[0][0]}")
+cur.execute("SELECT pg_backend_pid();")
+backend_pid = cur.fetchone()[0]
 
 batch = [(vectors[i], strings[i].strip()) for i in range(n)]
 table_exists = True
@@ -76,6 +206,9 @@ if args.rebuild:
     cur.execute("DROP INDEX IF EXISTS idx_vec_hnsw;")
     cur.execute(f"DROP TABLE IF EXISTS {table_name};")
     conn.commit()
+
+memory_stats_baseline = None
+build_peak_memory_stats = None
 
 cur.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s);", (table_name,))
 if not cur.fetchone()[0]:
@@ -111,6 +244,10 @@ if not cur.fetchone()[0]:
     );"""
     cur.execute(sql)
     conn.commit()
+    memory_stats_baseline = collect_memory_stats(backend_pid)
+    print_memory_stats("baseline before data insertion", memory_stats_baseline)
+    build_peak_tracker = MemoryPeakTracker(lambda: collect_memory_stats(backend_pid))
+    build_peak_tracker.start()
     sql = f"""
     INSERT INTO {table_name} (embedding, text) VALUES (%s, %s);"""
     cur.executemany(sql, [(vectors[i], strings[i].strip()) for i in range(n)])
@@ -145,6 +282,16 @@ if insertion_vectors:
         print(f"Insertion took {(time.time() - start) * 1e6:.0f} us.")
     else:
         print("Skipping insertion because the pgvector table already exists.")
+
+if not table_exists:
+    build_peak_memory_stats = add_memory_deltas(
+        build_peak_tracker.stop(),
+        memory_stats_baseline,
+    )
+else:
+    memory_stats_baseline = collect_memory_stats(backend_pid)
+    build_peak_memory_stats = add_memory_deltas(memory_stats_baseline, memory_stats_baseline)
+print_memory_stats("build peak", build_peak_memory_stats)
 
 # Execute queries
 str_query_file = args.string_query_file
@@ -226,5 +373,6 @@ df = pd.DataFrame({
     'time_us': time_taken,
     'recall': recall
 })
+add_build_peak_delta_columns(df, build_peak_memory_stats)
 df.to_csv("pgvector_hnsw_stats.csv", index=False)
 print("Done.")

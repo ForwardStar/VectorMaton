@@ -3,6 +3,8 @@ set -eu
 (set -o pipefail) >/dev/null 2>&1 && set -o pipefail
 
 BLACKLIST_RAW=""
+BLACKLIST_DATASET_RAW=""
+ELASTICSEARCH_PID=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --blacklist)
@@ -17,6 +19,30 @@ while [ $# -gt 0 ]; do
             BLACKLIST_RAW="${1#*=}"
             shift
             ;;
+        --blacklist-dataset)
+            if [ $# -lt 2 ]; then
+                echo "Missing value for --blacklist-dataset" >&2
+                exit 1
+            fi
+            BLACKLIST_DATASET_RAW="$2"
+            shift 2
+            ;;
+        --blacklist-dataset=*)
+            BLACKLIST_DATASET_RAW="${1#*=}"
+            shift
+            ;;
+        --elasticsearch-pid)
+            if [ $# -lt 2 ]; then
+                echo "Missing value for --elasticsearch-pid" >&2
+                exit 1
+            fi
+            ELASTICSEARCH_PID="$2"
+            shift 2
+            ;;
+        --elasticsearch-pid=*)
+            ELASTICSEARCH_PID="${1#*=}"
+            shift
+            ;;
         *)
             echo "Unknown argument: $1" >&2
             exit 1
@@ -25,6 +51,7 @@ while [ $# -gt 0 ]; do
 done
 
 BLACKLIST_NORM="$(echo ",${BLACKLIST_RAW}," | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+BLACKLIST_DATASET_NORM="$(echo ",${BLACKLIST_DATASET_RAW}," | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
 
 is_blacklisted() {
     local alg
@@ -38,6 +65,38 @@ is_blacklisted() {
 should_run() {
     ! is_blacklisted "$1"
 }
+
+is_dataset_blacklisted() {
+    local dataset
+    dataset="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
+    case "$BLACKLIST_DATASET_NORM" in
+        *,"$dataset",*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+should_run_dataset() {
+    ! is_dataset_blacklisted "$1"
+}
+
+ELASTICSEARCH_PID_ARG=""
+if [ -z "$ELASTICSEARCH_PID" ] && should_run "ElasticSearch"; then
+    ELASTICSEARCH_PIDS="$(pgrep -af org.elasticsearch.bootstrap.Elasticsearch | awk '{print $1}' || true)"
+    ELASTICSEARCH_PID_COUNT="$(printf '%s\n' "$ELASTICSEARCH_PIDS" | sed '/^$/d' | wc -l)"
+    if [ "$ELASTICSEARCH_PID_COUNT" -eq 1 ]; then
+        ELASTICSEARCH_PID="$ELASTICSEARCH_PIDS"
+        echo "Detected Elasticsearch PID: $ELASTICSEARCH_PID"
+    elif [ "$ELASTICSEARCH_PID_COUNT" -gt 1 ]; then
+        echo "Multiple Elasticsearch processes found; pass --elasticsearch-pid explicitly." >&2
+        printf '%s\n' "$ELASTICSEARCH_PIDS" >&2
+    else
+        echo "No Elasticsearch process found with pgrep; process memory stats may be unavailable." >&2
+    fi
+fi
+
+if [ -n "$ELASTICSEARCH_PID" ]; then
+    ELASTICSEARCH_PID_ARG="--process-pid $ELASTICSEARCH_PID"
+fi
 
 if [ ! -d "results" ]; then
     mkdir results
@@ -62,6 +121,7 @@ if [ ! -d "results/VectorMaton" ]; then
 fi
 
 # Run spam
+if should_run_dataset "spam"; then
 for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/spam/strings.txt datasets/spam/vectors.txt $s 1000 10 -1 queries
@@ -115,15 +175,17 @@ do
             mkdir results/ElasticSearch/spam
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
+            python3 test_elasticsearch.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
         else
-            python3 test_elasticsearch.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
+            python3 test_elasticsearch.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
         fi
     fi
 done
+fi
 
 # # Run Words
-for s in 2 3 4 5 6 7 8 16 32
+if should_run_dataset "words"; then
+for s in 2 3 4 5 6 7 8 16
 do
     python3 scripts/generate_queries.py datasets/words/strings.txt datasets/words/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -175,14 +237,16 @@ do
             mkdir results/ElasticSearch/words
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
+            python3 test_elasticsearch.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
         else
-            python3 test_elasticsearch.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
+            python3 test_elasticsearch.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
         fi
     fi
 done
+fi
 
 # # Run mtg
+if should_run_dataset "mtg"; then
 for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/mtg/strings.txt datasets/mtg/vectors.txt $s 1000 10 -1 queries
@@ -233,14 +297,16 @@ do
             mkdir results/ElasticSearch/mtg
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
+            python3 test_elasticsearch.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
         else
-            python3 test_elasticsearch.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
+            python3 test_elasticsearch.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
         fi
     fi
 done
+fi
 
 # # Run arxiv-small
+if should_run_dataset "arxiv-small"; then
 for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1 queries
@@ -291,14 +357,16 @@ do
             mkdir results/ElasticSearch/arxiv-small
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
+            python3 test_elasticsearch.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
         else
-            python3 test_elasticsearch.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
+            python3 test_elasticsearch.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
         fi
     fi
 done
+fi
 
 # # Run swissprot
+if should_run_dataset "swissprot"; then
 for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1 queries
@@ -349,14 +417,16 @@ do
             mkdir results/ElasticSearch/swissprot
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
+            python3 test_elasticsearch.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
         else
-            python3 test_elasticsearch.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
+            python3 test_elasticsearch.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
         fi
     fi
 done
+fi
 
 # Run code_search_net
+if should_run_dataset "code_search_net"; then
 for s in 2 3 4 5 6 7 8 16 32
 do
     python3 scripts/generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1 queries
@@ -407,9 +477,10 @@ do
             mkdir results/ElasticSearch/code_search_net
         fi
         if [ "$s" -eq 2 ]; then
-            python3 test_elasticsearch.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
+            python3 test_elasticsearch.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
         else
-            python3 test_elasticsearch.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
+            python3 test_elasticsearch.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
         fi
     fi
 done
+fi
