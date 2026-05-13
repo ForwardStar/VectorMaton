@@ -91,10 +91,11 @@ size_t PostFiltering::size() {
     return total_size;
 }
 
-std::vector<int> PostFiltering::query(const float* vec, const std::string &s, int k, int ef_search) {
+std::vector<int> PostFiltering::query(const float* vec, const std::string &s, int k, int ef_search, int search_k) {
     std::vector<int> results;
     if (ef_search) set_ef(ef_search);
-    auto tmp = hnsw->searchKnnCloserFirst(vec, (ef_search != 0 ? ef_search : k));
+    int candidate_count = search_k != -1 ? search_k : (ef_search != 0 ? ef_search : k);
+    auto tmp = hnsw->searchKnnCloserFirst(vec, candidate_count);
     for (auto& pair : tmp) {
         int id = pair.second;
         if (strs[id].find(s) != std::string::npos) {

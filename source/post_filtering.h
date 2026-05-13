@@ -22,7 +22,7 @@ class PostFiltering {
         void load_index(const char* input_folder);
         void save_index(const char* output_folder);
         size_t size();
-        std::vector<int> query(const float* vec, const std::string &s, int k, int ef_search=0);
+        std::vector<int> query(const float* vec, const std::string &s, int k, int ef_search=0, int search_k=-1);
         
         PostFiltering() {};
         ~PostFiltering() {
