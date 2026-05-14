@@ -118,7 +118,7 @@ int main() {
 Main APIs:
 - ``set_vectors(const std::vector<float>& vectors, int dimension)``: stores row-major vectors. The number of elements is ``vectors.size() / dimension``.
 - ``set_strings(const std::vector<std::string>& strings)``: stores the string attached to each vector. The i-th string corresponds to the i-th vector.
-- ``set_min_build_threshold(int threshold)``: controls the minimum candidate-set size required before VectorMaton builds an HNSW sub-index for a GSA state.
+- ``set_min_build_threshold(int threshold)``: controls the minimum candidate-set size of a state to build and maintain an HNSW index; if the state has less candidates, queries on this state will do brute-force search rather than HNSW search.
 - ``build_smart()``: builds the space-optimized VectorMaton index using inheritance between suffix-automaton states.
 - ``build_full()``: builds an HNSW sub-index for every suffix-automaton state.
 - ``build_parallel(int cores)``: parallel version of the smart build.
