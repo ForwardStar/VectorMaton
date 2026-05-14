@@ -20,6 +20,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories("./third_party/hnswlib")
 
+option(ENABLE_ACORN "Build the ACORN external baseline wrapper." OFF)
+set(ACORN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ACORN" CACHE PATH "Path to the ACORN checkout.")
+set(ACORN_BUILD_DIR "${ACORN_ROOT}/build" CACHE PATH "Path to the ACORN build directory.")
+
 # Create executable
 add_executable(sa_test source/headers.h source/test_sa.cpp source/sa.h source/sa.cpp)
 add_executable(queue_test source/mpmc_queue.h source/test_queue.cpp)
@@ -31,3 +35,25 @@ add_executable(parameter_study source/headers.h source/parameter_study.cpp sourc
 target_link_libraries(vectormaton_test OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(main OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(parameter_study OpenSSL::SSL OpenSSL::Crypto)
+
+if(ENABLE_ACORN)
+    find_library(ACORN_FAISS_LIBRARY
+        NAMES faiss
+        PATHS "${ACORN_BUILD_DIR}/faiss"
+        NO_DEFAULT_PATH
+        REQUIRED)
+    find_package(ZLIB REQUIRED)
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
+
+    add_executable(test_acorn test_acorn.cpp)
+    target_include_directories(test_acorn PRIVATE "${ACORN_ROOT}")
+    target_link_libraries(test_acorn
+        "${ACORN_FAISS_LIBRARY}"
+        OpenMP::OpenMP_CXX
+        ZLIB::ZLIB
+        ${BLAS_LIBRARIES}
+        ${LAPACK_LIBRARIES})
+    set_target_properties(test_acorn PROPERTIES
+        BUILD_RPATH "${ACORN_BUILD_DIR}/faiss")
+endif()

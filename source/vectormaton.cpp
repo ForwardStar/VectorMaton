@@ -1,5 +1,11 @@
 #include "vectormaton.h"
 
+namespace {
+void release_ids(std::vector<uint32_t>& ids) {
+    std::vector<uint32_t>().swap(ids);
+}
+}
+
 void VectorMaton::set_vectors(const std::vector<float>& vectors, int dimension) {
     vecs = vectors;
     dim = dimension;
@@ -34,7 +40,7 @@ void VectorMaton::build_gsa() {
 
 void VectorMaton::clear_gsa() {
     for (int i = 0; i < gsa.st.size(); i++) {
-        gsa.st[i].ids = std::vector<uint32_t>();
+        release_ids(gsa.st[i].ids);
     }
     updatePeakMemoryUsage(peak_memory_usage);
 }
@@ -49,7 +55,7 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
     while (candidate_ids.size() < gsa.st.size()) {
         int new_state = candidate_ids.size(), num_ids = gsa.st[new_state].ids.size();
         if (inherit_states.size() > 0) inherit_states.emplace_back(-1);
-        candidate_ids.emplace_back(std::vector<int>());
+        candidate_ids.emplace_back(std::vector<uint32_t>());
         hnsws.emplace_back(nullptr);
     }
     for (int state : gsa.affected_states) {
@@ -59,7 +65,7 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
             for (int j = 0; j < candidate_ids[state].size(); j++) {
                 candidate_ids[state][j] = gsa.st[state].ids[j];
             }
-            gsa.st[state].ids = std::vector<uint32_t>();
+            release_ids(gsa.st[state].ids);
             if (candidate_ids[state].size() >= min_build_threshold) {
                 int M = 16, ef_construction = 200;
                 hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
@@ -72,7 +78,7 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
             // For old states without inheritance, if it is not processed before, add the new vector to candidate list and index
             if (candidate_ids[state].back() != num_elements - 1) {
                 candidate_ids[state].emplace_back(num_elements - 1);
-                gsa.st[state].ids = std::vector<uint32_t>();
+                release_ids(gsa.st[state].ids);
                 if (hnsws[state]) {
                     hnsws[state]->resizeIndex(candidate_ids[state].size());
                     hnsws[state]->addPoint(num_elements - 1);
@@ -98,7 +104,7 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
                 for (int i = to_process.size() - 1; i >= 0; i--) {
                     int s = to_process[i];
                     if (gsa.st[s].ids.size() > 0 && gsa.st[s].ids.back() == num_elements - 1) {
-                        gsa.st[s].ids = std::vector<uint32_t>();
+                        release_ids(gsa.st[s].ids);
                         if (inherit_states[s] != -1 && candidate_ids[inherit_states[s]].size() > 0 && candidate_ids[inherit_states[s]].back() == num_elements - 1) {
                             continue;
                         }
@@ -129,7 +135,7 @@ void VectorMaton::build_parallel(int cores) {
 
     // Smart build will inherit info from children
     inherit_states.assign(gsa.st.size(), -1);
-    candidate_ids.assign(gsa.st.size(), std::vector<int>());
+    candidate_ids.assign(gsa.st.size(), std::vector<uint32_t>());
     int* largest_state = new int[gsa.st.size()];
     for (int i = 0; i < gsa.st.size(); i++) {
         largest_state[i] = -1;
@@ -185,7 +191,7 @@ void VectorMaton::build_parallel(int cores) {
                         for (int j = 0; j < num_ids; j++) {
                             candidate_ids[i][j] = st.ids[j];
                         }
-                        st.ids = std::vector<uint32_t>();
+                        release_ids(st.ids);
                         // Enqueue
                         for (auto prev : gsa.reverse_next[i]) {
                             int val = gsa.deg[prev].fetch_sub(1);
@@ -198,8 +204,8 @@ void VectorMaton::build_parallel(int cores) {
                     // First find a successor with largest built graph
                     int target_sc = -1;
                     for (auto ch : st.next) {
-                        if (largest_state[ch.second] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.second]].size() > candidate_ids[target_sc].size())) {
-                            target_sc = largest_state[ch.second];
+                        if (largest_state[ch.to] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.to]].size() > candidate_ids[target_sc].size())) {
+                            target_sc = largest_state[ch.to];
                         }
                     }
                     inherit_states[i] = target_sc;
@@ -215,7 +221,7 @@ void VectorMaton::build_parallel(int cores) {
                             candidate_ids[i][j] = id;
                         }
                         largest_state[i] = i;
-                        st.ids = std::vector<uint32_t>();
+                        release_ids(st.ids);
                     }
                     else {
                         // Found the largest successor, inherit from this successor
@@ -251,7 +257,7 @@ void VectorMaton::build_parallel(int cores) {
                                 largest_state[i] = i;
                             }
                         }
-                        st.ids = std::vector<uint32_t>();
+                        release_ids(st.ids);
                     }
 
                     // Enqueue
@@ -267,6 +273,9 @@ void VectorMaton::build_parallel(int cores) {
             }
         }
     }
+
+    delete [] largest_state;
+    gsa.release_reverse();
     
     updatePeakMemoryUsage(peak_memory_usage);
 }
@@ -276,7 +285,7 @@ void VectorMaton::build_smart() {
     
     // Smart build will inherit info from children
     inherit_states.assign(gsa.st.size(), -1);
-    candidate_ids.assign(gsa.st.size(), std::vector<int>());
+    candidate_ids.assign(gsa.st.size(), std::vector<uint32_t>());
     int* largest_state = new int[gsa.st.size()];
     for (int i = 0; i < gsa.st.size(); i++) {
         largest_state[i] = -1;
@@ -303,14 +312,14 @@ void VectorMaton::build_smart() {
             for (int j = 0; j < st.ids.size(); j++) {
                 candidate_ids[i][j] = st.ids[j];
             }
-            st.ids = std::vector<uint32_t>();
+            release_ids(st.ids);
             continue;
         }
         // First find a successor with largest built graph
         int target_sc = -1;
         for (auto ch : st.next) {
-            if (largest_state[ch.second] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.second]].size() > candidate_ids[target_sc].size())) {
-                target_sc = largest_state[ch.second];
+            if (largest_state[ch.to] != -1 && (target_sc == -1 || candidate_ids[largest_state[ch.to]].size() > candidate_ids[target_sc].size())) {
+                target_sc = largest_state[ch.to];
             }
         }
         inherit_states[i] = target_sc;
@@ -326,7 +335,7 @@ void VectorMaton::build_smart() {
                 candidate_ids[i][j] = id;
             }
             largest_state[i] = i;
-            st.ids = std::vector<uint32_t>();
+            release_ids(st.ids);
         }
         else {
             // Found the largest successor, inherit from this successor
@@ -362,7 +371,7 @@ void VectorMaton::build_smart() {
                     largest_state[i] = i;
                 }
             }
-            st.ids = std::vector<uint32_t>();
+            release_ids(st.ids);
         }
         updatePeakMemoryUsage(peak_memory_usage);
     }
@@ -373,7 +382,7 @@ void VectorMaton::build_smart() {
 
 void VectorMaton::build_full() {
     build_gsa();
-    candidate_ids.assign(gsa.st.size(), std::vector<int>());
+    candidate_ids.assign(gsa.st.size(), std::vector<uint32_t>());
 
     // Build graph index
     hnsws.assign(gsa.st.size(), nullptr);
@@ -400,7 +409,7 @@ void VectorMaton::build_full() {
         for (auto id : st.ids) {
             hnsws[i]->addPoint(id);
         }
-        st.ids = std::vector<uint32_t>();
+        release_ids(st.ids);
         updatePeakMemoryUsage(peak_memory_usage);
     }
     
@@ -429,7 +438,7 @@ void VectorMaton::load_index(const char* input_folder) {
     for (int i = 0; i < gsa.st.size(); i++) {
         f >> size_ids[i];
     }
-    candidate_ids.assign(gsa.st.size(), std::vector<int>());
+    candidate_ids.assign(gsa.st.size(), std::vector<uint32_t>());
     for (int i = 0; i < gsa.st.size(); i++) {
         candidate_ids[i].resize(size_ids[i]);
         for (int j = 0; j < size_ids[i]; j++) {
@@ -520,8 +529,7 @@ size_t VectorMaton::size() {
     total_size += hnsw_size;
     size_t sa_size = 0;
     for (auto& s : gsa.st) {
-        sa_size += s.next.bucket_count() * sizeof(void*);
-        sa_size += (sizeof(std::pair<char, int>) + sizeof(void*)) * s.next.size(); // size of adjacency map
+        sa_size += sizeof(GeneralizedSuffixAutomaton::State::Transition) * s.next.capacity();
         sa_size += sizeof(s.len) + sizeof(s.link); // size of len and link
     }
     LOG_DEBUG("Suffix automaton size: ", sa_size, " bytes.");
@@ -537,7 +545,7 @@ size_t VectorMaton::size() {
     // Auxiliary components
     size_t aux_size = sizeof(int) * gsa.st.size() * 3;
     for (int i = 0; i < gsa.st.size(); i++) {
-        aux_size += sizeof(int) * candidate_ids[i].size();
+        aux_size += sizeof(uint32_t) * candidate_ids[i].size();
     }
     LOG_DEBUG("Auxiliary components' size: ", aux_size, " bytes.");
     total_size += aux_size;

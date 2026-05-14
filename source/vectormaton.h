@@ -16,7 +16,7 @@ class VectorMaton {
 
     public:
         std::vector<int> inherit_states = {}; // inherited state id
-        std::vector<std::vector<int>> candidate_ids = {}; // maintained vector ids in this state (others are inherited from inherit_states)
+        std::vector<std::vector<uint32_t>> candidate_ids = {}; // maintained vector ids in this state (others are inherited from inherit_states)
         GeneralizedSuffixAutomaton gsa;
         hnswlib::L2Space* space = nullptr;
         std::vector<hnswlib::HierarchicalNSW<float>*> hnsws;

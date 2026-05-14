@@ -1,3 +1,6 @@
 [submodule "third_party/hnswlib"]
 	path = third_party/hnswlib
 	url = https://github.com/ForwardStar/hnswlib
+[submodule "third_party/ACORN"]
+	path = third_party/ACORN
+	url = https://github.com/ForwardStar/ACORN.git

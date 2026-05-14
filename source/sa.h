@@ -15,15 +15,19 @@ public:
     struct State {
         int len = 0;
         int link = -1;
-        std::unordered_map<char, int> next;
+        struct Transition {
+            char c;
+            uint32_t to;
+        };
+        std::vector<Transition> next;
         std::vector<uint32_t> ids;
     };
     std::vector<State> st;
-    std::vector<int> affected_states; // states affected by the last added string, used for insertion
+    std::vector<uint32_t> affected_states; // states affected by the last added string, used for insertion
         
     // Used for reverse topological sort.
     std::atomic<int>* deg = nullptr;
-    std::vector<int>* reverse_next = nullptr;
+    std::vector<uint32_t>* reverse_next = nullptr;
 
     GeneralizedSuffixAutomaton();
     GeneralizedSuffixAutomaton(char* input_file);
@@ -60,11 +64,18 @@ public:
     // Build reverse edges for the GSA.
     void build_reverse();
 
+    // Release build-only reverse edges and shrink retained ID lists.
+    void release_reverse();
+    void shrink_ids_to_fit();
+
     // Dump the index to disk
     void dump(char* output_file);
 
 private:
     int last;
+    int get_next(int state, char c) const;
+    bool has_next(int state, char c) const;
+    void set_next(int state, char c, uint32_t to);
     void sa_extend(char c, uint32_t id);
 };
 

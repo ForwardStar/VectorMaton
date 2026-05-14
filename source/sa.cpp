@@ -17,10 +17,11 @@ GeneralizedSuffixAutomaton::GeneralizedSuffixAutomaton(char* input_file) {
     for (int i = 0; i < n; i++) {
         int m, k;
         f >> st[i].len >> st[i].link >> m >> k;
+        st[i].next.reserve(m);
         for (int j = 0; j < m; j++) {
             int x, y;
             f >> x >> y;
-            st[i].next[char(x)] = y;
+            st[i].next.push_back({char(x), static_cast<uint32_t>(y)});
         }
         st[i].ids.resize(k);
         for (int j = 0; j < k; j++) {
@@ -46,9 +47,31 @@ void GeneralizedSuffixAutomaton::clear() {
     last = 0;
 }
 
+int GeneralizedSuffixAutomaton::get_next(int state, char c) const {
+    for (const auto& e : st[state].next) {
+        if (e.c == c) return static_cast<int>(e.to);
+    }
+    return -1;
+}
+
+bool GeneralizedSuffixAutomaton::has_next(int state, char c) const {
+    return get_next(state, c) != -1;
+}
+
+void GeneralizedSuffixAutomaton::set_next(int state, char c, uint32_t to) {
+    for (auto& e : st[state].next) {
+        if (e.c == c) {
+            e.to = to;
+            return;
+        }
+    }
+    st[state].next.push_back({c, to});
+}
+
 void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
-    if (st[last].next.count(c)) {
-        int x = st[last].next[c];
+    int existing = get_next(last, c);
+    if (existing != -1) {
+        int x = existing;
         if (st[x].len == st[last].len + 1) {
             last = x;
         }
@@ -58,7 +81,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             st.emplace_back();
             st[cur].len = st[last].len + 1;
             for (auto e : st[x].next) {
-                st[cur].next[e.first] = e.second; // copy map
+                st[cur].next.push_back(e);
             }
             st[cur].link = st[x].link;
             for (auto old_id : st[x].ids) { // copy ids
@@ -66,8 +89,8 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             }
             affected_states.emplace_back(cur);
             int p = last;
-            while (p != -1 && st[p].next[c] == x) {
-                st[p].next[c] = cur;
+            while (p != -1 && get_next(p, c) == x) {
+                set_next(p, c, cur);
                 p = st[p].link;
             }
             st[x].link = cur;
@@ -87,14 +110,14 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
     st[cur].len = st[last].len + 1;
 
     int p = last;
-    while (p != -1 && !st[p].next.count(c)) {
-        st[p].next[c] = cur;
+    while (p != -1 && !has_next(p, c)) {
+        set_next(p, c, cur);
         p = st[p].link;
     }
     if (p == -1) {
         st[cur].link = 0;
     } else {
-        int q = st[p].next[c];
+        int q = get_next(p, c);
         if (st[p].len + 1 == st[q].len) {
             st[cur].link = q;
         } else {
@@ -103,15 +126,15 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             st.emplace_back();
             st[clone].len = st[p].len + 1;
             for (auto e : st[q].next) {
-                st[clone].next[e.first] = e.second; // copy map
+                st[clone].next.push_back(e);
             }
             st[clone].link = st[q].link;
             for (auto old_id : st[q].ids) { // copy ids
                 st[clone].ids.emplace_back(old_id);
             }
 
-            while (p != -1 && st[p].next[c] == q) {
-                st[p].next[c] = clone;
+            while (p != -1 && get_next(p, c) == q) {
+                set_next(p, c, clone);
                 p = st[p].link;
             }
             st[q].link = st[cur].link = clone;
@@ -146,9 +169,9 @@ void GeneralizedSuffixAutomaton::add_string(uint32_t id, const std::string &s) {
 int GeneralizedSuffixAutomaton::query(const std::string &p) const {
     int v = 0;
     for (char c : p) {
-        auto it = st[v].next.find(c);
-        if (it == st[v].next.end()) return -1;
-        v = it->second;
+        int next = get_next(v, c);
+        if (next == -1) return -1;
+        v = next;
     }
     // v is the state representing all end positions of strings that contain p
     // return its stored IDs
@@ -170,7 +193,7 @@ void GeneralizedSuffixAutomaton::print() const {
         std::cout << "State " << i << ": len=" << state.len << ", link=" << state.link << "\n";
         std::cout << "  transitions: ";
         for (const auto &t : state.next) {
-            std::cout << "'" << t.first << "'->" << t.second << "  ";
+            std::cout << "'" << t.c << "'->" << t.to << "  ";
         }
         std::cout << "\n";
         std::cout << "  ids: {";
@@ -194,7 +217,7 @@ std::vector<GeneralizedSuffixAutomaton::Statistics> GeneralizedSuffixAutomaton::
         }
         stats[depth].sizes.push_back(static_cast<int>(st[state_id].ids.size()));
         for (const auto &t : st[state_id].next) {
-            q.emplace(t.second, depth + 1);
+            q.emplace(t.to, depth + 1);
         }
     }
     for (auto &stat : stats) {
@@ -222,7 +245,7 @@ std::vector<int> GeneralizedSuffixAutomaton::topo_sort() const {
     }
     for (int i = 0; i < n; ++i) {
         for (const auto &t : st[i].next) {
-            in_degree[t.second]++;
+            in_degree[t.to]++;
         }
     }
     std::queue<int> q;
@@ -237,7 +260,7 @@ std::vector<int> GeneralizedSuffixAutomaton::topo_sort() const {
         q.pop();
         order.push_back(u);
         for (const auto &t : st[u].next) {
-            int v = t.second;
+            int v = t.to;
             in_degree[v]--;
             if (in_degree[v] == 0) {
                 q.push(v);
@@ -258,12 +281,29 @@ void GeneralizedSuffixAutomaton::build_reverse() {
     if (deg) delete [] deg;
     if (reverse_next) delete [] reverse_next;
     deg = new std::atomic<int>[st.size()];
-    reverse_next = new std::vector<int>[st.size()];
+    reverse_next = new std::vector<uint32_t>[st.size()];
     for (int i = 0; i < st.size(); i++) {
         deg[i] = st[i].next.size();
         for (auto e : st[i].next) {
-            reverse_next[e.second].emplace_back(i);
+            reverse_next[e.to].emplace_back(i);
         }
+    }
+}
+
+void GeneralizedSuffixAutomaton::release_reverse() {
+    if (deg) {
+        delete [] deg;
+        deg = nullptr;
+    }
+    if (reverse_next) {
+        delete [] reverse_next;
+        reverse_next = nullptr;
+    }
+}
+
+void GeneralizedSuffixAutomaton::shrink_ids_to_fit() {
+    for (auto& state : st) {
+        state.ids.shrink_to_fit();
     }
 }
 
@@ -273,7 +313,7 @@ void GeneralizedSuffixAutomaton::dump(char* output_file) {
     for (int i = 0; i < st.size(); i++) {
         f << st[i].len << " " << st[i].link << " " << st[i].next.size() << " " << st[i].ids.size() << "\n";
         for (auto e : st[i].next) {
-            f << int(e.first) << " " << e.second << " ";
+            f << int(e.c) << " " << e.to << " ";
         }
         f << "\n";
         for (auto id : st[i].ids) {
