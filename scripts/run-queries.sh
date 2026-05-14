@@ -122,7 +122,7 @@ fi
 
 # Run spam
 if should_run_dataset "spam"; then
-for s in 2 3 4 5 6 7 8 16 32
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/spam/strings.txt datasets/spam/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -185,7 +185,7 @@ fi
 
 # # Run Words
 if should_run_dataset "words"; then
-for s in 2 3 4 5 6 7 8 16
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/words/strings.txt datasets/words/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -247,7 +247,7 @@ fi
 
 # # Run mtg
 if should_run_dataset "mtg"; then
-for s in 2 3 4 5 6 7 8 16 32
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/mtg/strings.txt datasets/mtg/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -307,7 +307,7 @@ fi
 
 # # Run arxiv-small
 if should_run_dataset "arxiv-small"; then
-for s in 2 3 4 5 6 7 8 16 32
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -367,7 +367,7 @@ fi
 
 # # Run swissprot
 if should_run_dataset "swissprot"; then
-for s in 2 3 4 5 6 7 8 16 32
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
@@ -427,7 +427,7 @@ fi
 
 # Run code_search_net
 if should_run_dataset "code_search_net"; then
-for s in 2 3 4 5 6 7 8 16 32
+for s in 2 3 4 5 6 7
 do
     python3 scripts/generate_queries.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt $s 1000 10 -1 queries
     # PreFiltering
