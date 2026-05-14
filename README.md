@@ -115,6 +115,8 @@ And reset the password to ``123456``:
 /path/to/elasticsearch-9.3.0/bin/elasticsearch-reset-password -u elastic -i
 ```
 
+Note that ElasticSearch requires **at least 150GB free disk space** during the whole experimental process. Failure the meet the condition will result in connection lost.
+
 For PostgreSQL, we install it by Anaconda:
 ```sh
 conda create -n pg_env -c conda-forge postgresql
