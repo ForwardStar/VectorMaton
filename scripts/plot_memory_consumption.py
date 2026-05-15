@@ -24,7 +24,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
-METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
 
 PEAK_MEMORY_PATTERN = re.compile(r"peak memory consumption:\s*(\d+)\s*bytes")
 
@@ -55,9 +55,11 @@ def method_colors():
         "PreFiltering": "black",
         "OptQuery": cs(0),
         "PostFiltering": cs(1),
-        "pgvector": cs(2),
-        "ElasticSearch": cs(3),
-        "VectorMaton": cs(4),
+        "ACORN-1": cs(2),
+        "ACORN-gamma": cs(3),
+        "pgvector": cs(4),
+        "ElasticSearch": cs(5),
+        "VectorMaton": cs(6),
     }
 
 
@@ -95,7 +97,7 @@ def load_csv_memory_bytes(path):
 
 
 def load_memory_bytes(method, dataset, pattern_length):
-    if method in {"pgvector", "ElasticSearch"}:
+    if method in {"ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch"}:
         path = os.path.join("results", method, dataset, f"{pattern_length}.csv")
         return load_csv_memory_bytes(path)
 
@@ -127,13 +129,14 @@ def draw_bars(ax, xs, ys, bar_width, hatch, color, label):
 
 def plot_memory(pattern_length, output):
     colors = method_colors()
-    hatches = ["\\", "", "+", "x", "-", "/"]
+    hatches = ["\\", "", "+", "o", "*", "x", "-", "/"]
     results = {
         method: [load_memory_bytes(method, dataset, pattern_length) for dataset in DATASETS]
         for method in METHODS
     }
 
-    x = list(range(len(DATASETS)))
+    group_gap = 1.35
+    x = [i * group_gap for i in range(len(DATASETS))]
     bar_width = 0.12
     offset_center = (len(METHODS) - 1) / 2
 
@@ -144,7 +147,7 @@ def plot_memory(pattern_length, output):
         for j, memory_bytes in enumerate(results[method]):
             if memory_bytes is None:
                 continue
-            xs.append(j + (i - offset_center) * bar_width)
+            xs.append(x[j] + (i - offset_center) * bar_width)
             ys.append(memory_bytes / (1024 * 1024))
 
         draw_bars(ax, xs, ys, bar_width, hatches[i], colors[method], method)
@@ -167,12 +170,12 @@ def plot_memory(pattern_length, output):
         ],
         labels=METHODS,
         loc="upper center",
-        ncol=6,
-        fontsize=28,
+        ncol=4,
+        fontsize=35,
         handler_map={tuple: HandlerOverlayPatch()},
     )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.84])
+    plt.tight_layout(rect=[0, 0, 1, 0.75])
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
     plt.savefig(output)
     print(f"Saved {output}")

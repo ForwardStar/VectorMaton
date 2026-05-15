@@ -31,7 +31,7 @@ PARALLEL_DATASETS = [
 PARALLEL_RESULT_ROOT = "results/VectorMaton-parallel"
 METHOD_STYLES = {
     "OptQuery": {"marker": "o", "color_idx": 0},
-    "VectorMaton": {"marker": "v", "color_idx": 4},
+    "VectorMaton": {"marker": "v", "color_idx": 6},
 }
 
 
@@ -180,7 +180,7 @@ def main():
     axes[0].set_ylabel("Size (MB)", fontsize=30)
     axes[len(DATASETS)].set_ylabel("Time (s)", fontsize=30)
 
-    parallel_color = cs(4)
+    parallel_color = cs(6)
     parallel_start = 2 * len(DATASETS)
     for i, (dataset, dataset_brief) in enumerate(PARALLEL_DATASETS):
         ax = axes[parallel_start + i]

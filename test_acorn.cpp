@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -7,6 +8,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -43,6 +45,46 @@ long long current_memory_bytes() {
     }
     return -1;
 }
+
+class MemoryPeakTracker {
+public:
+    explicit MemoryPeakTracker(std::chrono::milliseconds interval = std::chrono::milliseconds(50))
+            : interval_(interval) {}
+
+    void start() {
+        stop_.store(false);
+        record();
+        sampler_ = std::thread([this] {
+            while (!stop_.load()) {
+                record();
+                std::this_thread::sleep_for(interval_);
+            }
+        });
+    }
+
+    long long stop() {
+        record();
+        stop_.store(true);
+        if (sampler_.joinable()) {
+            sampler_.join();
+        }
+        record();
+        return peak_bytes_;
+    }
+
+private:
+    void record() {
+        long long current = current_memory_bytes();
+        if (current >= 0 && current > peak_bytes_) {
+            peak_bytes_ = current;
+        }
+    }
+
+    std::chrono::milliseconds interval_;
+    std::atomic<bool> stop_{false};
+    std::thread sampler_;
+    long long peak_bytes_ = -1;
+};
 
 Args parse_args(int argc, char** argv) {
     if (argc < 7) {
@@ -228,16 +270,28 @@ int main(int argc, char** argv) {
                   << ", M_beta=" << args.M_beta << "\n";
 
         long long baseline_memory = current_memory_bytes();
+        MemoryPeakTracker build_peak_tracker;
+        build_peak_tracker.start();
         std::vector<int> metadata(nb, 0);
         faiss::IndexACORNFlat index(data_dim, args.M, args.gamma, metadata, args.M_beta);
         index.add(static_cast<faiss::idx_t>(nb), data_vectors.data());
-        long long build_memory = current_memory_bytes();
+        long long build_peak_memory = build_peak_tracker.stop();
         long long build_memory_delta =
-                baseline_memory >= 0 && build_memory >= 0 ? build_memory - baseline_memory : -1;
+                baseline_memory >= 0 && build_peak_memory >= 0
+                        ? build_peak_memory - baseline_memory
+                        : -1;
         size_t index_size = serialized_index_size(index);
+        std::cout << "peak memory consumption: " << build_memory_delta << " bytes\n";
+        std::cout << "index size: " << index_size << " bytes\n";
 
         std::cout << "Building per-query substring filter map...\n";
+        auto filter_start = std::chrono::steady_clock::now();
         std::vector<char> filter_map = make_filter_map(data_strings, query_strings);
+        auto filter_end = std::chrono::steady_clock::now();
+        double filter_elapsed_us =
+                std::chrono::duration_cast<std::chrono::microseconds>(filter_end - filter_start)
+                        .count();
+        std::cout << "filter map build time: " << filter_elapsed_us << " us\n";
 
         std::vector<int> ef_search_values = {
                 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
@@ -269,8 +323,9 @@ int main(int argc, char** argv) {
                     filter_map.data(),
                     &params);
             auto end = std::chrono::steady_clock::now();
-            double elapsed_us =
+            double search_elapsed_us =
                     std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            double elapsed_us = filter_elapsed_us + search_elapsed_us;
 
             double total_recall = 0.0;
             int effective = 0;
@@ -297,7 +352,8 @@ int main(int argc, char** argv) {
             times_us.push_back(avg_time_us);
             recalls.push_back(avg_recall);
             std::cout << "ef_search=" << ef << ", time=" << avg_time_us
-                      << " us, recall=" << avg_recall << "\n";
+                      << " us, recall=" << avg_recall
+                      << " (includes filter map build time)\n";
         }
 
         std::ofstream out(args.output_file);

@@ -248,7 +248,13 @@ The wrapper translates each substring query into ACORN's per-query filter bitmap
 ## All external baselines
 The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
 
-For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. After that, launch it simply by:
+For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. Configure the JVM heap memory to 128GB by writing:
+```
+-Xms128g
+-Xmx128g
+```
+
+to ``/path/to/elasticsearch-9.3.0/config/jvm.options.d/heap.options``. After that, launch it simply by:
 ```sh
 /path/to/elasticsearch-9.3.0/bin/elasticsearch
 ```

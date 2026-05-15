@@ -120,6 +120,43 @@ if [ ! -d "results/VectorMaton" ]; then
     mkdir results/VectorMaton
 fi
 
+if [ ! -d "results/ACORN-gamma" ]; then
+    mkdir results/ACORN-gamma
+fi
+if [ ! -d "results/ACORN-1" ]; then
+    mkdir results/ACORN-1
+fi
+
+run_acorn_variants() {
+    local dataset="$1"
+    local strings_file="$2"
+    local vectors_file="$3"
+    local pattern_length="$4"
+
+    if should_run "ACORN-gamma"; then
+        if [ ! -d "results/ACORN-gamma/${dataset}" ]; then
+            mkdir "results/ACORN-gamma/${dataset}"
+        fi
+        ./build/test_acorn \
+            "${strings_file}" "${vectors_file}" \
+            strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
+            --M=16 --gamma=12 \
+            --output="results/ACORN-gamma/${dataset}/${pattern_length}.csv" \
+            > "results/ACORN-gamma/${dataset}/${pattern_length}"
+    fi
+
+    if should_run "ACORN-1"; then
+        if [ ! -d "results/ACORN-1/${dataset}" ]; then
+            mkdir "results/ACORN-1/${dataset}"
+        fi
+        ./build/test_acorn \
+            "${strings_file}" "${vectors_file}" \
+            strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
+            --M=16 --gamma=1 \
+            --output="results/ACORN-1/${dataset}/${pattern_length}.csv" \
+            > "results/ACORN-1/${dataset}/${pattern_length}"
+    fi
+}
 # Run spam
 if should_run_dataset "spam"; then
 for s in 2 3 4 5 6 7
@@ -158,6 +195,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "spam" datasets/spam/strings.txt datasets/spam/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/spam" ]; then
@@ -221,6 +259,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "words" datasets/words/strings.txt datasets/words/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/words" ]; then
@@ -281,6 +320,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "mtg" datasets/mtg/strings.txt datasets/mtg/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/mtg" ]; then
@@ -341,6 +381,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "arxiv-small" datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/arxiv-small" ]; then
@@ -401,6 +442,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "swissprot" datasets/swissprot/strings.txt datasets/swissprot/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/swissprot" ]; then
@@ -461,6 +503,7 @@ do
         fi
     fi
     wait
+    run_acorn_variants "code_search_net" datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt "$s"
     # pgvector
     if should_run "pgvector"; then
         if [ ! -d "results/pgvector/code_search_net" ]; then

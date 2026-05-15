@@ -57,7 +57,7 @@ def main():
     axes_flat = axes.flatten()
 
     cs = plt.colormaps["tab10"]
-    color = cs(4)
+    color = cs(6)
 
     for i, dataset in enumerate(DATASETS):
         x, y = collect_points(dataset)

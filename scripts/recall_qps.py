@@ -123,7 +123,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
         )
         time_prefiltering = extract_avg_time_us_from_log(filepath_prefiltering)
 
-        markers = ['o', 's', '^', 'd', 'v', 'x', '*']
+        markers = ['o', 's', '^', 'd', 'P', 'X', 'v', 'x', '*']
         cs = plt.colormaps['tab10']
         colors = [cs(i) for i in range(len(methods))]
 
@@ -190,7 +190,7 @@ def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
     )
 
 if __name__ == "__main__":
-    methods = ["OptQuery", "PostFiltering", "pgvector", "ElasticSearch", "VectorMaton"]
+    methods = ["OptQuery", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
     ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
@@ -216,12 +216,12 @@ if __name__ == "__main__":
     fig.legend(
         handles, labels,
         loc="upper center",
-        ncol=6,
+        ncol=4,
         fontsize=35,
         handlelength=1.2,
         markerscale=1.5
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_all_datasets.pdf")

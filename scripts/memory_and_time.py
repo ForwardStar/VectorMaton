@@ -22,7 +22,7 @@ datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net
 ds_brief = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 methods = ["OptQuery", "VectorMaton"]
 cs = plt.colormaps['tab10']
-colors = [cs(0), cs(4)]
+colors = [cs(0), cs(6)]
 hatches = ['\\', '/']
 hatch_colors = [colors[0], colors[1]]
 

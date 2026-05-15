@@ -19,7 +19,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
         rcParams["mathtext.rm"] = font_name
 
 
-METHODS = ["OptQuery", "PostFiltering", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DS_BRIEFS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 P_LENGTHS = [5, 6, 7]
@@ -78,7 +78,7 @@ def simplify_curve(qps, recall):
 
 
 def plot_panel(ax, dataset, label, p_len, left_axis=False):
-    markers = ["o", "s", "^", "d", "v"]
+    markers = ["o", "s", "^", "d", "P", "X", "v"]
     colors = [plt.colormaps["tab10"](i) for i in range(len(METHODS))]
     plotted_any = False
     plotted_qps = []
@@ -182,12 +182,12 @@ def main():
         handles,
         labels,
         loc="upper center",
-        ncol=6,
+        ncol=4,
         fontsize=35,
         handlelength=1.2,
         markerscale=1.5,
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_p5_p6_p7.pdf")

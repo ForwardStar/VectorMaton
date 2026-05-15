@@ -169,61 +169,40 @@ def format_bytes(value):
 def unavailable_process_memory_stats(process_pid):
     return {
         "es_process_pid": process_pid,
-        "es_process_vm_size_bytes": None,
         "es_process_rss_bytes": None,
         "es_process_rss_high_watermark_bytes": None,
-        "es_process_rss_anon_bytes": None,
-        "es_process_rss_file_bytes": None,
-        "es_process_rss_shmem_bytes": None,
-        "es_process_pss_bytes": None,
+        "es_process_anonymous_bytes": None,
+        "es_process_file_bytes": None,
+        "es_process_shmem_bytes": None,
     }
 
 
 def collect_process_memory_stats(process_pid):
-    memory_stats = unavailable_process_memory_stats(process_pid)
+    stats = unavailable_process_memory_stats(process_pid)
     if process_pid is None:
-        return memory_stats
+        return stats
 
     status_path = f"/proc/{process_pid}/status"
-    keys = {
-        "VmSize": "es_process_vm_size_bytes",
+    status_keys = {
         "VmRSS": "es_process_rss_bytes",
         "VmHWM": "es_process_rss_high_watermark_bytes",
-        "RssAnon": "es_process_rss_anon_bytes",
-        "RssFile": "es_process_rss_file_bytes",
-        "RssShmem": "es_process_rss_shmem_bytes",
+        "RssAnon": "es_process_anonymous_bytes",
+        "RssFile": "es_process_file_bytes",
+        "RssShmem": "es_process_shmem_bytes",
     }
-
     try:
         with open(status_path) as status_file:
             for line in status_file:
                 name, _, value = line.partition(":")
-                if name not in keys:
+                if name not in status_keys:
                     continue
                 parts = value.strip().split()
                 if parts:
-                    memory_stats[keys[name]] = int(parts[0]) * 1024
+                    stats[status_keys[name]] = int(parts[0]) * 1024
     except OSError as exc:
         print(f"Could not read Elasticsearch process memory from {status_path}: {exc}")
 
-    smaps_rollup_path = f"/proc/{process_pid}/smaps_rollup"
-    try:
-        with open(smaps_rollup_path) as smaps_file:
-            for line in smaps_file:
-                name, _, value = line.partition(":")
-                if name == "Pss":
-                    parts = value.strip().split()
-                    if parts:
-                        memory_stats["es_process_pss_bytes"] = int(parts[0]) * 1024
-                    break
-    except OSError:
-        pass
-
-    return memory_stats
-
-
-def collect_memory_stats(es: Elasticsearch, index_name: str, process_pid):
-    return collect_process_memory_stats(process_pid)
+    return stats
 
 
 def add_memory_deltas(memory_stats, baseline_stats):
@@ -338,24 +317,27 @@ def print_memory_stats(label, memory_stats):
     print(f"Elasticsearch memory stats ({label}):")
     print(f"  process pid: {memory_stats['es_process_pid']}")
     print(f"  process RSS: {format_bytes(memory_stats['es_process_rss_bytes'])}")
-    print(f"  process PSS: {format_bytes(memory_stats['es_process_pss_bytes'])}")
-    print(f"  process anonymous RSS: {format_bytes(memory_stats['es_process_rss_anon_bytes'])}")
-    print(f"  process file RSS: {format_bytes(memory_stats['es_process_rss_file_bytes'])}")
-    print(f"  process shared RSS: {format_bytes(memory_stats['es_process_rss_shmem_bytes'])}")
+    print(f"  process RSS high watermark: {format_bytes(memory_stats['es_process_rss_high_watermark_bytes'])}")
+    print(f"  process anonymous memory: {format_bytes(memory_stats['es_process_anonymous_bytes'])}")
+    print(f"  process file-backed memory: {format_bytes(memory_stats['es_process_file_bytes'])}")
+    print(f"  process shared memory: {format_bytes(memory_stats['es_process_shmem_bytes'])}")
     if "es_process_rss_delta_from_baseline_bytes" in memory_stats:
         print(
             "  process RSS delta from baseline: "
             f"{format_bytes(memory_stats['es_process_rss_delta_from_baseline_bytes'])}"
         )
-    if "es_process_pss_delta_from_baseline_bytes" in memory_stats:
-        print(
-            "  process PSS delta from baseline: "
-            f"{format_bytes(memory_stats['es_process_pss_delta_from_baseline_bytes'])}"
-        )
+
 
 def add_build_peak_delta_columns(df, memory_stats):
     df["build_peak_memory_bytes"] = memory_stats.get(
         "es_process_rss_delta_from_baseline_bytes"
+    )
+    df["es_process_rss_delta_from_baseline_bytes"] = memory_stats.get(
+        "es_process_rss_delta_from_baseline_bytes"
+    )
+    df["es_process_rss_peak_bytes"] = memory_stats.get("es_process_rss_bytes")
+    df["es_process_rss_high_watermark_peak_bytes"] = memory_stats.get(
+        "es_process_rss_high_watermark_bytes"
     )
 
 
@@ -435,7 +417,7 @@ def parse_args():
         "--process-pid",
         type=int,
         default=None,
-        help="Local Elasticsearch process PID to use for RSS/PSS memory measurements.",
+        help="Local Elasticsearch process PID to use for RSS memory measurements.",
     )
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the index.")
     parser.add_argument(
@@ -465,8 +447,11 @@ def main():
         es.indices.delete(index=index_name)
 
     process_pid = discover_elasticsearch_pid(es, args)
-    memory_stats_baseline = collect_memory_stats(es, index_name, process_pid)
-    print_memory_stats("baseline after connection setup and optional rebuild deletion", memory_stats_baseline)
+    memory_stats_baseline = collect_process_memory_stats(process_pid)
+    print_memory_stats(
+        "baseline after connection setup and optional rebuild deletion",
+        memory_stats_baseline,
+    )
     build_peak_tracker = MemoryPeakTracker(lambda: collect_process_memory_stats(process_pid))
     build_peak_tracker.start()
 
@@ -483,6 +468,8 @@ def main():
             f"{len(insertion_vectors)} insertion vectors."
         )
     created_index = ensure_index(es, index_name, base_vectors, base_strings, False)
+    if not created_index:
+        print("Index already existed; build peak memory reflects this run without index construction.")
     if insertion_vectors:
         if created_index:
             print(f"Inserting additional {len(insertion_vectors)} documents into Elasticsearch index...")
@@ -504,10 +491,7 @@ def main():
         build_peak_tracker.stop(),
         memory_stats_baseline,
     )
-    print_memory_stats(
-        "build peak",
-        {**collect_memory_stats(es, index_name, process_pid), **build_peak_memory_stats},
-    )
+    print_memory_stats("build peak", build_peak_memory_stats)
 
     print("Loading queries and ground truth...")
     qvecs, qstrs, qks = load_queries(args.vector_query_file, args.string_query_file, args.k_file)
