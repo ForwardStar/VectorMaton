@@ -1,10 +1,7 @@
 import argparse
-import os
 import re
 import sys
-import threading
 import time
-from urllib.parse import urlparse
 
 import pandas as pd
 from elasticsearch import Elasticsearch, helpers
@@ -166,179 +163,71 @@ def format_bytes(value):
         size /= 1024.0
 
 
-def unavailable_process_memory_stats(process_pid):
-    return {
-        "es_process_pid": process_pid,
-        "es_process_rss_bytes": None,
-        "es_process_rss_high_watermark_bytes": None,
-        "es_process_anonymous_bytes": None,
-        "es_process_file_bytes": None,
-        "es_process_shmem_bytes": None,
-    }
+def raw_vector_size_bytes(vectors):
+    return sum(len(vector) for vector in vectors) * 4
 
 
-def collect_process_memory_stats(process_pid):
-    stats = unavailable_process_memory_stats(process_pid)
-    if process_pid is None:
-        return stats
+def raw_string_size_bytes(strings):
+    return sum(len(value.encode("utf-8")) for value in strings)
 
-    status_path = f"/proc/{process_pid}/status"
-    status_keys = {
-        "VmRSS": "es_process_rss_bytes",
-        "VmHWM": "es_process_rss_high_watermark_bytes",
-        "RssAnon": "es_process_anonymous_bytes",
-        "RssFile": "es_process_file_bytes",
-        "RssShmem": "es_process_shmem_bytes",
-    }
+
+def collect_index_file_size_bytes(es: Elasticsearch, index_name: str):
     try:
-        with open(status_path) as status_file:
-            for line in status_file:
-                name, _, value = line.partition(":")
-                if name not in status_keys:
-                    continue
-                parts = value.strip().split()
-                if parts:
-                    stats[status_keys[name]] = int(parts[0]) * 1024
-    except OSError as exc:
-        print(f"Could not read Elasticsearch process memory from {status_path}: {exc}")
-
-    return stats
-
-
-def add_memory_deltas(memory_stats, baseline_stats):
-    stats_with_deltas = dict(memory_stats)
-    for key, value in memory_stats.items():
-        if not key.endswith("_bytes"):
-            continue
-        baseline_value = baseline_stats.get(key)
-        delta_key = key.replace("_bytes", "_delta_from_baseline_bytes")
-        stats_with_deltas[delta_key] = (
-            value - baseline_value
-            if value is not None and baseline_value is not None
-            else None
-        )
-    return stats_with_deltas
-
-
-class MemoryPeakTracker:
-    def __init__(self, collect_fn, interval=0.05):
-        self.collect_fn = collect_fn
-        self.interval = interval
-        self.stop_event = threading.Event()
-        self.thread = None
-        self.peak_stats = None
-
-    def _sample(self):
-        while not self.stop_event.is_set():
-            self.record()
-            self.stop_event.wait(self.interval)
-
-    def record(self):
-        stats = self.collect_fn()
-        if self.peak_stats is None:
-            self.peak_stats = dict(stats)
-            return
-        for key, value in stats.items():
-            if not key.endswith("_bytes") or value is None:
-                continue
-            previous = self.peak_stats.get(key)
-            if previous is None or value > previous:
-                self.peak_stats[key] = value
-
-    def start(self):
-        self.record()
-        self.thread = threading.Thread(target=self._sample, daemon=True)
-        self.thread.start()
-
-    def stop(self):
-        self.record()
-        self.stop_event.set()
-        if self.thread:
-            self.thread.join()
-        self.record()
-        return self.peak_stats
-
-
-def host_is_local(host):
-    parsed = urlparse(host)
-    hostname = parsed.hostname if parsed.hostname else host
-    return hostname in {"localhost", "127.0.0.1", "::1"}
-
-
-def discover_elasticsearch_pid(es: Elasticsearch, args):
-    if args.process_pid is not None:
-        return args.process_pid
-
-    try:
-        stats = es.nodes.stats(metric="process")
-        pids = [
-            node.get("process", {}).get("id")
-            for node in stats.get("nodes", {}).values()
-            if node.get("process", {}).get("id") is not None
-        ]
-        unique_pids = sorted(set(pids))
-        if len(unique_pids) == 1:
-            return unique_pids[0]
-        if len(unique_pids) > 1:
-            print(
-                "Multiple Elasticsearch process IDs reported by the cluster; "
-                "use --process-pid to choose one."
-            )
+        if not es.indices.exists(index=index_name):
             return None
+        stats = es.indices.stats(index=index_name, metric="store").body
+        return (
+            stats.get("_all", {})
+            .get("total", {})
+            .get("store", {})
+            .get("size_in_bytes")
+        )
     except Exception as exc:
-        print(f"Could not discover Elasticsearch process ID from node stats: {exc}")
-
-    if not host_is_local(args.host):
-        print("Elasticsearch host is not local; process memory stats unavailable.")
+        print(f"Could not read Elasticsearch index file size for {index_name}: {exc}")
         return None
 
-    pids = []
-    for pid_name in os.listdir("/proc"):
-        if not pid_name.isdigit():
-            continue
-        try:
-            with open(f"/proc/{pid_name}/cmdline", "rb") as cmdline_file:
-                cmdline = cmdline_file.read().decode("utf-8", errors="ignore")
-        except OSError:
-            continue
-        if "org.elasticsearch.bootstrap.Elasticsearch" in cmdline:
-            pids.append(int(pid_name))
 
-    if len(pids) == 1:
-        return pids[0]
-    if len(pids) > 1:
-        print("Multiple local Elasticsearch processes found; use --process-pid to choose one.")
+def collect_index_footprint_stats(es: Elasticsearch, index_name: str, vectors, strings):
+    vector_bytes = raw_vector_size_bytes(vectors)
+    string_bytes = raw_string_size_bytes(strings)
+    index_file_bytes = collect_index_file_size_bytes(es, index_name)
+    if index_file_bytes is None:
+        auxiliary_bytes = None
+        total_bytes = None
     else:
-        print("Could not find a local Elasticsearch process; process memory stats unavailable.")
-    return None
+        auxiliary_bytes = max(index_file_bytes - vector_bytes - string_bytes, 0)
+        total_bytes = index_file_bytes + vector_bytes + string_bytes
+
+    return {
+        "es_raw_vector_size_bytes": vector_bytes,
+        "es_raw_string_size_bytes": string_bytes,
+        "es_index_file_size_bytes": index_file_bytes,
+        "es_auxiliary_size_bytes": auxiliary_bytes,
+        "es_estimated_index_footprint_bytes": total_bytes,
+    }
 
 
 def print_memory_stats(label, memory_stats):
     print(f"Elasticsearch memory stats ({label}):")
-    print(f"  process pid: {memory_stats['es_process_pid']}")
-    print(f"  process RSS: {format_bytes(memory_stats['es_process_rss_bytes'])}")
-    print(f"  process RSS high watermark: {format_bytes(memory_stats['es_process_rss_high_watermark_bytes'])}")
-    print(f"  process anonymous memory: {format_bytes(memory_stats['es_process_anonymous_bytes'])}")
-    print(f"  process file-backed memory: {format_bytes(memory_stats['es_process_file_bytes'])}")
-    print(f"  process shared memory: {format_bytes(memory_stats['es_process_shmem_bytes'])}")
-    if "es_process_rss_delta_from_baseline_bytes" in memory_stats:
-        print(
-            "  process RSS delta from baseline: "
-            f"{format_bytes(memory_stats['es_process_rss_delta_from_baseline_bytes'])}"
-        )
+    print(f"  raw vector size: {format_bytes(memory_stats['es_raw_vector_size_bytes'])}")
+    print(f"  raw string size: {format_bytes(memory_stats['es_raw_string_size_bytes'])}")
+    print(f"  index file size: {format_bytes(memory_stats['es_index_file_size_bytes'])}")
+    print(f"  auxiliary size estimate: {format_bytes(memory_stats['es_auxiliary_size_bytes'])}")
+    print(
+        "  estimated index footprint (index files + raw vectors + raw strings): "
+        f"{format_bytes(memory_stats['es_estimated_index_footprint_bytes'])}"
+    )
 
 
 def add_build_peak_delta_columns(df, memory_stats):
-    df["build_peak_memory_bytes"] = memory_stats.get(
-        "es_process_rss_delta_from_baseline_bytes"
+    df["build_peak_memory_bytes"] = memory_stats.get("es_estimated_index_footprint_bytes")
+    df["es_estimated_index_footprint_bytes"] = memory_stats.get(
+        "es_estimated_index_footprint_bytes"
     )
-    df["es_process_rss_delta_from_baseline_bytes"] = memory_stats.get(
-        "es_process_rss_delta_from_baseline_bytes"
-    )
-    df["es_process_rss_peak_bytes"] = memory_stats.get("es_process_rss_bytes")
-    df["es_process_rss_high_watermark_peak_bytes"] = memory_stats.get(
-        "es_process_rss_high_watermark_bytes"
-    )
+    df["es_index_file_size_bytes"] = memory_stats.get("es_index_file_size_bytes")
+    df["es_raw_vector_size_bytes"] = memory_stats.get("es_raw_vector_size_bytes")
+    df["es_raw_string_size_bytes"] = memory_stats.get("es_raw_string_size_bytes")
+    df["es_auxiliary_size_bytes"] = memory_stats.get("es_auxiliary_size_bytes")
 
 
 def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_truth, candidates_list):
@@ -417,7 +306,7 @@ def parse_args():
         "--process-pid",
         type=int,
         default=None,
-        help="Local Elasticsearch process PID to use for RSS memory measurements.",
+        help="Deprecated; ignored. Elasticsearch memory is estimated from index files and raw payload size.",
     )
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the index.")
     parser.add_argument(
@@ -446,15 +335,6 @@ def main():
         print(f"Deleting existing index before baseline: {index_name}")
         es.indices.delete(index=index_name)
 
-    process_pid = discover_elasticsearch_pid(es, args)
-    memory_stats_baseline = collect_process_memory_stats(process_pid)
-    print_memory_stats(
-        "baseline after connection setup and optional rebuild deletion",
-        memory_stats_baseline,
-    )
-    build_peak_tracker = MemoryPeakTracker(lambda: collect_process_memory_stats(process_pid))
-    build_peak_tracker.start()
-
     print("Loading data...")
     vectors, strings = load_vectors_and_strings(args.vector_data_file, args.string_data_file)
     base_vectors, base_strings, insertion_vectors, insertion_strings, base_count = split_base_and_insertions(
@@ -469,7 +349,7 @@ def main():
         )
     created_index = ensure_index(es, index_name, base_vectors, base_strings, False)
     if not created_index:
-        print("Index already existed; build peak memory reflects this run without index construction.")
+        print("Index already existed; index footprint is measured from the existing index.")
     if insertion_vectors:
         if created_index:
             print(f"Inserting additional {len(insertion_vectors)} documents into Elasticsearch index...")
@@ -487,11 +367,8 @@ def main():
             print("Skipping insertion because the Elasticsearch index already exists.")
     print("Done loading data.")
 
-    build_peak_memory_stats = add_memory_deltas(
-        build_peak_tracker.stop(),
-        memory_stats_baseline,
-    )
-    print_memory_stats("build peak", build_peak_memory_stats)
+    build_peak_memory_stats = collect_index_footprint_stats(es, index_name, vectors, strings)
+    print_memory_stats("estimated index footprint", build_peak_memory_stats)
 
     print("Loading queries and ground truth...")
     qvecs, qstrs, qks = load_queries(args.vector_query_file, args.string_query_file, args.k_file)

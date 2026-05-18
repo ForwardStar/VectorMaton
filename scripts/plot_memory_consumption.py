@@ -25,6 +25,11 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
+
+
+def method_label(method):
+    return METHOD_LABELS.get(method, method)
 
 PEAK_MEMORY_PATTERN = re.compile(r"peak memory consumption:\s*(\d+)\s*bytes")
 
@@ -168,7 +173,7 @@ def plot_memory(pattern_length, output):
             )
             for i, method in enumerate(METHODS)
         ],
-        labels=METHODS,
+        labels=[method_label(method) for method in METHODS],
         loc="upper center",
         ncol=4,
         fontsize=35,

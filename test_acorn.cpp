@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "source/sa.h"
+
 #include <faiss/IndexACORN.h>
 #include <faiss/impl/ACORN.h>
 #include <faiss/index_io.h>
@@ -203,16 +205,30 @@ std::vector<std::vector<int>> load_ground_truth(const std::string& path) {
     return ground_truth;
 }
 
+GeneralizedSuffixAutomaton build_gsa(const std::vector<std::string>& data_strings) {
+    GeneralizedSuffixAutomaton gsa;
+    for (size_t id = 0; id < data_strings.size(); ++id) {
+        gsa.add_string(static_cast<uint32_t>(id), data_strings[id]);
+    }
+    gsa.shrink_ids_to_fit();
+    return gsa;
+}
+
 std::vector<char> make_filter_map(
-        const std::vector<std::string>& data_strings,
+        const GeneralizedSuffixAutomaton& gsa,
+        size_t nb,
         const std::vector<std::string>& query_strings) {
-    const size_t nb = data_strings.size();
     const size_t nq = query_strings.size();
     std::vector<char> filter_map(nq * nb, 0);
     for (size_t qi = 0; qi < nq; ++qi) {
-        for (size_t id = 0; id < nb; ++id) {
-            filter_map[qi * nb + id] =
-                    data_strings[id].find(query_strings[qi]) != std::string::npos;
+        int state = gsa.query(query_strings[qi]);
+        if (state == -1) {
+            continue;
+        }
+        for (uint32_t id : gsa.st[state].ids) {
+            if (id < nb) {
+                filter_map[qi * nb + id] = 1;
+            }
         }
     }
     return filter_map;
@@ -275,6 +291,9 @@ int main(int argc, char** argv) {
         std::vector<int> metadata(nb, 0);
         faiss::IndexACORNFlat index(data_dim, args.M, args.gamma, metadata, args.M_beta);
         index.add(static_cast<faiss::idx_t>(nb), data_vectors.data());
+        std::cout << "Building GeneralizedSuffixAutomaton for ACORN filters...\n";
+        GeneralizedSuffixAutomaton gsa = build_gsa(data_strings);
+        std::cout << "GSA states: " << gsa.size() << ", total ids: " << gsa.size_tot() << "\n";
         long long build_peak_memory = build_peak_tracker.stop();
         long long build_memory_delta =
                 baseline_memory >= 0 && build_peak_memory >= 0
@@ -284,9 +303,9 @@ int main(int argc, char** argv) {
         std::cout << "peak memory consumption: " << build_memory_delta << " bytes\n";
         std::cout << "index size: " << index_size << " bytes\n";
 
-        std::cout << "Building per-query substring filter map...\n";
+        std::cout << "Building per-query filter map from GSA...\n";
         auto filter_start = std::chrono::steady_clock::now();
-        std::vector<char> filter_map = make_filter_map(data_strings, query_strings);
+        std::vector<char> filter_map = make_filter_map(gsa, nb, query_strings);
         auto filter_end = std::chrono::steady_clock::now();
         double filter_elapsed_us =
                 std::chrono::duration_cast<std::chrono::microseconds>(filter_end - filter_start)

@@ -224,7 +224,8 @@ cmake --build third_party/ACORN/build -j --target faiss
 
 Then enable and build the VectorMaton ACORN wrapper:
 ```sh
-cmake -S . -B build -DENABLE_ACORN=ON
+cd build
+cmake -S .. -B build -DENABLE_ACORN=ON
 cmake --build build --target test_acorn
 ```
 

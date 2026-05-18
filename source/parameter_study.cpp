@@ -148,12 +148,19 @@ bool run_postfiltering_study(
     unsigned long long start_time = currentTime();
     std::vector<std::vector<int>> exact_results;
     exact_results.reserve(queried_strings.size());
+    double total_selectivity = 0.0;
     for (size_t i = 0; i < queried_strings.size(); ++i) {
-        exact_results.emplace_back(es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]));
+        size_t match_count = 0;
+        exact_results.emplace_back(es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], &match_count));
+        if (strings.size()) {
+            total_selectivity += static_cast<double>(match_count) / strings.size();
+        }
     }
     auto exact_time = currentTime() - start_time;
+    const double average_selectivity = queried_strings.empty() ? 0.0 : total_selectivity / queried_strings.size();
     float exact_time_per_query = queried_strings.empty() ? 0.0f : static_cast<float>(exact_time) / queried_strings.size();
     LOG_INFO("ExactSearch avg (us): ", exact_time_per_query);
+    LOG_INFO("Average selectivity: ", average_selectivity);
 
     PostFiltering pf;
     pf.set_vectors(base_vectors, dim);
@@ -168,7 +175,7 @@ bool run_postfiltering_study(
         std::filesystem::create_directories(output_file.parent_path());
     }
     std::ofstream stats(output_file);
-    stats << "ef_search,search_k_ratio,search_k,time_us,recall,exact\n";
+    stats << "ef_search,search_k_ratio,search_k,time_us,recall,exact,average_selectivity\n";
 
     for (int ef : EF_SEARCH) {
         for (float ratio : SEARCH_K_RATIOS) {
@@ -184,7 +191,7 @@ bool run_postfiltering_study(
             float time_us = queried_strings.empty() ? 0.0f : static_cast<float>(currentTime() - start_time) / queried_strings.size();
             float recall = compute_recall(exact_results, all_results);
 
-            stats << ef << "," << ratio << "," << search_k << "," << time_us << "," << recall << "," << exact_time_per_query << "\n";
+            stats << ef << "," << ratio << "," << search_k << "," << time_us << "," << recall << "," << exact_time_per_query << "," << average_selectivity << "\n";
             LOG_INFO("ef_search=", ef, ", search_k_ratio=", ratio, ", search_k=", search_k, ", time=", timeFormatting(time_us).str(), ", recall=", recall);
         }
     }

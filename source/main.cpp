@@ -265,12 +265,20 @@ int main(int argc, char * argv[]) {
     es.set_strings(strings);
     unsigned long long start_time = currentTime();
     std::vector<std::vector<int>> all_results;
+    const size_t exact_base_size = dim == 0 ? 0 : base_vectors.size() / dim;
+    double total_selectivity = 0.0;
     for (size_t i = 0; i < queried_strings.size(); ++i) {
-        auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
+        size_t match_count = 0;
+        auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], &match_count);
         exact_results.emplace_back(res);
+        if (exact_base_size != 0) {
+            total_selectivity += static_cast<double>(match_count) / exact_base_size;
+        }
     }
     auto exact_time = currentTime() - start_time;
+    const double average_selectivity = queried_strings.empty() ? 0.0 : total_selectivity / queried_strings.size();
     LOG_INFO("ExactSearch query processing took ", timeFormatting(exact_time).str(), ", avg (us): ", (static_cast<float>(exact_time) / queried_strings.size()));
+    LOG_INFO("Average selectivity: ", average_selectivity);
     logPeakMemoryConsumption("ExactSearch", es.peak_memory_usage, exact_peak_memory_before);
 
     if (ground_truth_file != "") {
@@ -343,12 +351,12 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Writing statistics to ", statistics_file);
             std::ofstream f_stats(statistics_file);
             // Write header
-            f_stats << "ef_search,time_us,recall,exact\n";
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
             for (const auto& stat : statistics) {
-                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
         }
     }
@@ -382,7 +390,8 @@ int main(int argc, char * argv[]) {
             auto res = pf.query(queried_vectors[i].data(), queried_strings[i], queried_k[i]);
             all_results.emplace_back(res);
         }
-        LOG_INFO("PreFiltering query processing took ", timeFormatting(currentTime() - start_time).str(), ", avg (us): ", (static_cast<float>(currentTime() - start_time) / queried_strings.size()));
+        float time_cost = currentTime() - start_time;
+        LOG_INFO("PreFiltering query processing took ", timeFormatting(time_cost).str(), ", avg (us): ", (time_cost / queried_strings.size()));
         // Compute recall
         double total_recall = 0;
         int effective = 0;
@@ -398,6 +407,13 @@ int main(int argc, char * argv[]) {
         }
         double recall = static_cast<double>(total_recall) / effective;
         LOG_INFO("PreFiltering recall: ", recall);
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            f_stats << "time_us,recall,exact,average_selectivity\n";
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
+            f_stats << (time_cost / queried_strings.size()) << "," << recall << "," << exact_time_per_query << "," << average_selectivity << "\n";
+        }
     }
 
     if (std::strcmp(argv[argc - 1], "PostFiltering") == 0) {
@@ -470,12 +486,12 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Writing statistics to ", statistics_file);
             std::ofstream f_stats(statistics_file);
             // Write header
-            f_stats << "ef_search,time_us,recall,exact\n";
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
             for (const auto& stat : statistics) {
-                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
         }
     }
@@ -552,12 +568,12 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Writing statistics to ", statistics_file);
             std::ofstream f_stats(statistics_file);
             // Write header
-            f_stats << "ef_search,time_us,recall,exact\n";
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
             for (const auto& stat : statistics) {
-                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
         }
     }
@@ -638,12 +654,12 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Writing statistics to ", statistics_file);
             std::ofstream f_stats(statistics_file);
             // Write header
-            f_stats << "ef_search,time_us,recall,exact\n";
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
             for (const auto& stat : statistics) {
-                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
         }
     }
@@ -724,12 +740,12 @@ int main(int argc, char * argv[]) {
             LOG_INFO("Writing statistics to ", statistics_file);
             std::ofstream f_stats(statistics_file);
             // Write header
-            f_stats << "ef_search,time_us,recall,exact\n";
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
             for (const auto& stat : statistics) {
-                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "\n";
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
         }
     }

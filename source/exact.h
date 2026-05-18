@@ -14,7 +14,7 @@ class ExactSearch {
 
         void set_vectors(const std::vector<float>& vectors, int dimension);
         void set_strings(const std::vector<std::string>& strings);
-        std::vector<int> query(const float* vec, const std::string &s, int k);
+        std::vector<int> query(const float* vec, const std::string &s, int k, size_t* match_count = nullptr);
 
         ExactSearch() {};
         ~ExactSearch() {};

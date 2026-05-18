@@ -140,7 +140,7 @@ run_acorn_variants() {
         ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
-            --M=16 --gamma=12 \
+            --M=32 --gamma=12 --M-beta=32 \
             --output="results/ACORN-gamma/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-gamma/${dataset}/${pattern_length}"
     fi
@@ -152,7 +152,7 @@ run_acorn_variants() {
         ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
-            --M=16 --gamma=1 \
+            --M=32 --gamma=1 --M-beta=32 \
             --output="results/ACORN-1/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-1/${dataset}/${pattern_length}"
     fi
@@ -167,7 +167,7 @@ do
         if [ ! -d "results/PreFiltering/spam" ]; then
             mkdir results/PreFiltering/spam
         fi
-        ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/spam/$s &
+        ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/spam/$s.csv > results/PreFiltering/spam/$s &
     fi
     # OptQuery
     if should_run "OptQuery"; then
@@ -181,7 +181,11 @@ do
         if [ ! -d "results/PostFiltering/spam" ]; then
             mkdir results/PostFiltering/spam
         fi
-        ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/spam/$s --statistics-file=results/PostFiltering/spam/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/spam/index --statistics-file=results/PostFiltering/spam/$s.csv > results/PostFiltering/spam/$s &
+        else
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/spam/index --statistics-file=results/PostFiltering/spam/$s.csv > results/PostFiltering/spam/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then
@@ -231,7 +235,7 @@ do
         if [ ! -d "results/PreFiltering/words" ]; then
             mkdir results/PreFiltering/words
         fi
-        ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/words/$s &
+        ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/words/$s.csv > results/PreFiltering/words/$s &
     fi
     # OptQuery
     if should_run "OptQuery"; then
@@ -245,7 +249,11 @@ do
         if [ ! -d "results/PostFiltering/words" ]; then
             mkdir results/PostFiltering/words
         fi
-        ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/words/$s --statistics-file=results/PostFiltering/words/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/words/index --statistics-file=results/PostFiltering/words/$s.csv > results/PostFiltering/words/$s &
+        else
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/words/index --statistics-file=results/PostFiltering/words/$s.csv > results/PostFiltering/words/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then
@@ -294,7 +302,7 @@ do
         if [ ! -d "results/PreFiltering/mtg" ]; then
             mkdir results/PreFiltering/mtg
         fi
-        ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/mtg/$s &
+        ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/mtg/$s.csv > results/PreFiltering/mtg/$s &
     fi
     # OptQuery
     # if [ ! -d "results/OptQuery/mtg" ]; then
@@ -306,7 +314,11 @@ do
         if [ ! -d "results/PostFiltering/mtg" ]; then
             mkdir results/PostFiltering/mtg
         fi
-        ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/mtg/$s --statistics-file=results/PostFiltering/mtg/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/mtg/index --statistics-file=results/PostFiltering/mtg/$s.csv > results/PostFiltering/mtg/$s &
+        else
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/mtg/index --statistics-file=results/PostFiltering/mtg/$s.csv > results/PostFiltering/mtg/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then
@@ -355,7 +367,7 @@ do
         if [ ! -d "results/PreFiltering/arxiv-small" ]; then
             mkdir results/PreFiltering/arxiv-small
         fi
-        ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/arxiv-small/$s &
+        ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/arxiv-small/$s.csv > results/PreFiltering/arxiv-small/$s &
     fi
     # OptQuery
     # if [ ! -d "results/OptQuery/arxiv-small" ]; then
@@ -367,7 +379,11 @@ do
         if [ ! -d "results/PostFiltering/arxiv-small" ]; then
             mkdir results/PostFiltering/arxiv-small
         fi
-        ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/arxiv-small/$s --statistics-file=results/PostFiltering/arxiv-small/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/arxiv-small/index --statistics-file=results/PostFiltering/arxiv-small/$s.csv > results/PostFiltering/arxiv-small/$s &
+        else
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/arxiv-small/index --statistics-file=results/PostFiltering/arxiv-small/$s.csv > results/PostFiltering/arxiv-small/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then
@@ -416,7 +432,7 @@ do
         if [ ! -d "results/PreFiltering/swissprot" ]; then
             mkdir results/PreFiltering/swissprot
         fi
-        ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/swissprot/$s &
+        ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/swissprot/$s.csv > results/PreFiltering/swissprot/$s &
     fi
     # OptQuery
     # if [ ! -d "results/OptQuery/swissprot" ]; then
@@ -428,7 +444,11 @@ do
         if [ ! -d "results/PostFiltering/swissprot" ]; then
             mkdir results/PostFiltering/swissprot
         fi
-        ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/swissprot/$s --statistics-file=results/PostFiltering/swissprot/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/swissprot/index --statistics-file=results/PostFiltering/swissprot/$s.csv > results/PostFiltering/swissprot/$s &
+        else
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/swissprot/index --statistics-file=results/PostFiltering/swissprot/$s.csv > results/PostFiltering/swissprot/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then
@@ -477,7 +497,7 @@ do
         if [ ! -d "results/PreFiltering/code_search_net" ]; then
             mkdir results/PreFiltering/code_search_net
         fi
-        ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt > results/PreFiltering/code_search_net/$s &
+        ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PreFiltering --write-ground-truth=ground_truth.txt --statistics-file=results/PreFiltering/code_search_net/$s.csv > results/PreFiltering/code_search_net/$s &
     fi
     # OptQuery
     # if [ ! -d "results/OptQuery/code_search_net" ]; then
@@ -489,7 +509,11 @@ do
         if [ ! -d "results/PostFiltering/code_search_net" ]; then
             mkdir results/PostFiltering/code_search_net
         fi
-        ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering > results/PostFiltering/code_search_net/$s --statistics-file=results/PostFiltering/code_search_net/$s.csv &
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/code_search_net/index --statistics-file=results/PostFiltering/code_search_net/$s.csv > results/PostFiltering/code_search_net/$s &
+        else
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/code_search_net/index --statistics-file=results/PostFiltering/code_search_net/$s.csv > results/PostFiltering/code_search_net/$s &
+        fi
     fi
     # VectorMaton
     if should_run "VectorMaton"; then

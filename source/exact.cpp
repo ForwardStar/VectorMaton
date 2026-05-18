@@ -12,12 +12,15 @@ void ExactSearch::set_strings(const std::vector<std::string>& strings) {
     updatePeakMemoryUsage(peak_memory_usage);
 }
 
-std::vector<int> ExactSearch::query(const float* vec, const std::string &s, int k) {
+std::vector<int> ExactSearch::query(const float* vec, const std::string &s, int k, size_t* match_count) {
     std::vector<int> results;
     for (int i = 0; i < max_elements; ++i) {
         if (strs[i].find(s) != std::string::npos) {
             results.push_back(i);
         }
+    }
+    if (match_count) {
+        *match_count = results.size();
     }
     std::sort(results.begin(), results.end(), [&](int a, int b) {
         return distance(vecs.data() + a * dim, vec, dim) < distance(vecs.data() + b * dim, vec, dim);

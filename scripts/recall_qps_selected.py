@@ -23,6 +23,11 @@ METHODS = ["OptQuery", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "E
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DS_BRIEFS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 P_LENGTHS = [5, 6, 7]
+METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
+
+
+def method_label(method):
+    return METHOD_LABELS.get(method, method)
 
 
 def extract_avg_time_us_from_log(filepath):
@@ -54,6 +59,23 @@ def load_curve(csv_path):
     order = np.argsort(recall)
     return qps[order], recall[order]
 
+
+
+def load_selectivity(dataset, p_len):
+    for method in METHODS:
+        csv_path = os.path.join("results", method, dataset, f"{p_len}.csv")
+        if not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception:
+            continue
+        if "average_selectivity" in df.columns and not df["average_selectivity"].dropna().empty:
+            return float(df["average_selectivity"].dropna().iloc[0])
+    return None
+
+def format_selectivity(selectivity):
+    return "N/A" if selectivity is None else f"{selectivity:.3g}"
 
 def simplify_curve(qps, recall):
     if qps is None or recall is None or len(qps) == 0:
@@ -97,7 +119,7 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             qps,
             marker=markers[i],
             color=colors[i],
-            label=method,
+            label=method_label(method),
             markersize=8,
             linewidth=1.8,
             markerfacecolor="none",
@@ -120,7 +142,8 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             markerfacecolor="none",
         )
 
-    ax.set_title(f"{label}, |p| = {p_len}", fontsize=18, fontweight="bold")
+    selectivity = load_selectivity(dataset, p_len)
+    ax.set_title(f"{label}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=18, fontweight="bold")
     ax.set_xlabel("Recall @ 10", fontsize=16)
     if left_axis:
         ax.set_ylabel("QPS", fontsize=16)

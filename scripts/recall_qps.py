@@ -7,6 +7,11 @@ import matplotlib.font_manager as fm
 from matplotlib import rcParams
 import numpy as np
 
+METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
+
+def method_label(method):
+    return METHOD_LABELS.get(method, method)
+
 plt.rcParams.update({'font.family': 'Times New Roman'})
 for font in fm.findSystemFonts(fontpaths=None, fontext='ttf'):
     if "Libertine_R" in font:
@@ -55,6 +60,23 @@ def load_curve(csv_path):
         return df["time_us"].values, df["recall"].values
     except:
         return None, None
+
+
+def load_selectivity(dataset, p_len, methods):
+    for method in methods:
+        csv_path = os.path.join("results", method, dataset, f"{p_len}.csv")
+        if not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception:
+            continue
+        if "average_selectivity" in df.columns and not df["average_selectivity"].dropna().empty:
+            return float(df["average_selectivity"].dropna().iloc[0])
+    return None
+
+def format_selectivity(selectivity):
+    return "N/A" if selectivity is None else f"{selectivity:.3g}"
 
 def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
     # axes_block: list/array of length 3
@@ -143,12 +165,13 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     recalls[i], qpss[i],
                     marker=markers[i],
                     color=colors[i],
-                    label=methods[i],
+                    label=method_label(methods[i]),
                     markersize=15,
                     markerfacecolor='none'
                 )
 
-        ax.set_title(f"{ds_brief}, |p| = {p_len}", fontsize=25, fontweight='bold')
+        selectivity = load_selectivity(dataset, p_len, methods)
+        ax.set_title(f"{ds_brief}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=25, fontweight='bold')
         ax.set_xlabel("Recall @ 10", fontsize=25)
         if left_block and p_len == 2:
             ax.set_ylabel("QPS", fontsize=25)

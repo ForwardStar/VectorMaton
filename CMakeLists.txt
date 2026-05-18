@@ -46,7 +46,7 @@ if(ENABLE_ACORN)
     find_package(BLAS REQUIRED)
     find_package(LAPACK REQUIRED)
 
-    add_executable(test_acorn test_acorn.cpp)
+    add_executable(test_acorn test_acorn.cpp source/sa.h source/sa.cpp source/headers.h)
     target_include_directories(test_acorn PRIVATE "${ACORN_ROOT}")
     target_link_libraries(test_acorn
         "${ACORN_FAISS_LIBRARY}"
