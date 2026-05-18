@@ -19,7 +19,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
         rcParams["mathtext.rm"] = font_name
 
 
-METHODS = ["OptQuery", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DS_BRIEFS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 P_LENGTHS = [5, 6, 7]
@@ -100,7 +100,7 @@ def simplify_curve(qps, recall):
 
 
 def plot_panel(ax, dataset, label, p_len, left_axis=False):
-    markers = ["o", "s", "^", "d", "P", "X", "v"]
+    markers = ["o", "s", "^", "d", "P", "X", "v", "x"]
     colors = [plt.colormaps["tab10"](i) for i in range(len(METHODS))]
     plotted_any = False
     plotted_qps = []
@@ -205,7 +205,7 @@ def main():
         handles,
         labels,
         loc="upper center",
-        ncol=4,
+        ncol=5,
         fontsize=35,
         handlelength=1.2,
         markerscale=1.5,

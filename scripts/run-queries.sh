@@ -110,6 +110,9 @@ fi
 if [ ! -d "results/PostFiltering" ]; then
     mkdir results/PostFiltering
 fi
+if [ ! -d "results/Hybrid" ]; then
+    mkdir results/Hybrid
+fi
 if [ ! -d "results/pgvector" ]; then
     mkdir results/pgvector
 fi
@@ -152,7 +155,7 @@ run_acorn_variants() {
         ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
-            --M=32 --gamma=1 --M-beta=32 \
+            --M=32 --gamma=1 --M-beta=64 \
             --output="results/ACORN-1/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-1/${dataset}/${pattern_length}"
     fi
@@ -185,6 +188,17 @@ do
             ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/spam/index --statistics-file=results/PostFiltering/spam/$s.csv > results/PostFiltering/spam/$s &
         else
             ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/spam/index --statistics-file=results/PostFiltering/spam/$s.csv > results/PostFiltering/spam/$s &
+        fi
+    fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/spam" ]; then
+            mkdir results/Hybrid/spam
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/spam/index --statistics-file=results/Hybrid/spam/$s.csv > results/Hybrid/spam/$s &
+        else
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/spam/index --statistics-file=results/Hybrid/spam/$s.csv > results/Hybrid/spam/$s &
         fi
     fi
     # VectorMaton
@@ -255,6 +269,17 @@ do
             ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/words/index --statistics-file=results/PostFiltering/words/$s.csv > results/PostFiltering/words/$s &
         fi
     fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/words" ]; then
+            mkdir results/Hybrid/words
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/words/index --statistics-file=results/Hybrid/words/$s.csv > results/Hybrid/words/$s &
+        else
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/words/index --statistics-file=results/Hybrid/words/$s.csv > results/Hybrid/words/$s &
+        fi
+    fi
     # VectorMaton
     if should_run "VectorMaton"; then
         if [ ! -d "results/VectorMaton/words" ]; then
@@ -318,6 +343,17 @@ do
             ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/mtg/index --statistics-file=results/PostFiltering/mtg/$s.csv > results/PostFiltering/mtg/$s &
         else
             ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/mtg/index --statistics-file=results/PostFiltering/mtg/$s.csv > results/PostFiltering/mtg/$s &
+        fi
+    fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/mtg" ]; then
+            mkdir results/Hybrid/mtg
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/mtg/index --statistics-file=results/Hybrid/mtg/$s.csv > results/Hybrid/mtg/$s &
+        else
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/mtg/index --statistics-file=results/Hybrid/mtg/$s.csv > results/Hybrid/mtg/$s &
         fi
     fi
     # VectorMaton
@@ -385,6 +421,17 @@ do
             ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/arxiv-small/index --statistics-file=results/PostFiltering/arxiv-small/$s.csv > results/PostFiltering/arxiv-small/$s &
         fi
     fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/arxiv-small" ]; then
+            mkdir results/Hybrid/arxiv-small
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/arxiv-small/index --statistics-file=results/Hybrid/arxiv-small/$s.csv > results/Hybrid/arxiv-small/$s &
+        else
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/arxiv-small/index --statistics-file=results/Hybrid/arxiv-small/$s.csv > results/Hybrid/arxiv-small/$s &
+        fi
+    fi
     # VectorMaton
     if should_run "VectorMaton"; then
         if [ ! -d "results/VectorMaton/arxiv-small" ]; then
@@ -450,6 +497,17 @@ do
             ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/swissprot/index --statistics-file=results/PostFiltering/swissprot/$s.csv > results/PostFiltering/swissprot/$s &
         fi
     fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/swissprot" ]; then
+            mkdir results/Hybrid/swissprot
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/swissprot/index --statistics-file=results/Hybrid/swissprot/$s.csv > results/Hybrid/swissprot/$s &
+        else
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/swissprot/index --statistics-file=results/Hybrid/swissprot/$s.csv > results/Hybrid/swissprot/$s &
+        fi
+    fi
     # VectorMaton
     if should_run "VectorMaton"; then
         if [ ! -d "results/VectorMaton/swissprot" ]; then
@@ -513,6 +571,17 @@ do
             ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --save-index=results/PostFiltering/code_search_net/index --statistics-file=results/PostFiltering/code_search_net/$s.csv > results/PostFiltering/code_search_net/$s &
         else
             ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt PostFiltering --load-index=results/PostFiltering/code_search_net/index --statistics-file=results/PostFiltering/code_search_net/$s.csv > results/PostFiltering/code_search_net/$s &
+        fi
+    fi
+    # Hybrid
+    if should_run "Hybrid"; then
+        if [ ! -d "results/Hybrid/code_search_net" ]; then
+            mkdir results/Hybrid/code_search_net
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --save-index=results/Hybrid/code_search_net/index --statistics-file=results/Hybrid/code_search_net/$s.csv > results/Hybrid/code_search_net/$s &
+        else
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt Hybrid --load-index=results/Hybrid/code_search_net/index --statistics-file=results/Hybrid/code_search_net/$s.csv > results/Hybrid/code_search_net/$s &
         fi
     fi
     # VectorMaton

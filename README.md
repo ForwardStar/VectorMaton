@@ -23,7 +23,7 @@ This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``
 
 The ``main`` is our experimental program. Run with:
 ```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
+./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|Hybrid|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
 ```
 
 It will output recall and time consumption statistics of the corresponding method.
@@ -34,18 +34,20 @@ Arguments:
 - ``string_query_file``: query strings, one string per line.
 - ``vector_query_file``: query vectors, one whitespace-separated vector per line.
 - ``k_query_file``: query ``k`` values, one integer per line.
-- ``method``: one of ``OptQuery``, ``PreFiltering``, ``PostFiltering``, ``VectorMaton-full``, ``VectorMaton-smart`` or ``VectorMaton-parallel``.
+- ``method``: one of ``OptQuery``, ``PreFiltering``, ``PostFiltering``, ``Hybrid``, ``VectorMaton-full``, ``VectorMaton-smart`` or ``VectorMaton-parallel``.
 
 Optional flags:
 - ``--debug``: show debug messages.
 - ``--data-size=<n>``: use only the first ``n`` data vectors and strings.
-- ``--statistics-file=output_statistics.csv``: write recall/time statistics to a CSV file.
+- ``--statistics-file=output_statistics.csv``: write recall/time statistics to a CSV file. For ef-search based methods, the CSV includes ``ef_search,time_us,recall,exact,average_selectivity``; ``average_selectivity`` is the average fraction of data strings that satisfy the query substring predicate, computed during ExactSearch.
 - ``--load-index=index_files_folder``: load a previously saved index from disk.
 - ``--save-index=index_files_folder``: save the built index to disk.
 - ``--num-threads=<n>``: set the number of threads for ``VectorMaton-parallel``.
 - ``--write-ground-truth=ground_truth.txt``: write exact ground-truth results to a file.
 - ``--set-min-build-threshold=<n>``: set the minimum candidate-set size required before VectorMaton builds an HNSW sub-index.
 - ``--insert-percentage=<p>``: reserve the last ``p`` percent of the dataset for insertion-performance evaluation.
+
+The ``Hybrid`` method builds both a ``PreFiltering`` index and a ``PostFiltering`` index. At query time it estimates substring selectivity from the PreFiltering generalized suffix automaton. If selectivity is lower than ``10 / ef_search``, it answers with PreFiltering; otherwise it answers with PostFiltering. ``--save-index`` and ``--load-index`` persist/reload the PostFiltering HNSW part, while the PreFiltering suffix automaton is rebuilt from strings when loading.
 
 The ``parameter_study`` executable runs one PostFiltering parameter-study benchmark over already generated query files:
 ```sh
@@ -244,10 +246,10 @@ The output CSV contains:
 ef_search,M,gamma,M_beta,time_us,recall,build_peak_memory_bytes,index_size_bytes
 ```
 
-The wrapper translates each substring query into ACORN's per-query filter bitmap: a data point is eligible iff its string contains the query string as a substring. The metadata vector passed to ACORN is currently a placeholder because this benchmark's predicates are substring predicates rather than categorical attributes.
+During ACORN indexing, the wrapper also builds a ``GeneralizedSuffixAutomaton`` over the data strings. Query-time ACORN filter bitmaps are built from GSA match ID lists instead of scanning every data string. A data point is eligible iff its string contains the query string as a substring. The metadata vector passed to ACORN is currently a placeholder because this benchmark's predicates are substring predicates rather than categorical attributes.
 
 ## All external baselines
-The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
+The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. ``scripts/run-queries.sh`` also runs the in-process baselines ``OptQuery``, ``PreFiltering``, ``PostFiltering``, ``Hybrid`` and ``VectorMaton`` unless they are blacklisted with ``--blacklist``. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
 
 For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. Configure the JVM heap memory to 128GB by writing:
 ```
@@ -314,6 +316,8 @@ sh scripts/run-postfiltering.sh
 Plot by:
 ```sh
 python3 scripts/recall_qps.py
+python3 scripts/recall_qps_selected.py
+python3 scripts/plot_memory_consumption.py
 python3 scripts/memory_and_time.py
 python3 scripts/plot_scalability.py
 python3 scripts/plot_threshold.py

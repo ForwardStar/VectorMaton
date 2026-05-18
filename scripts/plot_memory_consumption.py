@@ -24,7 +24,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
-METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
 METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
 
 
@@ -60,11 +60,12 @@ def method_colors():
         "PreFiltering": "black",
         "OptQuery": cs(0),
         "PostFiltering": cs(1),
-        "ACORN-1": cs(2),
-        "ACORN-gamma": cs(3),
-        "pgvector": cs(4),
-        "ElasticSearch": cs(5),
-        "VectorMaton": cs(6),
+        "Hybrid": cs(2),
+        "ACORN-1": cs(3),
+        "ACORN-gamma": cs(4),
+        "pgvector": cs(5),
+        "ElasticSearch": cs(6),
+        "VectorMaton": cs(7),
     }
 
 
@@ -134,7 +135,7 @@ def draw_bars(ax, xs, ys, bar_width, hatch, color, label):
 
 def plot_memory(pattern_length, output):
     colors = method_colors()
-    hatches = ["\\", "", "+", "o", "*", "x", "-", "/"]
+    hatches = ["\\", "", "+", "o", "*", "x", "-", "/", "."]
     results = {
         method: [load_memory_bytes(method, dataset, pattern_length) for dataset in DATASETS]
         for method in METHODS
@@ -145,7 +146,7 @@ def plot_memory(pattern_length, output):
     bar_width = 0.12
     offset_center = (len(METHODS) - 1) / 2
 
-    fig, ax = plt.subplots(1, 1, figsize=(22, 7))
+    fig, ax = plt.subplots(1, 1, figsize=(24, 8))
 
     for i, method in enumerate(METHODS):
         xs, ys = [], []
@@ -158,10 +159,10 @@ def plot_memory(pattern_length, output):
         draw_bars(ax, xs, ys, bar_width, hatches[i], colors[method], method)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(DATASET_LABELS, fontsize=25)
-    ax.tick_params(axis="y", labelsize=25)
-    ax.set_ylabel("Peak build memory (MB)", fontsize=30)
-    ax.set_xlabel("Dataset", fontsize=30, fontweight="bold")
+    ax.set_xticklabels(DATASET_LABELS, fontsize=30)
+    ax.tick_params(axis="y", labelsize=30)
+    ax.set_ylabel("Peak build memory (MB)", fontsize=35)
+    ax.set_xlabel("Dataset", fontsize=35, fontweight="bold")
     ax.set_yscale("log")
     ax.grid(True, axis="y", linestyle="--", alpha=0.7)
 
@@ -175,7 +176,7 @@ def plot_memory(pattern_length, output):
         ],
         labels=[method_label(method) for method in METHODS],
         loc="upper center",
-        ncol=4,
+        ncol=5,
         fontsize=35,
         handler_map={tuple: HandlerOverlayPatch()},
     )

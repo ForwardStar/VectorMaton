@@ -4,6 +4,7 @@
 #include "pre_filtering.h"
 #include "post_filtering.h"
 #include "vectormaton.h"
+#include "hybrid.h"
 
 static void logPeakMemoryConsumption(const std::string& method_name, long long peak_memory_usage, long long baseline_peak_memory) {
     if (peak_memory_usage < 0 || baseline_peak_memory < 0) {
@@ -17,7 +18,7 @@ static void logPeakMemoryConsumption(const std::string& method_name, long long p
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/Hybrid/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...]");
         return 1;
     }
 
@@ -490,6 +491,82 @@ int main(int argc, char * argv[]) {
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
+            }
+        }
+    }
+
+    if (std::strcmp(argv[argc - 1], "Hybrid") == 0) {
+        LOG_INFO("Using Hybrid");
+        long long hybrid_peak_memory_before = currentMemoryBytes();
+        Hybrid hb;
+        hb.set_vectors(base_vectors, dim);
+        hb.set_strings(strings);
+        if (index_in == "") {
+            LOG_INFO("Building Hybrid index");
+            unsigned long long start_time = currentTime();
+            hb.build();
+            LOG_INFO("Hybrid index built took ", timeFormatting(currentTime() - start_time).str());
+        }
+        else {
+            LOG_INFO("Loading index from: ", index_in);
+            unsigned long long start_time = currentTime();
+            hb.load_index(index_in.c_str());
+            LOG_INFO("Hybrid index loaded in ", timeFormatting(currentTime() - start_time).str());
+        }
+        LOG_INFO("Total index size: ", hb.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)hb.size() / (string_size + vector_size));
+        if (index_out != "") {
+            LOG_INFO("Saving index to: ", index_out);
+            unsigned long long start_time = currentTime();
+            hb.save_index(index_out.c_str());
+            LOG_INFO("Hybrid index saved in ", timeFormatting(currentTime() - start_time).str());
+        }
+        if (insert_percentage > 0) {
+            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into Hybrid index");
+            unsigned long long start_time = currentTime();
+            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
+                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
+                hb.insert(vec, strings[base_vectors.size() / dim + i]);
+            }
+            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
+        }
+        logPeakMemoryConsumption("Hybrid", hb.peak_memory_usage, hybrid_peak_memory_before);
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef : ef_search) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = hb.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], ef);
+                all_results.emplace_back(res);
+            }
+            float time_cost = currentTime() - start_time;
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             for (const auto& stat : statistics) {
                 f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }
