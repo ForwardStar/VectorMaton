@@ -140,7 +140,7 @@ run_acorn_variants() {
         if [ ! -d "results/ACORN-gamma/${dataset}" ]; then
             mkdir "results/ACORN-gamma/${dataset}"
         fi
-        ./build/test_acorn \
+        OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
             --M=32 --gamma=12 --M-beta=32 \
@@ -152,7 +152,7 @@ run_acorn_variants() {
         if [ ! -d "results/ACORN-1/${dataset}" ]; then
             mkdir "results/ACORN-1/${dataset}"
         fi
-        ./build/test_acorn \
+        OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
             --M=32 --gamma=1 --M-beta=64 \
