@@ -64,7 +64,7 @@ size_t Hybrid::size() {
 
 std::vector<int> Hybrid::query(const float* vec, const std::string& s, int k, int ef_search) {
     int effective_ef = ef_search > 0 ? ef_search : k;
-    double threshold = effective_ef > 0 ? 10.0 / effective_ef : std::numeric_limits<double>::infinity();
+    double threshold = effective_ef > 0 ? double(k) / effective_ef : std::numeric_limits<double>::infinity();
     if (selectivity(s) < threshold) {
         return pre_filtering.query(vec, s, k);
     }
