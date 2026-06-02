@@ -143,7 +143,7 @@ run_acorn_variants() {
         OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
-            --M=32 --gamma=12 --M-beta=32 \
+            --M=32 --gamma=32 --M-beta=64 \
             --output="results/ACORN-gamma/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-gamma/${dataset}/${pattern_length}"
     fi
@@ -155,7 +155,7 @@ run_acorn_variants() {
         OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
-            --M=32 --gamma=1 --M-beta=64 \
+            --M=32 --gamma=1 --M-beta=32 \
             --output="results/ACORN-1/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-1/${dataset}/${pattern_length}"
     fi
