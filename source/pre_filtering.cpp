@@ -6,7 +6,7 @@ void PreFiltering::build_gsa() {
     for (int i = 0; i < num_elements; i++) {
         gsa.add_string(i, strs[i]);
     }
-    gsa.shrink_ids_to_fit();
+    gsa.shrink_to_fit();
     updatePeakMemoryUsage(peak_memory_usage);
     LOG_DEBUG("GSA built in ", timeFormatting(currentTime() - start_time).str());
     LOG_DEBUG("Total GSA states: ", std::to_string(gsa.size()), ", total string IDs in GSA: ", std::to_string(gsa.size_tot()));

@@ -301,10 +301,11 @@ void GeneralizedSuffixAutomaton::release_reverse() {
     }
 }
 
-void GeneralizedSuffixAutomaton::shrink_ids_to_fit() {
+void GeneralizedSuffixAutomaton::shrink_to_fit() {
     for (auto& state : st) {
         state.ids.shrink_to_fit();
     }
+    st.shrink_to_fit();
 }
 
 void GeneralizedSuffixAutomaton::dump(char* output_file) {

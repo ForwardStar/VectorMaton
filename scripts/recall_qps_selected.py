@@ -120,7 +120,7 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             marker=markers[i],
             color=colors[i],
             label=method_label(method),
-            markersize=8,
+            markersize=13,
             linewidth=1.8,
             markerfacecolor="none",
         )
@@ -138,7 +138,7 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             marker="*",
             color="black",
             label="PreFiltering",
-            markersize=11,
+            markersize=13,
             markerfacecolor="none",
         )
 

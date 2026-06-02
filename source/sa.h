@@ -66,7 +66,7 @@ public:
 
     // Release build-only reverse edges and shrink retained ID lists.
     void release_reverse();
-    void shrink_ids_to_fit();
+    void shrink_to_fit();
 
     // Dump the index to disk
     void dump(char* output_file);

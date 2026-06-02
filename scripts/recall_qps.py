@@ -157,7 +157,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     qps_min = min(qps_min, np.min(qps))
             if qps_pref * 10 >= qps_min:
                 ax.plot(1.0, qps_pref, marker='*', color='black',
-                        label="PreFiltering", markersize=15, markerfacecolor='none')
+                        label="PreFiltering", markersize=12, markerfacecolor='none')
 
         for i in range(len(methods)):
             if qpss[i] is not None:
@@ -166,7 +166,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                     marker=markers[i],
                     color=colors[i],
                     label=method_label(methods[i]),
-                    markersize=15,
+                    markersize=12,
                     markerfacecolor='none'
                 )
 
