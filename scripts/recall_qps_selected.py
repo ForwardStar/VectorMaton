@@ -193,13 +193,15 @@ def main():
         else:
             plot_3panel_block(dataset, DS_BRIEFS[i], axes[row, 3:6])
 
-    handles, labels = [], []
+    handle_by_label = {}
     for ax in axes.flatten():
         ax_handles, ax_labels = ax.get_legend_handles_labels()
         for handle, label in zip(ax_handles, ax_labels):
-            if label not in labels:
-                handles.append(handle)
-                labels.append(label)
+            handle_by_label.setdefault(label, handle)
+
+    legend_labels = ["PreFiltering"] + [method_label(method) for method in METHODS]
+    labels = [label for label in legend_labels if label in handle_by_label]
+    handles = [handle_by_label[label] for label in labels]
 
     fig.legend(
         handles,
