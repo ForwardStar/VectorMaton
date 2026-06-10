@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.legend_handler import HandlerBase
 from matplotlib.patches import Patch, Rectangle
+from matplotlib.transforms import blended_transform_factory
 import pandas as pd
 
 
@@ -24,8 +25,19 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
-METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "VectorMaton"]
 METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
+METHOD_HATCHES = {
+    "OptQuery": "\\",
+    "PreFiltering": "",
+    "PostFiltering": "+",
+    "Hybrid": "o",
+    "ACORN-1": "*",
+    "ACORN-gamma": "x",
+    "pgvector": "-",
+    "ElasticSearch": "/",
+    "VectorMaton": ".",
+}
 
 
 def method_label(method):
@@ -135,7 +147,6 @@ def draw_bars(ax, xs, ys, bar_width, hatch, color, label):
 
 def plot_memory(pattern_length, output):
     colors = method_colors()
-    hatches = ["\\", "", "+", "o", "*", "x", "-", "/", "."]
     results = {
         method: [load_memory_bytes(method, dataset, pattern_length) for dataset in DATASETS]
         for method in METHODS
@@ -148,15 +159,37 @@ def plot_memory(pattern_length, output):
 
     fig, ax = plt.subplots(1, 1, figsize=(24, 8))
 
+    # Determine maximum observed memory (MB) to use for the y-axis.
+    max_mb = 0
+    for vals in results.values():
+        for v in vals:
+            if v is not None:
+                max_mb = max(max_mb, v / (1024 * 1024))
+    if max_mb <= 0:
+        max_mb = 1
+    axis_top_mb = max_mb * 1.8
+
+    # datasets where OptQuery should be shown as OOM when missing
+    oom_target_datasets = {"mtg", "arxiv-small", "swissprot", "code_search_net"}
+    oom_positions = []
+
     for i, method in enumerate(METHODS):
         xs, ys = [], []
         for j, memory_bytes in enumerate(results[method]):
+            dataset = DATASETS[j]
             if memory_bytes is None:
-                continue
-            xs.append(x[j] + (i - offset_center) * bar_width)
-            ys.append(memory_bytes / (1024 * 1024))
+                # For OptQuery on certain datasets, mark OOM by plotting at max
+                if method == "OptQuery" and dataset in oom_target_datasets:
+                    xs.append(x[j] + (i - offset_center) * bar_width)
+                    ys.append(axis_top_mb)
+                    oom_positions.append(xs[-1])
+                else:
+                    continue
+            else:
+                xs.append(x[j] + (i - offset_center) * bar_width)
+                ys.append(memory_bytes / (1024 * 1024))
 
-        draw_bars(ax, xs, ys, bar_width, hatches[i], colors[method], method)
+        draw_bars(ax, xs, ys, bar_width, METHOD_HATCHES[method], colors[method], method)
 
     ax.set_xticks(x)
     ax.set_xticklabels(DATASET_LABELS, fontsize=30)
@@ -164,22 +197,28 @@ def plot_memory(pattern_length, output):
     ax.set_ylabel("Peak build memory (MB)", fontsize=35)
     ax.set_xlabel("Dataset", fontsize=35, fontweight="bold")
     ax.set_yscale("log")
+    ax.set_ylim(top=axis_top_mb)
     ax.grid(True, axis="y", linestyle="--", alpha=0.7)
 
     fig.legend(
         handles=[
             (
                 Patch(facecolor="none", edgecolor="black", linewidth=2.4),
-                Patch(facecolor="none", edgecolor=colors[method], linewidth=0.1, hatch=hatches[i]),
+                Patch(facecolor="none", edgecolor=colors[method], linewidth=0.1, hatch=METHOD_HATCHES[method]),
             )
             for i, method in enumerate(METHODS)
         ],
         labels=[method_label(method) for method in METHODS],
         loc="upper center",
-        ncol=5,
+        ncol=4,
         fontsize=35,
         handler_map={tuple: HandlerOverlayPatch()},
     )
+
+    # Annotate OOM bars
+    oom_text_transform = blended_transform_factory(ax.transData, ax.transAxes)
+    for ox in oom_positions:
+        ax.text(ox, 0.98, "OOM", ha="center", va="top", fontsize=24, fontweight="bold", color="red", transform=oom_text_transform)
 
     plt.tight_layout(rect=[0, 0, 1, 0.75])
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
