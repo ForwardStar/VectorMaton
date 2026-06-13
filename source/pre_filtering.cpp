@@ -45,7 +45,7 @@ void PreFiltering::insert(const std::vector<float>& vec, const std::string& str)
     strs.push_back(str);
     num_elements++;
     gsa.add_string(id, strs[id]);
-    gsa.shrink_ids_to_fit();
+    gsa.shrink_to_fit();
     updatePeakMemoryUsage(peak_memory_usage);
 }
 

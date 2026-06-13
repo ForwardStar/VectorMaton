@@ -29,7 +29,7 @@ add_executable(sa_test source/headers.h source/test_sa.cpp source/sa.h source/sa
 add_executable(queue_test source/mpmc_queue.h source/test_queue.cpp)
 add_executable(hnsw_test source/headers.h source/test_hnsw.cpp)
 add_executable(vectormaton_test source/headers.h source/test_vectormaton.cpp source/sa.h source/sa.cpp source/vectormaton.h source/vectormaton.cpp)
-add_executable(main source/headers.h source/main.cpp source/sa.h source/sa.cpp source/vectormaton.h source/vectormaton.cpp source/exact.h source/exact.cpp source/opt_query.h source/opt_query.cpp source/pre_filtering.h source/pre_filtering.cpp source/post_filtering.h source/post_filtering.cpp source/hybrid.h source/hybrid.cpp)
+add_executable(main source/headers.h source/main.cpp source/sa.h source/sa.cpp source/vectormaton.h source/vectormaton.cpp source/exact.h source/exact.cpp source/opt_query.h source/opt_query.cpp source/pre_filtering.h source/pre_filtering.cpp source/post_filtering.h source/post_filtering.cpp source/bm25_filtering.h source/bm25_filtering.cpp source/hybrid.h source/hybrid.cpp)
 add_executable(parameter_study source/headers.h source/parameter_study.cpp source/exact.h source/exact.cpp source/post_filtering.h source/post_filtering.cpp)
 
 target_link_libraries(vectormaton_test OpenSSL::SSL OpenSSL::Crypto)

@@ -347,7 +347,13 @@ def main():
             f"Using {len(base_vectors)} base vectors and "
             f"{len(insertion_vectors)} insertion vectors."
         )
+    index_build_start = time.time()
     created_index = ensure_index(es, index_name, base_vectors, base_strings, False)
+    index_build_elapsed_us = int((time.time() - index_build_start) * 1e6)
+    if created_index:
+        print(f"Elasticsearch index built took {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
+    else:
+        print(f"Elasticsearch index loaded in {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
     if not created_index:
         print("Index already existed; index footprint is measured from the existing index.")
     if insertion_vectors:

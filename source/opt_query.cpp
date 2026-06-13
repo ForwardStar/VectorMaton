@@ -39,7 +39,7 @@ void OptQuery::build() {
         }
         updatePeakMemoryUsage(peak_memory_usage);
     }
-    str_to_ids = std::unordered_map<std::string, std::unordered_set<int>>(); // free memory
+    // str_to_ids = std::unordered_map<std::string, std::unordered_set<int>>(); // free memory
     updatePeakMemoryUsage(peak_memory_usage);
 }
 

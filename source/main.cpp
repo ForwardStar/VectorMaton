@@ -3,6 +3,7 @@
 #include "opt_query.h"
 #include "pre_filtering.h"
 #include "post_filtering.h"
+#include "bm25_filtering.h"
 #include "vectormaton.h"
 #include "hybrid.h"
 
@@ -356,6 +357,83 @@ int main(int argc, char * argv[]) {
             // Compute exact search time per query
             float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             // Write data
+            for (const auto& stat : statistics) {
+                f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
+            }
+        }
+    }
+
+    if (std::strcmp(argv[argc - 1], "BM25Filtering") == 0) {
+        LOG_INFO("Using BM25Filtering");
+        long long bm25_peak_memory_before = currentMemoryBytes();
+        BM25Filtering bf;
+        bf.set_vectors(base_vectors, dim);
+        bf.set_strings(strings);
+        if (index_in == "") {
+            LOG_INFO("Building BM25Filtering index");
+            unsigned long long start_time = currentTime();
+            bf.build();
+            LOG_INFO("BM25Filtering index built took ", timeFormatting(currentTime() - start_time).str());
+        }
+        else {
+            LOG_INFO("Loading index from: ", index_in);
+            unsigned long long start_time = currentTime();
+            bf.load_index(index_in.c_str());
+            LOG_INFO("BM25Filtering index loaded in ", timeFormatting(currentTime() - start_time).str());
+        }
+        LOG_INFO("Total index size: ", bf.size(), " bytes");
+        LOG_INFO("Size ratio: ", (float)bf.size() / (string_size + vector_size));
+        if (index_out != "") {
+            LOG_INFO("Saving index to: ", index_out);
+            unsigned long long start_time = currentTime();
+            bf.save_index(index_out.c_str());
+            LOG_INFO("BM25Filtering index saved in ", timeFormatting(currentTime() - start_time).str());
+        }
+        if (insert_percentage > 0) {
+            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into BM25Filtering index");
+            unsigned long long start_time = currentTime();
+            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
+                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
+                bf.insert(vec, strings[base_vectors.size() / dim + i]);
+            }
+            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
+        }
+        logPeakMemoryConsumption("BM25Filtering", bf.peak_memory_usage, bm25_peak_memory_before);
+        LOG_INFO("Processing queries");
+        std::vector<std::map<std::string, float>> statistics;
+        for (int ef : ef_search) {
+            LOG_DEBUG("Set ef_search to ", ef);
+            bf.set_ef(ef);
+            unsigned long long start_time = currentTime();
+            std::vector<std::vector<int>> all_results;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                auto res = bf.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], ef);
+                all_results.emplace_back(res);
+            }
+            float time_cost = currentTime() - start_time;
+            statistics.emplace_back();
+            statistics.back()["ef_search"] = ef;
+            statistics.back()["time_us"] = time_cost / queried_strings.size();
+            double total_recall = 0;
+            int effective = 0;
+            for (size_t i = 0; i < queried_strings.size(); ++i) {
+                std::unordered_set<int> exact_set(exact_results[i].begin(), exact_results[i].end());
+                int correct = 0;
+                for (const auto& id : all_results[i]) {
+                    if (exact_set.find(id) != exact_set.end()) {
+                        correct++;
+                    }
+                }
+                if (exact_results[i].size() != 0) effective++, total_recall += (double)correct / exact_results[i].size();
+            }
+            statistics.back()["recall"] = static_cast<float>(total_recall) / effective;
+            LOG_INFO("ef_search=", ef, ", time=", timeFormatting(statistics.back()["time_us"]).str(), ", recall=", statistics.back()["recall"]);
+        }
+        if (statistics_file != "") {
+            LOG_INFO("Writing statistics to ", statistics_file);
+            std::ofstream f_stats(statistics_file);
+            f_stats << "ef_search,time_us,recall,exact,average_selectivity\n";
+            float exact_time_per_query = static_cast<float>(exact_time) / queried_strings.size();
             for (const auto& stat : statistics) {
                 f_stats << stat.at("ef_search") << "," << stat.at("time_us") << "," << stat.at("recall") << "," << exact_time_per_query << "," << average_selectivity << "\n";
             }

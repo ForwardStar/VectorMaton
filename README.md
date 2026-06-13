@@ -23,7 +23,7 @@ This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``
 
 The ``main`` is our experimental program. Run with:
 ```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|Hybrid|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
+./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|Hybrid|BM25Filtering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
 ```
 
 It will output recall and time consumption statistics of the corresponding method.
@@ -200,7 +200,10 @@ Finally, run PreFiltering on the query data:
 ```sh
 > ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt PreFiltering
 ```
-
+Or run BM25Filtering instead:
+```sh
+> ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt BM25Filtering
+```
 ## Optional ACORN baseline
 
 This repository can also build a standalone ACORN baseline wrapper, ``test_acorn``. ACORN is built from the fork at [ForwardStar/ACORN](https://github.com/ForwardStar/ACORN), which is based on FAISS.

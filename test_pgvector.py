@@ -257,6 +257,7 @@ else:
 print("Done loading data.")
 
 print("Building HNSW index...")
+index_build_start = time.time()
 if not table_exists:
     sql = f"""DROP INDEX IF EXISTS idx_vec_hnsw;"""
     cur.execute(sql)
@@ -266,6 +267,11 @@ if not table_exists:
     conn.commit()
 else:
     print(f"Index on table {table_name} may already exist. Skipping index creation.")
+index_build_elapsed_us = int((time.time() - index_build_start) * 1e6)
+if not table_exists:
+    print(f"pgvector index built took {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
+else:
+    print(f"pgvector index loaded in {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
 print("Done building index.")
 
 if insertion_vectors:

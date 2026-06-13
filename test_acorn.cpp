@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -28,6 +29,8 @@ struct Args {
     std::string k_file;
     std::string ground_truth_file;
     std::string output_file = "acorn_hnsw_stats.csv";
+    std::string load_index_file;
+    std::string save_index_file;
     int M = 32;
     int gamma = 12;
     int M_beta = 32;
@@ -94,7 +97,9 @@ Args parse_args(int argc, char** argv) {
             << "Usage: " << argv[0]
             << " <string_data_file> <vector_data_file> <string_query_file>"
             << " <vector_query_file> <k_file> <ground_truth_file>"
-            << " [--M=32] [--gamma=12] [--M-beta=32] [--output=acorn_hnsw_stats.csv]\n";
+            << " [--M=32] [--gamma=12] [--M-beta=32]"
+            << " [--output=acorn_hnsw_stats.csv]"
+            << " [--load-index=path] [--save-index=path]\n";
         std::exit(1);
     }
 
@@ -119,6 +124,10 @@ Args parse_args(int argc, char** argv) {
             args.M_beta = std::stoi(value_after("--M-beta="));
         } else if (arg.rfind("--output=", 0) == 0) {
             args.output_file = value_after("--output=");
+        } else if (arg.rfind("--load-index=", 0) == 0) {
+            args.load_index_file = value_after("--load-index=");
+        } else if (arg.rfind("--save-index=", 0) == 0) {
+            args.save_index_file = value_after("--save-index=");
         } else {
             std::cerr << "Unknown argument: " << arg << "\n";
             std::exit(1);
@@ -210,7 +219,7 @@ GeneralizedSuffixAutomaton build_gsa(const std::vector<std::string>& data_string
     for (size_t id = 0; id < data_strings.size(); ++id) {
         gsa.add_string(static_cast<uint32_t>(id), data_strings[id]);
     }
-    gsa.shrink_ids_to_fit();
+    gsa.shrink_to_fit();
     return gsa;
 }
 
@@ -232,6 +241,12 @@ std::vector<char> make_filter_map(
         }
     }
     return filter_map;
+}
+
+unsigned long long current_time_us() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+            .count();
 }
 
 size_t serialized_index_size(const faiss::Index& index) {
@@ -281,16 +296,48 @@ int main(int argc, char** argv) {
         query_ks.resize(nq);
         ground_truth.resize(nq);
 
-        std::cout << "Building ACORN index: nb=" << nb << ", dim=" << data_dim
-                  << ", M=" << args.M << ", gamma=" << args.gamma
-                  << ", M_beta=" << args.M_beta << "\n";
+        if (args.load_index_file.empty()) {
+            std::cout << "Building ACORN index: nb=" << nb << ", dim=" << data_dim
+                      << ", M=" << args.M << ", gamma=" << args.gamma
+                      << ", M_beta=" << args.M_beta << "\n";
+        } else {
+            std::cout << "Loading ACORN index from " << args.load_index_file << "\n";
+        }
 
         long long baseline_memory = current_memory_bytes();
         MemoryPeakTracker build_peak_tracker;
         build_peak_tracker.start();
-        std::vector<int> metadata(nb, 0);
-        faiss::IndexACORNFlat index(data_dim, args.M, args.gamma, metadata, args.M_beta);
-        index.add(static_cast<faiss::idx_t>(nb), data_vectors.data());
+        unsigned long long index_start_time = current_time_us();
+        unsigned long long index_elapsed_us = 0;
+        std::unique_ptr<faiss::Index> loaded_index;
+        std::unique_ptr<faiss::IndexACORN> owned_index;
+        faiss::IndexACORN* index = nullptr;
+        if (args.load_index_file.empty()) {
+            std::vector<int> metadata(nb, 0);
+            owned_index = std::make_unique<faiss::IndexACORNFlat>(
+                    data_dim, args.M, args.gamma, metadata, args.M_beta);
+            owned_index->add(static_cast<faiss::idx_t>(nb), data_vectors.data());
+            index_elapsed_us = current_time_us() - index_start_time;
+            std::cout << "ACORN index built took " << index_elapsed_us << "us ("
+                      << index_elapsed_us / 1000000 << "s)\n";
+            index = owned_index.get();
+        } else {
+            loaded_index.reset(faiss::read_index(args.load_index_file.c_str()));
+            index = dynamic_cast<faiss::IndexACORN*>(loaded_index.get());
+            if (!index) {
+                throw std::runtime_error(
+                        "Loaded index is not an ACORN index: " + args.load_index_file);
+            }
+            if (index->d != data_dim) {
+                throw std::runtime_error("Loaded ACORN index dimension does not match vectors.");
+            }
+            if (static_cast<size_t>(index->ntotal) != nb) {
+                throw std::runtime_error("Loaded ACORN index size does not match data strings.");
+            }
+            index_elapsed_us = current_time_us() - index_start_time;
+            std::cout << "ACORN index loaded in " << index_elapsed_us << "us ("
+                      << index_elapsed_us / 1000000 << "s)\n";
+        }
         std::cout << "Building GeneralizedSuffixAutomaton for ACORN filters...\n";
         GeneralizedSuffixAutomaton gsa = build_gsa(data_strings);
         std::cout << "GSA states: " << gsa.size() << ", total ids: " << gsa.size_tot() << "\n";
@@ -299,7 +346,11 @@ int main(int argc, char** argv) {
                 baseline_memory >= 0 && build_peak_memory >= 0
                         ? build_peak_memory - baseline_memory
                         : -1;
-        size_t index_size = serialized_index_size(index);
+        if (!args.save_index_file.empty()) {
+            std::cout << "Saving ACORN index to " << args.save_index_file << "\n";
+            faiss::write_index(index, args.save_index_file.c_str());
+        }
+        size_t index_size = serialized_index_size(*index);
         std::cout << "peak memory consumption: " << build_memory_delta << " bytes\n";
         std::cout << "index size: " << index_size << " bytes\n";
 
@@ -333,7 +384,7 @@ int main(int argc, char** argv) {
             params.efSearch = ef;
 
             auto start = std::chrono::steady_clock::now();
-            index.search(
+            index->search(
                     static_cast<faiss::idx_t>(nq),
                     query_vectors.data(),
                     max_k,
