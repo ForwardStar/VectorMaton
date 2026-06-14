@@ -47,8 +47,6 @@ Optional flags:
 - ``--set-min-build-threshold=<n>``: set the minimum candidate-set size required before VectorMaton builds an HNSW sub-index.
 - ``--insert-percentage=<p>``: reserve the last ``p`` percent of the dataset for insertion-performance evaluation.
 
-The ``Hybrid`` method builds both a ``PreFiltering`` index and a ``PostFiltering`` index. At query time it estimates substring selectivity from the PreFiltering generalized suffix automaton. If selectivity is lower than ``10 / ef_search``, it answers with PreFiltering; otherwise it answers with PostFiltering. ``--save-index`` and ``--load-index`` persist/reload the PostFiltering HNSW part, while the PreFiltering suffix automaton is rebuilt from strings when loading.
-
 The ``parameter_study`` executable runs one PostFiltering parameter-study benchmark over already generated query files:
 ```sh
 ./build/parameter_study <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> PostFiltering --statistics-file=output.csv
@@ -251,7 +249,7 @@ ef_search,M,gamma,M_beta,time_us,recall,build_peak_memory_bytes,index_size_bytes
 During ACORN indexing, the wrapper also builds a ``GeneralizedSuffixAutomaton`` over the data strings. Query-time ACORN filter bitmaps are built from GSA match ID lists instead of scanning every data string. A data point is eligible iff its string contains the query string as a substring. The metadata vector passed to ACORN is currently a placeholder because this benchmark's predicates are substring predicates rather than categorical attributes.
 
 ## All external baselines
-The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. ``scripts/run-queries.sh`` also runs the in-process baselines ``OptQuery``, ``PreFiltering``, ``PostFiltering``, ``Hybrid`` and ``VectorMaton`` unless they are blacklisted with ``--blacklist``. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
+The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
 
 For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. Configure the JVM heap memory to 128GB by writing:
 ```
@@ -288,7 +286,12 @@ Then launch it by:
 pg_ctl -D ./pgdata -l logfile start
 ```
 
-## Simple way to reproduce the full experimental results
+## Reproduce the minimal experimental results
+**TODO**
+
+## Reproduce the full experimental results
+**TODO: update the guide**
+
 Firstly, fetch the submodules and compile VectorMaton (and resolve dependency issues if needed):
 ```sh
 git submodule update --init --recursive
