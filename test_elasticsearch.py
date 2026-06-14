@@ -387,6 +387,7 @@ def main():
     df = pd.DataFrame(
         {"num_candidates": candidates_list, "time_us": times_us, "recall": recalls}
     )
+    df["index_build_time_us"] = index_build_elapsed_us
     add_build_peak_delta_columns(df, build_peak_memory_stats)
     df.to_csv("elasticsearch_hnsw_stats.csv", index=False)
     print("Done.")

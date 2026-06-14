@@ -379,6 +379,7 @@ df = pd.DataFrame({
     'time_us': time_taken,
     'recall': recall
 })
+df["index_build_time_us"] = index_build_elapsed_us
 add_build_peak_delta_columns(df, build_peak_memory_stats)
 df.to_csv("pgvector_hnsw_stats.csv", index=False)
 print("Done.")
