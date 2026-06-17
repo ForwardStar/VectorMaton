@@ -69,6 +69,8 @@ void OptQuery::insert(const std::vector<float>& vec, const std::string& str) {
             }
             if (str_to_ids[substring].find(id) == str_to_ids[substring].end()) {
                 str_to_ids[substring].insert(id);
+                hnsw[substring]->external_data_ = reinterpret_cast<const char*>(vecs.data());
+                hnsw[substring]->resizeIndex(str_to_ids[substring].size());
                 hnsw[substring]->addPoint(id);
             }
         }
@@ -103,6 +105,7 @@ std::vector<int> OptQuery::query(const float* vec, const std::string &s, int k, 
     if (hnsw.find(s) == hnsw.end()) {
         return results;
     }
+    hnsw[s]->external_data_ = reinterpret_cast<const char*>(vecs.data());
     if (ef_search != 0) {
         hnsw[s]->setEf(ef_search);
     }

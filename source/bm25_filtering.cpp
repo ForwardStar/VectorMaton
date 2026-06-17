@@ -306,6 +306,7 @@ std::vector<int> BM25Filtering::query(const float* vec, const std::string &s, in
                 hnsws[term_id]->setEf(ef_search);
             }
             int search_k = std::min(static_cast<int>(posting.size()), per_term_limit);
+            hnsws[term_id]->external_data_ = reinterpret_cast<const char*>(vecs.data());
             auto tmp = hnsws[term_id]->searchKnnCloserFirst(vec, search_k);
             for (const auto& pair : tmp) {
                 candidate_set.insert(pair.second);

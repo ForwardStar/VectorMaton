@@ -135,6 +135,10 @@ int main(int argc, char * argv[]) {
             }
         }
     }
+    if (insert_percentage < 0.0f || insert_percentage > 100.0f) {
+        LOG_ERROR("--insert-percentage must be in [0, 100]");
+        return 1;
+    }
 
     // Read strings
     LOG_DEBUG("String data file: ", argv[1]);
@@ -245,36 +249,45 @@ int main(int argc, char * argv[]) {
 
     // Flatten vectors into contiguous storage, and split dataset to base dataset and insertion dataset.
     int n = vectors.size(), dim = vectors[0].size();
-    std::vector<float> insertion_vectors(n * (float)insert_percentage / 100 * dim);
-    std::vector<float> base_vectors((n - insertion_vectors.size() / dim) * dim);
-    for (size_t i = 0; i < base_vectors.size() / dim; ++i) {
+    size_t insertion_count = static_cast<size_t>(static_cast<double>(n) * insert_percentage / 100.0);
+    size_t base_count = n - insertion_count;
+    if (n > 0 && base_count == 0) {
+        LOG_ERROR("--insert-percentage leaves no base vectors to build the index");
+        return 1;
+    }
+    std::vector<std::string> base_strings(strings.begin(), strings.begin() + base_count);
+    std::vector<float> insertion_vectors(insertion_count * dim);
+    std::vector<float> base_vectors(base_count * dim);
+    for (size_t i = 0; i < base_count; ++i) {
         for (size_t j = 0; j < dim; ++j) {
             base_vectors[i * dim + j] = vectors[i][j];
         }
     }
-    for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
+    for (size_t i = 0; i < insertion_count; ++i) {
         for (size_t j = 0; j < dim; ++j) {
-            insertion_vectors[i * dim + j] = vectors[base_vectors.size() / dim + i][j];
+            insertion_vectors[i * dim + j] = vectors[base_count + i][j];
         }
     }
+    std::vector<float> final_vectors = base_vectors;
+    final_vectors.insert(final_vectors.end(), insertion_vectors.begin(), insertion_vectors.end());
     vectors = std::vector<std::vector<float>>();
 
     std::vector<std::vector<int>> exact_results;
     LOG_INFO("Doing ExactSearch for baseline comparison");
     long long exact_peak_memory_before = currentMemoryBytes();
     ExactSearch es;
-    es.set_vectors(base_vectors, dim);
+    es.set_vectors(final_vectors, dim);
     es.set_strings(strings);
     unsigned long long start_time = currentTime();
     std::vector<std::vector<int>> all_results;
-    const size_t exact_base_size = dim == 0 ? 0 : base_vectors.size() / dim;
+    const size_t exact_dataset_size = dim == 0 ? 0 : final_vectors.size() / dim;
     double total_selectivity = 0.0;
     for (size_t i = 0; i < queried_strings.size(); ++i) {
         size_t match_count = 0;
         auto res = es.query(queried_vectors[i].data(), queried_strings[i], queried_k[i], &match_count);
         exact_results.emplace_back(res);
-        if (exact_base_size != 0) {
-            total_selectivity += static_cast<double>(match_count) / exact_base_size;
+        if (exact_dataset_size != 0) {
+            total_selectivity += static_cast<double>(match_count) / exact_dataset_size;
         }
     }
     auto exact_time = currentTime() - start_time;
@@ -296,27 +309,39 @@ int main(int argc, char * argv[]) {
 
     std::vector<int> ef_search = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
 
+    auto insert_tail = [&](auto& index, const std::string& method_name) {
+        if (insertion_count == 0) {
+            return;
+        }
+        LOG_INFO("Inserting additional ", insertion_count, " vectors into ", method_name, " index");
+        unsigned long long insertion_start_time = currentTime();
+        for (size_t i = 0; i < insertion_count; ++i) {
+            std::vector<float> vec(
+                    insertion_vectors.begin() + i * dim,
+                    insertion_vectors.begin() + (i + 1) * dim);
+            index.insert(vec, strings[base_count + i]);
+        }
+        unsigned long long insertion_elapsed_us = currentTime() - insertion_start_time;
+        double average_insertion_time_us =
+                static_cast<double>(insertion_elapsed_us) / insertion_count;
+        LOG_INFO(
+                "Insertion took ", timeFormatting(insertion_elapsed_us).str(),
+                ", avg (us): ", average_insertion_time_us);
+    };
+
     if (std::strcmp(argv[argc - 1], "OptQuery") == 0) {
         LOG_INFO("Using OptQuery");
         long long optquery_peak_memory_before = currentMemoryBytes();
         OptQuery oq;
         oq.set_vectors(base_vectors, dim);
-        oq.set_strings(strings);
+        oq.set_strings(base_strings);
         LOG_INFO("Building OptQuery index");
         unsigned long long start_time = currentTime();
         oq.build();
         LOG_INFO("OptQuery index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", oq.size(), " bytes");
         LOG_INFO("Size ratio: ", (float)oq.size() / (string_size + vector_size));
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into OptQuery index");
-            start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                oq.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(oq, "OptQuery");
         logPeakMemoryConsumption("OptQuery", oq.peak_memory_usage, optquery_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -368,7 +393,7 @@ int main(int argc, char * argv[]) {
         long long bm25_peak_memory_before = currentMemoryBytes();
         BM25Filtering bf;
         bf.set_vectors(base_vectors, dim);
-        bf.set_strings(strings);
+        bf.set_strings(base_strings);
         if (index_in == "") {
             LOG_INFO("Building BM25Filtering index");
             unsigned long long start_time = currentTime();
@@ -389,15 +414,7 @@ int main(int argc, char * argv[]) {
             bf.save_index(index_out.c_str());
             LOG_INFO("BM25Filtering index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into BM25Filtering index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                bf.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(bf, "BM25Filtering");
         logPeakMemoryConsumption("BM25Filtering", bf.peak_memory_usage, bm25_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -445,22 +462,14 @@ int main(int argc, char * argv[]) {
         long long prefiltering_peak_memory_before = currentMemoryBytes();
         PreFiltering pf;
         pf.set_vectors(base_vectors, dim);
-        pf.set_strings(strings);
+        pf.set_strings(base_strings);
         LOG_INFO("Building PreFiltering index");
         unsigned long long start_time = currentTime();
         pf.build();
         LOG_INFO("PreFiltering index built took ", timeFormatting(currentTime() - start_time).str());
         LOG_INFO("Total index size: ", pf.size(), " bytes");
         LOG_INFO("Size ratio: ", (float)pf.size() / (string_size + vector_size));
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into PreFiltering index");
-            start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                pf.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(pf, "PreFiltering");
         logPeakMemoryConsumption("PreFiltering", pf.peak_memory_usage, prefiltering_peak_memory_before);
         LOG_INFO("Processing queries");
         start_time = currentTime();
@@ -500,7 +509,7 @@ int main(int argc, char * argv[]) {
         long long postfiltering_peak_memory_before = currentMemoryBytes();
         PostFiltering pf;
         pf.set_vectors(base_vectors, dim);
-        pf.set_strings(strings);
+        pf.set_strings(base_strings);
         if (index_in == "") {
             LOG_INFO("Building PostFiltering index");
             unsigned long long start_time = currentTime();
@@ -521,15 +530,7 @@ int main(int argc, char * argv[]) {
             pf.save_index(index_out.c_str());
             LOG_INFO("PostFiltering index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into PostFiltering index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                pf.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(pf, "PostFiltering");
         logPeakMemoryConsumption("PostFiltering", pf.peak_memory_usage, postfiltering_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -580,7 +581,7 @@ int main(int argc, char * argv[]) {
         long long hybrid_peak_memory_before = currentMemoryBytes();
         Hybrid hb;
         hb.set_vectors(base_vectors, dim);
-        hb.set_strings(strings);
+        hb.set_strings(base_strings);
         if (index_in == "") {
             LOG_INFO("Building Hybrid index");
             unsigned long long start_time = currentTime();
@@ -601,15 +602,7 @@ int main(int argc, char * argv[]) {
             hb.save_index(index_out.c_str());
             LOG_INFO("Hybrid index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into Hybrid index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                hb.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(hb, "Hybrid");
         logPeakMemoryConsumption("Hybrid", hb.peak_memory_usage, hybrid_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -656,7 +649,7 @@ int main(int argc, char * argv[]) {
         long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
-        vdb.set_strings(strings);
+        vdb.set_strings(base_strings);
         if (index_in == "") {
             LOG_INFO("Building VectorMaton-full index");
             unsigned long long start_time = currentTime();
@@ -678,15 +671,7 @@ int main(int argc, char * argv[]) {
             vdb.save_index(index_out.c_str());
             LOG_INFO("VectorMaton-full index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into VectorMaton-full index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                vdb.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(vdb, "VectorMaton-full");
         logPeakMemoryConsumption("VectorMaton-full", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -738,7 +723,7 @@ int main(int argc, char * argv[]) {
         long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
-        vdb.set_strings(strings);
+        vdb.set_strings(base_strings);
         if (min_build_threshold > 0) {
             LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
             vdb.set_min_build_threshold(min_build_threshold);
@@ -764,15 +749,7 @@ int main(int argc, char * argv[]) {
             vdb.save_index(index_out.c_str());
             LOG_INFO("VectorMaton-smart index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into VectorMaton-smart index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                vdb.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(vdb, "VectorMaton-smart");
         logPeakMemoryConsumption("VectorMaton-smart", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
@@ -824,7 +801,7 @@ int main(int argc, char * argv[]) {
         long long vectormaton_peak_memory_before = currentMemoryBytes();
         VectorMaton vdb;
         vdb.set_vectors(base_vectors, dim);
-        vdb.set_strings(strings);
+        vdb.set_strings(base_strings);
         if (min_build_threshold > 0) {
             LOG_INFO("Setting minimum build threshold to ", min_build_threshold);
             vdb.set_min_build_threshold(min_build_threshold);
@@ -850,15 +827,7 @@ int main(int argc, char * argv[]) {
             vdb.save_index(index_out.c_str());
             LOG_INFO("VectorMaton-parallel index saved in ", timeFormatting(currentTime() - start_time).str());
         }
-        if (insert_percentage > 0) {
-            LOG_INFO("Inserting additional ", insertion_vectors.size() / dim, " vectors into VectorMaton-parallel index");
-            unsigned long long start_time = currentTime();
-            for (size_t i = 0; i < insertion_vectors.size() / dim; ++i) {
-                std::vector<float> vec(insertion_vectors.begin() + i * dim, insertion_vectors.begin() + (i + 1) * dim);
-                vdb.insert(vec, strings[base_vectors.size() / dim + i]);
-            }
-            LOG_INFO("Insertion took ", timeFormatting(currentTime() - start_time).str());
-        }
+        insert_tail(vdb, "VectorMaton-parallel");
         logPeakMemoryConsumption("VectorMaton-parallel", vdb.peak_memory_usage, vectormaton_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;

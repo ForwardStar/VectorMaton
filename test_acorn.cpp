@@ -34,6 +34,7 @@ struct Args {
     int M = 32;
     int gamma = 12;
     int M_beta = 32;
+    double insertion_percentage = 0.0;
 };
 
 long long current_memory_bytes() {
@@ -98,6 +99,7 @@ Args parse_args(int argc, char** argv) {
             << " <string_data_file> <vector_data_file> <string_query_file>"
             << " <vector_query_file> <k_file> <ground_truth_file>"
             << " [--M=32] [--gamma=12] [--M-beta=32]"
+            << " [--insertion-percentage=0]"
             << " [--output=acorn_hnsw_stats.csv]"
             << " [--load-index=path] [--save-index=path]\n";
         std::exit(1);
@@ -122,6 +124,8 @@ Args parse_args(int argc, char** argv) {
             args.gamma = std::stoi(value_after("--gamma="));
         } else if (arg.rfind("--M-beta=", 0) == 0) {
             args.M_beta = std::stoi(value_after("--M-beta="));
+        } else if (arg.rfind("--insertion-percentage=", 0) == 0) {
+            args.insertion_percentage = std::stod(value_after("--insertion-percentage="));
         } else if (arg.rfind("--output=", 0) == 0) {
             args.output_file = value_after("--output=");
         } else if (arg.rfind("--load-index=", 0) == 0) {
@@ -132,6 +136,9 @@ Args parse_args(int argc, char** argv) {
             std::cerr << "Unknown argument: " << arg << "\n";
             std::exit(1);
         }
+    }
+    if (args.insertion_percentage < 0.0 || args.insertion_percentage > 100.0) {
+        throw std::runtime_error("--insertion-percentage must be in [0, 100].");
     }
     return args;
 }
@@ -296,8 +303,20 @@ int main(int argc, char** argv) {
         query_ks.resize(nq);
         ground_truth.resize(nq);
 
+        size_t insertion_count =
+                static_cast<size_t>(static_cast<double>(nb) * args.insertion_percentage / 100.0);
+        size_t base_nb = nb - insertion_count;
+        if (nb > 0 && base_nb == 0) {
+            throw std::runtime_error(
+                    "--insertion-percentage leaves no base vectors to build the index.");
+        }
+        if (insertion_count > 0) {
+            std::cout << "Using " << base_nb << " base vectors and "
+                      << insertion_count << " insertion vectors.\n";
+        }
+
         if (args.load_index_file.empty()) {
-            std::cout << "Building ACORN index: nb=" << nb << ", dim=" << data_dim
+            std::cout << "Building ACORN index: nb=" << base_nb << ", dim=" << data_dim
                       << ", M=" << args.M << ", gamma=" << args.gamma
                       << ", M_beta=" << args.M_beta << "\n";
         } else {
@@ -313,10 +332,10 @@ int main(int argc, char** argv) {
         std::unique_ptr<faiss::IndexACORN> owned_index;
         faiss::IndexACORN* index = nullptr;
         if (args.load_index_file.empty()) {
-            std::vector<int> metadata(nb, 0);
+            std::vector<int> metadata(base_nb, 0);
             owned_index = std::make_unique<faiss::IndexACORNFlat>(
                     data_dim, args.M, args.gamma, metadata, args.M_beta);
-            owned_index->add(static_cast<faiss::idx_t>(nb), data_vectors.data());
+            owned_index->add(static_cast<faiss::idx_t>(base_nb), data_vectors.data());
             index_elapsed_us = current_time_us() - index_start_time;
             std::cout << "ACORN index built took " << index_elapsed_us << "us ("
                       << index_elapsed_us / 1000000 << "s)\n";
@@ -331,15 +350,43 @@ int main(int argc, char** argv) {
             if (index->d != data_dim) {
                 throw std::runtime_error("Loaded ACORN index dimension does not match vectors.");
             }
-            if (static_cast<size_t>(index->ntotal) != nb) {
+            if (static_cast<size_t>(index->ntotal) != base_nb) {
                 throw std::runtime_error("Loaded ACORN index size does not match data strings.");
             }
             index_elapsed_us = current_time_us() - index_start_time;
             std::cout << "ACORN index loaded in " << index_elapsed_us << "us ("
                       << index_elapsed_us / 1000000 << "s)\n";
         }
-        std::cout << "Building GeneralizedSuffixAutomaton for ACORN filters...\n";
-        GeneralizedSuffixAutomaton gsa = build_gsa(data_strings);
+        std::cout << "Building GeneralizedSuffixAutomaton for ACORN base filters...\n";
+        GeneralizedSuffixAutomaton gsa;
+        for (size_t id = 0; id < base_nb; ++id) {
+            gsa.add_string(static_cast<uint32_t>(id), data_strings[id]);
+        }
+        gsa.shrink_to_fit();
+        std::cout << "Base GSA states: " << gsa.size() << ", total ids: "
+                  << gsa.size_tot() << "\n";
+
+        double average_insertion_time_us = -1.0;
+        if (insertion_count > 0) {
+            std::cout << "Inserting additional " << insertion_count
+                      << " vectors and strings into ACORN index...\n";
+            unsigned long long insertion_start_time = current_time_us();
+            index->add(
+                    static_cast<faiss::idx_t>(insertion_count),
+                    data_vectors.data() + base_nb * data_dim);
+            for (size_t i = 0; i < insertion_count; ++i) {
+                size_t id = base_nb + i;
+                gsa.add_string(static_cast<uint32_t>(id), data_strings[id]);
+            }
+            unsigned long long insertion_elapsed_us = current_time_us() - insertion_start_time;
+            average_insertion_time_us =
+                    static_cast<double>(insertion_elapsed_us) / insertion_count;
+            std::cout << "Insertion took " << insertion_elapsed_us << " us ("
+                      << average_insertion_time_us << " us/vector+string).\n";
+        }
+        if (static_cast<size_t>(index->ntotal) != nb) {
+            throw std::runtime_error("ACORN index size does not match final data size.");
+        }
         std::cout << "GSA states: " << gsa.size() << ", total ids: " << gsa.size_tot() << "\n";
         long long build_peak_memory = build_peak_tracker.stop();
         long long build_memory_delta =
@@ -427,14 +474,19 @@ int main(int argc, char** argv) {
         }
 
         std::ofstream out(args.output_file);
-        out << "ef_search,M,gamma,M_beta,time_us,recall,build_peak_memory_bytes,index_size_bytes\n";
+        out << "ef_search,M,gamma,M_beta,time_us,recall,average_insertion_time_us,"
+               "build_peak_memory_bytes,index_size_bytes\n";
         for (size_t i = 0; i < ef_search_values.size(); ++i) {
             out << ef_search_values[i] << ","
                 << args.M << ","
                 << args.gamma << ","
                 << args.M_beta << ","
                 << times_us[i] << ","
-                << recalls[i] << ","
+                << recalls[i] << ",";
+            if (average_insertion_time_us >= 0.0) {
+                out << average_insertion_time_us;
+            }
+            out << ","
                 << build_memory_delta << ","
                 << index_size << "\n";
         }

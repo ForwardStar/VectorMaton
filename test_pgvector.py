@@ -274,6 +274,7 @@ else:
     print(f"pgvector index loaded in {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
 print("Done building index.")
 
+average_insertion_time_us = None
 if insertion_vectors:
     if not table_exists:
         print(f"Inserting additional {len(insertion_vectors)} rows into pgvector table...")
@@ -285,7 +286,12 @@ if insertion_vectors:
             [(insertion_vectors[i], insertion_strings[i].strip()) for i in range(len(insertion_vectors))]
         )
         conn.commit()
-        print(f"Insertion took {(time.time() - start) * 1e6:.0f} us.")
+        insertion_elapsed_us = (time.time() - start) * 1e6
+        average_insertion_time_us = insertion_elapsed_us / len(insertion_vectors)
+        print(
+            f"Insertion took {insertion_elapsed_us:.0f} us "
+            f"({average_insertion_time_us:.2f} us/row)."
+        )
     else:
         print("Skipping insertion because the pgvector table already exists.")
 
@@ -380,6 +386,7 @@ df = pd.DataFrame({
     'recall': recall
 })
 df["index_build_time_us"] = index_build_elapsed_us
+df["average_insertion_time_us"] = average_insertion_time_us
 add_build_peak_delta_columns(df, build_peak_memory_stats)
 df.to_csv("pgvector_hnsw_stats.csv", index=False)
 print("Done.")

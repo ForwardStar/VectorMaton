@@ -81,13 +81,14 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
                 candidate_ids[state].emplace_back(num_elements - 1);
                 release_ids(gsa.st[state].ids);
                 if (hnsws[state]) {
+                    hnsws[state]->external_data_ = reinterpret_cast<const char*>(vecs.data());
                     hnsws[state]->resizeIndex(candidate_ids[state].size());
                     hnsws[state]->addPoint(num_elements - 1);
                 }
                 else if (candidate_ids[state].size() >= min_build_threshold) {
                     int M = 16, ef_construction = 200;
                     hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
-                    for (int id : gsa.st[state].ids) {
+                    for (int id : candidate_ids[state]) {
                         hnsws[state]->addPoint(id);
                     }
                 }
@@ -111,13 +112,14 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
                         }
                         candidate_ids[s].emplace_back(num_elements - 1);
                         if (hnsws[s]) {
+                            hnsws[s]->external_data_ = reinterpret_cast<const char*>(vecs.data());
                             hnsws[s]->resizeIndex(candidate_ids[s].size());
                             hnsws[s]->addPoint(num_elements - 1);
                         }
                         else if (candidate_ids[s].size() >= min_build_threshold) {
                             int M = 16, ef_construction = 200;
                             hnsws[s] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[s].size(), vecs.data(), M, ef_construction);
-                            for (int id : gsa.st[s].ids) {
+                            for (int id : candidate_ids[s]) {
                                 hnsws[s]->addPoint(id);
                             }
                         }
@@ -306,12 +308,13 @@ void VectorMaton::build_smart() {
             cur += ten_percent;
             LOG_DEBUG("Building HNSW for state ", gsa.st.size() - i, "/", gsa.st.size(), " Built vertices: ", built_vertices, "/", tot_vertices);
         }
-        built_vertices += gsa.st[i].ids.size();
-        auto& st = gsa.st[i];
+        int state = topo_order[i];
+        built_vertices += gsa.st[state].ids.size();
+        auto& st = gsa.st[state];
         if (st.ids.size() < min_build_threshold) {
-            candidate_ids[i].resize(st.ids.size());
+            candidate_ids[state].resize(st.ids.size());
             for (int j = 0; j < st.ids.size(); j++) {
-                candidate_ids[i][j] = st.ids[j];
+                candidate_ids[state][j] = st.ids[j];
             }
             release_ids(st.ids);
             continue;
@@ -323,53 +326,53 @@ void VectorMaton::build_smart() {
                 target_sc = largest_state[ch.to];
             }
         }
-        inherit_states[i] = target_sc;
+        inherit_states[state] = target_sc;
         if (target_sc == -1) {
             // No successor has built a graph, built the graph with all vector ids
             int M = 16, ef_construction = 200;
-            hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
+            hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, st.ids.size(), vecs.data(), M, ef_construction);
             int num_ids = st.ids.size();
-            candidate_ids[i].resize(num_ids);
+            candidate_ids[state].resize(num_ids);
             for (int j = 0; j < num_ids; j++) {
                 int id = st.ids[j];
-                hnsws[i]->addPoint(id);
-                candidate_ids[i][j] = id;
+                hnsws[state]->addPoint(id);
+                candidate_ids[state][j] = id;
             }
-            largest_state[i] = i;
+            largest_state[state] = state;
             release_ids(st.ids);
         }
         else {
             // Found the largest successor, inherit from this successor
-            inherit_states[i] = target_sc;
-            largest_state[i] = target_sc;
+            inherit_states[state] = target_sc;
+            largest_state[state] = target_sc;
             // Find remaining vertices
             int l = 0, r = 0, cnt = 0;
             int num_ids = st.ids.size() - candidate_ids[target_sc].size();
-            candidate_ids[i].resize(num_ids);
+            candidate_ids[state].resize(num_ids);
             while (l < st.ids.size() || r < candidate_ids[target_sc].size()) {
                 if (r == candidate_ids[target_sc].size()) {
-                    candidate_ids[i][cnt++] = st.ids[l++];
+                    candidate_ids[state][cnt++] = st.ids[l++];
                 }
                 else {
                     if (st.ids[l] == candidate_ids[target_sc][r]) {
                         l++, r++;
                     }
                     else {
-                        candidate_ids[i][cnt++] = st.ids[l++];
+                        candidate_ids[state][cnt++] = st.ids[l++];
                     }
                 }
             }
             // Only build when meeting requirements
-            if (candidate_ids[i].size() >= min_build_threshold) {
+            if (candidate_ids[state].size() >= min_build_threshold) {
                 int M = 16, ef_construction = 200;
-                hnsws[i] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[i].size(), vecs.data(), M, ef_construction);
-                for (int j = 0; j < candidate_ids[i].size(); j++) {
-                    int id = candidate_ids[i][j];
-                    hnsws[i]->addPoint(id);
+                hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
+                for (int j = 0; j < candidate_ids[state].size(); j++) {
+                    int id = candidate_ids[state][j];
+                    hnsws[state]->addPoint(id);
                 }
-                if (candidate_ids[i].size() > candidate_ids[target_sc].size()) {
+                if (candidate_ids[state].size() > candidate_ids[target_sc].size()) {
                     // Update largest state
-                    largest_state[i] = i;
+                    largest_state[state] = state;
                 }
             }
             release_ids(st.ids);

@@ -356,6 +356,7 @@ def main():
         print(f"Elasticsearch index loaded in {index_build_elapsed_us}us ({index_build_elapsed_us // 1000000}s)")
     if not created_index:
         print("Index already existed; index footprint is measured from the existing index.")
+    average_insertion_time_us = None
     if insertion_vectors:
         if created_index:
             print(f"Inserting additional {len(insertion_vectors)} documents into Elasticsearch index...")
@@ -368,7 +369,12 @@ def main():
                 id_offset=base_count,
             )
             es.indices.refresh(index=index_name)
-            print(f"Inserted {ok} documents, failed {failed}, took {(time.time() - start) * 1e6:.0f} us.")
+            insertion_elapsed_us = (time.time() - start) * 1e6
+            average_insertion_time_us = insertion_elapsed_us / len(insertion_vectors)
+            print(
+                f"Inserted {ok} documents, failed {failed}, took {insertion_elapsed_us:.0f} us "
+                f"({average_insertion_time_us:.2f} us/document)."
+            )
         else:
             print("Skipping insertion because the Elasticsearch index already exists.")
     print("Done loading data.")
@@ -388,6 +394,7 @@ def main():
         {"num_candidates": candidates_list, "time_us": times_us, "recall": recalls}
     )
     df["index_build_time_us"] = index_build_elapsed_us
+    df["average_insertion_time_us"] = average_insertion_time_us
     add_build_peak_delta_columns(df, build_peak_memory_stats)
     df.to_csv("elasticsearch_hnsw_stats.csv", index=False)
     print("Done.")
