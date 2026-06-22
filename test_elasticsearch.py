@@ -230,13 +230,30 @@ def add_build_peak_delta_columns(df, memory_stats):
     df["es_auxiliary_size_bytes"] = memory_stats.get("es_auxiliary_size_bytes")
 
 
-def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_truth, candidates_list):
+def format_query_row(ef_search, k, neighbor_ids):
+    ids = " ".join(str(value) for value in neighbor_ids)
+    suffix = f": {ids}" if ids else ":"
+    return f"ef_search = {ef_search}, k = {k}{suffix}"
+
+
+def write_query_output(path: str, rows_by_query):
+    if not path:
+        return
+    with open(path, "w") as output:
+        for query_idx, rows in enumerate(rows_by_query, start=1):
+            output.write(f"Query {query_idx}:\n")
+            for row in rows:
+                output.write(row + "\n")
+
+
+def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_truth, candidates_list, output_file=None):
     print("Executing queries...")
     recalls = []
     times_us = []
 
     n = min(len(qvecs), len(qstrs), len(qks), len(ground_truth))
     qvecs, qstrs, qks, ground_truth = qvecs[:n], qstrs[:n], qks[:n], ground_truth[:n]
+    rows_by_query = [[] for _ in range(n)]
 
     for num_candidates in candidates_list:
         print(f"num_candidates={num_candidates}")
@@ -272,6 +289,7 @@ def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_tr
 
             hits = resp.get("hits", {}).get("hits", [])
             neighbor_ids = [int(hit["_id"]) for hit in hits]
+            rows_by_query[i].append(format_query_row(num_candidates, qk, neighbor_ids))
 
             true_ids = set(ground_truth[i])
             if true_ids:
@@ -284,6 +302,7 @@ def run_queries(es: Elasticsearch, index_name: str, qvecs, qstrs, qks, ground_tr
         recalls.append(avg_recall)
         print(f"Average Time: {avg_time:.2f} us, Average Recall: {avg_recall:.4f}")
 
+    write_query_output(output_file, rows_by_query)
     return times_us, recalls
 
 
@@ -309,6 +328,7 @@ def parse_args():
         help="Deprecated; ignored. Elasticsearch memory is estimated from index files and raw payload size.",
     )
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the index.")
+    parser.add_argument("--write-output", default=None, help="Write returned ids for each query and ef_search value.")
     parser.add_argument(
         "--insertion-percentage",
         type=float,
@@ -386,8 +406,8 @@ def main():
     qvecs, qstrs, qks = load_queries(args.vector_query_file, args.string_query_file, args.k_file)
     ground_truth = load_ground_truth(args.ground_truth_file)
 
-    candidates_list = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024]
-    times_us, recalls = run_queries(es, index_name, qvecs, qstrs, qks, ground_truth, candidates_list)
+    candidates_list = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096]
+    times_us, recalls = run_queries(es, index_name, qvecs, qstrs, qks, ground_truth, candidates_list, args.write_output)
 
     print("Write statistics to file...")
     df = pd.DataFrame(

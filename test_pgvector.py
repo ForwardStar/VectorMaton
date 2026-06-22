@@ -24,6 +24,7 @@ def parse_args():
         help="Percentage of tail data to insert after building the index.",
     )
     parser.add_argument("--rebuild", action="store_true", help="Delete and recreate the table and index.")
+    parser.add_argument("--write-output", default=None, help="Write returned ids for each query and ef_search value.")
     return parser.parse_args()
 
 
@@ -335,10 +336,27 @@ with open(ground_truth_file) as gtf:
         ids = [int(x) for x in line.strip().split()]
         ground_truth.append(ids)
 
+def format_query_row(ef_search, k, neighbor_ids):
+    ids = " ".join(str(value) for value in neighbor_ids)
+    suffix = f": {ids}" if ids else ":"
+    return f"ef_search = {ef_search}, k = {k}{suffix}"
+
+
+def write_query_output(path, rows_by_query):
+    if not path:
+        return
+    with open(path, "w") as output:
+        for query_idx, rows in enumerate(rows_by_query, start=1):
+            output.write(f"Query {query_idx}:\n")
+            for row in rows:
+                output.write(row + "\n")
+
+
 print("Executing queries...")
 recall = []
 time_taken = []
-ef_search_values = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768]
+query_output_rows = [[] for _ in range(n)]
+ef_search_values = [8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1000]
 for ef_search in ef_search_values:
     print(f"ef_search={ef_search}")
     cur.execute(f"SET hnsw.ef_search = {ef_search};")
@@ -366,6 +384,7 @@ for ef_search in ef_search_values:
         total_time += elapsed
 
         neighbor_ids = [row[0] - 1 for row in rows]
+        query_output_rows[i].append(format_query_row(ef_search, int(qk.strip()), neighbor_ids))
 
         true_ids = set(ground_truth[i])
         if len(true_ids) > 0:
@@ -378,6 +397,7 @@ for ef_search in ef_search_values:
     recall.append(avg_recall)
     print(f"Average Time: {avg_time} us, Average Recall: {avg_recall:.4f}")
 
+write_query_output(args.write_output, query_output_rows)
 print("Query done.")
 print("Write statistics to file...")
 df = pd.DataFrame({

@@ -29,6 +29,7 @@ struct Args {
     std::string k_file;
     std::string ground_truth_file;
     std::string output_file = "acorn_hnsw_stats.csv";
+    std::string query_output_file;
     std::string load_index_file;
     std::string save_index_file;
     int M = 32;
@@ -100,7 +101,7 @@ Args parse_args(int argc, char** argv) {
             << " <vector_query_file> <k_file> <ground_truth_file>"
             << " [--M=32] [--gamma=12] [--M-beta=32]"
             << " [--insertion-percentage=0]"
-            << " [--output=acorn_hnsw_stats.csv]"
+            << " [--output=acorn_hnsw_stats.csv] [--write-output=output.txt]"
             << " [--load-index=path] [--save-index=path]\n";
         std::exit(1);
     }
@@ -128,6 +129,8 @@ Args parse_args(int argc, char** argv) {
             args.insertion_percentage = std::stod(value_after("--insertion-percentage="));
         } else if (arg.rfind("--output=", 0) == 0) {
             args.output_file = value_after("--output=");
+        } else if (arg.rfind("--write-output=", 0) == 0) {
+            args.query_output_file = value_after("--write-output=");
         } else if (arg.rfind("--load-index=", 0) == 0) {
             args.load_index_file = value_after("--load-index=");
         } else if (arg.rfind("--save-index=", 0) == 0) {
@@ -411,9 +414,25 @@ int main(int argc, char** argv) {
         std::cout << "filter map build time: " << filter_elapsed_us << " us\n";
 
         std::vector<int> ef_search_values = {
-                8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+                8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096};
         std::vector<double> times_us;
         std::vector<double> recalls;
+        std::vector<std::vector<std::string>> query_output_rows(nq);
+
+        auto record_query_output = [&](int ef, const std::vector<faiss::idx_t>& current_labels, int current_max_k) {
+            for (size_t qi = 0; qi < nq; ++qi) {
+                std::ostringstream row;
+                row << "ef_search = " << ef << ", k = " << query_ks[qi] << ":";
+                int k = std::min(query_ks[qi], current_max_k);
+                for (int j = 0; j < k; ++j) {
+                    faiss::idx_t label = current_labels[qi * current_max_k + j];
+                    if (label >= 0) {
+                        row << " " << static_cast<int>(label);
+                    }
+                }
+                query_output_rows[qi].push_back(row.str());
+            }
+        };
 
         int max_k = 0;
         for (int k : query_ks) {
@@ -443,6 +462,8 @@ int main(int argc, char** argv) {
             double search_elapsed_us =
                     std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
             double elapsed_us = filter_elapsed_us + search_elapsed_us;
+
+            record_query_output(ef, labels, max_k);
 
             double total_recall = 0.0;
             int effective = 0;
@@ -491,6 +512,16 @@ int main(int argc, char** argv) {
                 << index_size << "\n";
         }
         std::cout << "Wrote ACORN statistics to " << args.output_file << "\n";
+        if (!args.query_output_file.empty()) {
+            std::ofstream query_out(args.query_output_file);
+            for (size_t qi = 0; qi < query_output_rows.size(); ++qi) {
+                query_out << "Query " << (qi + 1) << ":\n";
+                for (const auto& row : query_output_rows[qi]) {
+                    query_out << row << "\n";
+                }
+            }
+            std::cout << "Wrote ACORN query output to " << args.query_output_file << "\n";
+        }
     } catch (const std::exception& exc) {
         std::cerr << "ACORN benchmark failed: " << exc.what() << "\n";
         return 1;
