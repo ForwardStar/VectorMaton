@@ -4,7 +4,7 @@
 
 namespace {
 
-const std::vector<int> EF_SEARCH = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+const std::vector<int> EF_SEARCH = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096};
 const std::vector<float> SEARCH_K_RATIOS = {0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
 
 std::vector<std::string> load_strings(const std::string& path) {

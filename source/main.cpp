@@ -19,7 +19,7 @@ static void logPeakMemoryConsumption(const std::string& method_name, long long p
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/Hybrid/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...]");
+        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/Hybrid/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...] [--write-output=output.txt]");
         return 1;
     }
 
@@ -28,6 +28,7 @@ int main(int argc, char * argv[]) {
     std::string index_in = "";
     std::string index_out = "";
     std::string ground_truth_file = "";
+    std::string output_file = "";
     int num_threads = 8;
     int min_build_threshold = -1;
     float insert_percentage = 0.0;
@@ -104,6 +105,18 @@ int main(int argc, char * argv[]) {
             if (std::string(argv[i]).find("--write-ground-truth=") == 0) {
                 ground_truth_file = std::string(argv[i]).substr(21);
                 LOG_INFO("Ground truth file set to ", ground_truth_file);
+                for (int j = i; j < argc - 1; j++) {
+                    argv[j] = argv[j + 1];
+                }
+                argc--;
+                break;
+            }
+        }
+
+        for (int i = 0; i < argc; i++) {
+            if (std::string(argv[i]).find("--write-output=") == 0) {
+                output_file = std::string(argv[i]).substr(15);
+                LOG_INFO("Query output file set to ", output_file);
                 for (int j = i; j < argc - 1; j++) {
                     argv[j] = argv[j + 1];
                 }
@@ -308,6 +321,32 @@ int main(int argc, char * argv[]) {
     }
 
     std::vector<int> ef_search = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024};
+    std::vector<int> ef_search_extended = {8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096};
+
+    std::vector<std::vector<std::string>> query_output_rows(queried_strings.size());
+    auto record_query_output = [&](const std::string& ef_label, const std::vector<std::vector<int>>& results) {
+        for (size_t qi = 0; qi < results.size() && qi < queried_k.size(); ++qi) {
+            std::ostringstream row;
+            row << "ef_search = " << ef_label << ", k = " << queried_k[qi] << ":";
+            for (const auto& id : results[qi]) {
+                row << " " << id;
+            }
+            query_output_rows[qi].push_back(row.str());
+        }
+    };
+    auto write_query_output = [&]() {
+        if (output_file.empty()) {
+            return;
+        }
+        LOG_INFO("Writing query output to ", output_file);
+        std::ofstream out(output_file);
+        for (size_t qi = 0; qi < query_output_rows.size(); ++qi) {
+            out << "Query " << (qi + 1) << ":\n";
+            for (const auto& row : query_output_rows[qi]) {
+                out << row << "\n";
+            }
+        }
+    };
 
     auto insert_tail = [&](auto& index, const std::string& method_name) {
         if (insertion_count == 0) {
@@ -345,7 +384,7 @@ int main(int argc, char * argv[]) {
         logPeakMemoryConsumption("OptQuery", oq.peak_memory_usage, optquery_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef : ef_search) {
+        for (int ef : ef_search_extended) {
             LOG_DEBUG("Set ef_search to ", ef);
             oq.set_ef(ef);
             start_time = currentTime();
@@ -355,6 +394,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -418,7 +458,7 @@ int main(int argc, char * argv[]) {
         logPeakMemoryConsumption("BM25Filtering", bf.peak_memory_usage, bm25_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef : ef_search) {
+        for (int ef : ef_search_extended) {
             LOG_DEBUG("Set ef_search to ", ef);
             bf.set_ef(ef);
             unsigned long long start_time = currentTime();
@@ -428,6 +468,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -479,6 +520,7 @@ int main(int argc, char * argv[]) {
             all_results.emplace_back(res);
         }
         float time_cost = currentTime() - start_time;
+        record_query_output("N/A", all_results);
         LOG_INFO("PreFiltering query processing took ", timeFormatting(time_cost).str(), ", avg (us): ", (time_cost / queried_strings.size()));
         // Compute recall
         double total_recall = 0;
@@ -534,7 +576,7 @@ int main(int argc, char * argv[]) {
         logPeakMemoryConsumption("PostFiltering", pf.peak_memory_usage, postfiltering_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef : ef_search) {
+        for (int ef : ef_search_extended) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
@@ -543,6 +585,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -606,7 +649,7 @@ int main(int argc, char * argv[]) {
         logPeakMemoryConsumption("Hybrid", hb.peak_memory_usage, hybrid_peak_memory_before);
         LOG_INFO("Processing queries");
         std::vector<std::map<std::string, float>> statistics;
-        for (int ef : ef_search) {
+        for (int ef : ef_search_extended) {
             LOG_DEBUG("Set ef_search to ", ef);
             start_time = currentTime();
             std::vector<std::vector<int>> all_results;
@@ -615,6 +658,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -685,6 +729,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -763,6 +808,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -841,6 +887,7 @@ int main(int argc, char * argv[]) {
                 all_results.emplace_back(res);
             }
             float time_cost = currentTime() - start_time;
+            record_query_output(std::to_string(ef), all_results);
             statistics.emplace_back();
             statistics.back()["ef_search"] = ef;
             statistics.back()["time_us"] = time_cost / queried_strings.size();
@@ -874,5 +921,6 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    write_query_output();
     return 0;
 }
