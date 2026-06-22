@@ -19,7 +19,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
         rcParams["mathtext.rm"] = font_name
 
 
-METHODS = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+METHODS = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DS_BRIEFS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 P_LENGTHS = [5, 6, 7]
@@ -81,77 +81,96 @@ def simplify_curve(qps, recall):
     if qps is None or recall is None or len(qps) == 0:
         return qps, recall
 
+    i = 1
+    while i < len(recall):
+        if qps[i] >= qps[i - 1]:
+            recall = np.delete(recall, i - 1)
+            qps = np.delete(qps, i - 1)
+        elif recall[i] <= recall[i - 1] + 1e-2:
+            recall = np.delete(recall, i)
+            qps = np.delete(qps, i)
+        else:
+            i += 1
+
     keep = recall > 0.1
-    qps = qps[keep]
-    recall = recall[keep]
-    if len(qps) == 0:
-        return qps, recall
-
-    filtered_qps = []
-    filtered_recall = []
-    best_qps = np.inf
-    for r, q in zip(recall, qps):
-        if q < best_qps:
-            filtered_recall.append(r)
-            filtered_qps.append(q)
-            best_qps = q
-
-    return np.array(filtered_qps), np.array(filtered_recall)
+    return qps[keep], recall[keep]
 
 
 def plot_panel(ax, dataset, label, p_len, left_axis=False):
-    markers = ["o", "s", "^", "d", "P", "X", "v", "x"]
+    markers = ["o", "s", "^", "d", "P", "X", "v", "x", "*"]
     colors = [plt.colormaps["tab10"](i) for i in range(len(METHODS))]
-    plotted_any = False
-    plotted_qps = []
+    qpss = []
+    recalls = []
 
-    for i, method in enumerate(METHODS):
+    for method in METHODS:
         csv_path = os.path.join("results", method, dataset, f"{p_len}.csv")
         qps, recall = load_curve(csv_path)
         qps, recall = simplify_curve(qps, recall)
-        if qps is None or recall is None or len(qps) == 0:
-            continue
+        qpss.append(qps)
+        recalls.append(recall)
 
-        plotted_any = True
-        plotted_qps.append(qps)
-        ax.plot(
-            recall,
-            qps,
-            marker=markers[i],
-            color=colors[i],
-            label=method_label(method),
-            markersize=13,
-            linewidth=1.8,
-            markerfacecolor="none",
-        )
+    min_recall_vectormaton = float("inf")
+    vectormaton_index = METHODS.index("VectorMaton")
+    if recalls[vectormaton_index] is not None and len(recalls[vectormaton_index]) > 0:
+        min_recall_vectormaton = np.min(recalls[vectormaton_index])
+
+    for i, method in enumerate(METHODS):
+        if method == "VectorMaton" or recalls[i] is None or len(recalls[i]) == 0:
+            continue
+        mask = recalls[i] >= min_recall_vectormaton
+        if np.any(mask):
+            indices = np.where(mask)[0]
+            if len(indices) < len(recalls[i]) // 2:
+                indices = np.argsort(recalls[i])[-(len(recalls[i]) // 2):]
+            recalls[i] = recalls[i][indices]
+            qpss[i] = qpss[i][indices]
+
+    plotted_qps = [qps for qps in qpss if qps is not None and len(qps) > 0]
+    qps_min = min((np.min(qps) for qps in plotted_qps), default=float("inf"))
 
     prefiltering_time = extract_avg_time_us_from_log(
         os.path.join("results", "PreFiltering", dataset, f"{p_len}")
     )
+    qps_pref = None
     if prefiltering_time and prefiltering_time > 0:
-        qps_pref = 1_000_000 / prefiltering_time
-        plotted_any = True
-        plotted_qps.append(np.array([qps_pref]))
+        candidate = 1_000_000 / prefiltering_time
+        if candidate * 10 >= qps_min:
+            qps_pref = candidate
+            ax.plot(
+                1.0,
+                qps_pref,
+                marker="*",
+                color="black",
+                label="PreFiltering",
+                markersize=12,
+                markerfacecolor="none",
+            )
+
+    for i, method in enumerate(METHODS):
+        if qpss[i] is None or len(qpss[i]) == 0:
+            continue
         ax.plot(
-            1.0,
-            qps_pref,
-            marker="*",
-            color="black",
-            label="PreFiltering",
-            markersize=13,
+            recalls[i],
+            qpss[i],
+            marker=markers[i],
+            color=colors[i],
+            label=method_label(method),
+            markersize=12,
             markerfacecolor="none",
         )
 
     selectivity = load_selectivity(dataset, p_len)
-    ax.set_title(f"{label}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=18, fontweight="bold")
-    ax.set_xlabel("Recall @ 10", fontsize=16)
+    ax.set_title(f"{label}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=25, fontweight="bold")
+    ax.set_xlabel("Recall @ 10", fontsize=25)
     if left_axis:
-        ax.set_ylabel("QPS", fontsize=16)
+        ax.set_ylabel("QPS", fontsize=25)
     ax.set_yscale("log")
     ax.grid(True, linestyle="--", alpha=0.7)
-    ax.tick_params(axis="both", labelsize=13)
+    ax.tick_params(axis="both", labelsize=20)
 
-    if plotted_any:
+    if plotted_qps:
+        if qps_pref is not None:
+            plotted_qps.append(np.array([qps_pref]))
         all_qps = np.concatenate(plotted_qps)
         ax.set_ylim(bottom=np.min(all_qps) * 0.5, top=np.max(all_qps) * 2)
     else:
@@ -162,7 +181,7 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             ha="center",
             va="center",
             transform=ax.transAxes,
-            fontsize=16,
+            fontsize=25,
         )
 
 
@@ -182,7 +201,7 @@ def main():
     fig, axes = plt.subplots(
         n // 2,
         6,
-        figsize=(28, 2.5 * n),
+        figsize=(28, 1.7 * n),
         sharey=False,
     )
 
@@ -208,11 +227,11 @@ def main():
         labels,
         loc="upper center",
         ncol=5,
-        fontsize=35,
+        fontsize=30,
         handlelength=1.2,
         markerscale=1.5,
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    plt.tight_layout(rect=[0, 0, 1, 0.86])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_p5_p6_p7.pdf")

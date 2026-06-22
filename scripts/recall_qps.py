@@ -213,14 +213,14 @@ def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
     )
 
 if __name__ == "__main__":
-    methods = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "VectorMaton"]
+    methods = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
     ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 
     n = len(datasets)
     fig, axes = plt.subplots(
         n // 2, 6,
-        figsize=(28, 2.5 * n),
+        figsize=(28, 1.7 * n),
         sharey=False
     )
 
@@ -240,11 +240,11 @@ if __name__ == "__main__":
         handles, labels,
         loc="upper center",
         ncol=5,
-        fontsize=35,
+        fontsize=30,
         handlelength=1.2,
         markerscale=1.5
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    plt.tight_layout(rect=[0, 0, 1, 0.86])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_all_datasets.pdf")

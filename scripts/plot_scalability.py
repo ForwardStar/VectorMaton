@@ -31,7 +31,7 @@ PARALLEL_DATASETS = [
 PARALLEL_RESULT_ROOT = "results/VectorMaton-parallel"
 METHOD_STYLES = {
     "OptQuery": {"marker": "o", "color_idx": 0},
-    "VectorMaton": {"marker": "v", "color_idx": 6},
+    "VectorMaton": {"marker": "*", "color_idx": 8},
 }
 
 
@@ -96,7 +96,7 @@ def collect_parallel_points(dataset):
 
 
 def main():
-    fig, axes = plt.subplots(1, 6, figsize=(30, 6), sharey=False)
+    fig, axes = plt.subplots(1, 6, figsize=(30, 4.5), sharey=False)
     cs = plt.colormaps["tab10"]
     legend_handles = None
     legend_labels = None
@@ -180,7 +180,7 @@ def main():
     axes[0].set_ylabel("Size (MB)", fontsize=30)
     axes[len(DATASETS)].set_ylabel("Time (s)", fontsize=30)
 
-    parallel_color = cs(6)
+    parallel_color = cs(8)
     parallel_start = 2 * len(DATASETS)
     for i, (dataset, dataset_brief) in enumerate(PARALLEL_DATASETS):
         ax = axes[parallel_start + i]
@@ -200,7 +200,7 @@ def main():
             ax.plot(
                 x,
                 y,
-                marker="v",
+                marker="*",
                 linestyle="-",
                 markersize=20,
                 markerfacecolor="none",
@@ -223,7 +223,7 @@ def main():
             handles, labels,
             loc="upper center",
             ncol=6,
-            fontsize=35,
+            fontsize=30,
             handlelength=1.2,
             markerscale=1.5
         )

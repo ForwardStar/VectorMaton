@@ -25,7 +25,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
-METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "VectorMaton"]
+METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
 METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
 METHOD_HATCHES = {
     "OptQuery": "\\",
@@ -36,6 +36,7 @@ METHOD_HATCHES = {
     "ACORN-gamma": "x",
     "pgvector": "-",
     "ElasticSearch": "/",
+    "BM25Filtering": "|",
     "VectorMaton": ".",
 }
 
@@ -44,6 +45,16 @@ def method_label(method):
     return METHOD_LABELS.get(method, method)
 
 PEAK_MEMORY_PATTERN = re.compile(r"peak memory consumption:\s*(\d+)\s*bytes")
+INDEX_BUILD_TIME_PATTERN = re.compile(r"index built took\s*(\d+)\s*(?:μs|us)")
+CSV_BUILD_TIME_COLUMNS = [
+    ("build_time_us", 1_000_000.0),
+    ("index_build_time_us", 1_000_000.0),
+    ("index_build_elapsed_us", 1_000_000.0),
+    ("build_time_s", 1.0),
+    ("build_time_seconds", 1.0),
+    ("index_build_time_s", 1.0),
+    ("index_build_time_seconds", 1.0),
+]
 
 
 class HandlerOverlayPatch(HandlerBase):
@@ -77,7 +88,8 @@ def method_colors():
         "ACORN-gamma": cs(4),
         "pgvector": cs(5),
         "ElasticSearch": cs(6),
-        "VectorMaton": cs(7),
+        "BM25Filtering": cs(7),
+        "VectorMaton": cs(8),
     }
 
 
@@ -114,6 +126,45 @@ def load_csv_memory_bytes(path):
     return int(values.iloc[0])
 
 
+def load_log_build_time_seconds(path):
+    if not os.path.exists(path):
+        return None
+
+    with open(path, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    matches = INDEX_BUILD_TIME_PATTERN.findall(content)
+    if not matches:
+        return None
+
+    return int(matches[-1]) / 1_000_000.0
+
+
+def load_csv_build_time_seconds(path):
+    if not os.path.exists(path):
+        return None
+
+    try:
+        df = pd.read_csv(path)
+    except Exception:
+        return None
+
+    if df.empty:
+        return None
+
+    for column, divisor in CSV_BUILD_TIME_COLUMNS:
+        if column not in df.columns:
+            continue
+
+        values = pd.to_numeric(df[column], errors="coerce").dropna()
+        if values.empty:
+            continue
+
+        return float(values.iloc[0]) / divisor
+
+    return None
+
+
 def load_memory_bytes(method, dataset, pattern_length):
     if method in {"ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch"}:
         path = os.path.join("results", method, dataset, f"{pattern_length}.csv")
@@ -121,6 +172,16 @@ def load_memory_bytes(method, dataset, pattern_length):
 
     path = os.path.join("results", method, dataset, str(pattern_length))
     return load_log_memory_bytes(path)
+
+
+def load_build_time_seconds(method, dataset, pattern_length):
+    log_path = os.path.join("results", method, dataset, str(pattern_length))
+    build_time_seconds = load_log_build_time_seconds(log_path)
+    if build_time_seconds is not None:
+        return build_time_seconds
+
+    csv_path = os.path.join("results", method, dataset, f"{pattern_length}.csv")
+    return load_csv_build_time_seconds(csv_path)
 
 
 def draw_bars(ax, xs, ys, bar_width, hatch, color, label):
@@ -145,60 +206,104 @@ def draw_bars(ax, xs, ys, bar_width, hatch, color, label):
     )
 
 
-def plot_memory(pattern_length, output):
-    colors = method_colors()
-    results = {
-        method: [load_memory_bytes(method, dataset, pattern_length) for dataset in DATASETS]
-        for method in METHODS
-    }
-
-    group_gap = 1.35
-    x = [i * group_gap for i in range(len(DATASETS))]
-    bar_width = 0.12
-    offset_center = (len(METHODS) - 1) / 2
-
-    fig, ax = plt.subplots(1, 1, figsize=(24, 8))
-
-    # Determine maximum observed memory (MB) to use for the y-axis.
-    max_mb = 0
+def max_observed(results, scale):
+    max_value = 0
     for vals in results.values():
         for v in vals:
             if v is not None:
-                max_mb = max(max_mb, v / (1024 * 1024))
-    if max_mb <= 0:
-        max_mb = 1
-    axis_top_mb = max_mb * 1.8
+                max_value = max(max_value, v / scale)
+    return max_value if max_value > 0 else 1
 
-    # datasets where OptQuery should be shown as OOM when missing
+
+def draw_metric_bars(
+    ax,
+    results,
+    value_scale,
+    axis_top,
+    bar_width,
+    x,
+    colors,
+    methods,
+    show_oom=False,
+    show_optquery_na=False,
+    show_pgvector_words_na=False,
+):
+    offset_center = (len(methods) - 1) / 2
     oom_target_datasets = {"mtg", "arxiv-small", "swissprot", "code_search_net"}
     oom_positions = []
+    na_positions = []
 
-    for i, method in enumerate(METHODS):
+    for i, method in enumerate(methods):
         xs, ys = [], []
-        for j, memory_bytes in enumerate(results[method]):
+        for j, value in enumerate(results[method]):
             dataset = DATASETS[j]
-            if memory_bytes is None:
-                # For OptQuery on certain datasets, mark OOM by plotting at max
-                if method == "OptQuery" and dataset in oom_target_datasets:
-                    xs.append(x[j] + (i - offset_center) * bar_width)
-                    ys.append(axis_top_mb)
-                    oom_positions.append(xs[-1])
+            x_pos = x[j] + (i - offset_center) * bar_width
+
+            if value is None:
+                if show_oom and method == "OptQuery" and dataset in oom_target_datasets:
+                    xs.append(x_pos)
+                    ys.append(axis_top)
+                    oom_positions.append(x_pos)
+                elif show_optquery_na and method == "OptQuery" and dataset in oom_target_datasets:
+                    na_positions.append(x_pos)
+                elif show_pgvector_words_na and method == "pgvector" and dataset == "words":
+                    na_positions.append(x_pos)
                 else:
                     continue
             else:
-                xs.append(x[j] + (i - offset_center) * bar_width)
-                ys.append(memory_bytes / (1024 * 1024))
+                xs.append(x_pos)
+                ys.append(value / value_scale)
 
         draw_bars(ax, xs, ys, bar_width, METHOD_HATCHES[method], colors[method], method)
 
+    text_transform = blended_transform_factory(ax.transData, ax.transAxes)
+    for ox in oom_positions:
+        ax.text(ox, 0.98, "OOM", ha="center", va="top", fontsize=30, fontweight="bold", color="red", transform=text_transform)
+    for nx in na_positions:
+        ax.text(nx, 0.01, "N/A", ha="center", va="bottom", fontsize=22, fontweight="bold", color="red", rotation=270, transform=text_transform)
+
+
+def configure_metric_axis(ax, ylabel, axis_top, bar_width, x, methods):
+    offset_center = (len(methods) - 1) / 2
     ax.set_xticks(x)
     ax.set_xticklabels(DATASET_LABELS, fontsize=30)
     ax.tick_params(axis="y", labelsize=30)
-    ax.set_ylabel("Peak build memory (MB)", fontsize=35)
-    ax.set_xlabel("Dataset", fontsize=35, fontweight="bold")
+    ax.set_ylabel(ylabel, fontsize=35)
+    # ax.set_xlabel("Dataset", fontsize=45, fontweight="bold")
     ax.set_yscale("log")
-    ax.set_ylim(top=axis_top_mb)
+    x_margin = bar_width * 0.25
+    ax.set_xlim(x[0] - bar_width * (offset_center + 0.5) - x_margin, x[-1] + bar_width * (offset_center + 0.5) + x_margin)
+    ax.set_ylim(top=axis_top)
     ax.grid(True, axis="y", linestyle="--", alpha=0.7)
+
+
+def plot_memory(pattern_length, output):
+    colors = method_colors()
+    memory_results = {
+        method: [load_memory_bytes(method, dataset, pattern_length) for dataset in DATASETS]
+        for method in METHODS
+    }
+    time_results = {
+        method: [load_build_time_seconds(method, dataset, pattern_length) for dataset in DATASETS]
+        for method in METHODS
+    }
+
+    group_gap = 1.2
+    x = [i * group_gap for i in range(len(DATASETS))]
+    bar_width = 0.10
+    memory_methods = [method for method in METHODS if method != "ElasticSearch"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(36, 5))
+    ax_memory, ax_time = axes
+
+    axis_top_mb = max_observed(memory_results, 1024 * 1024) * 1.8
+    axis_top_time_s = max_observed(time_results, 1.0) * 1.8
+
+    draw_metric_bars(ax_memory, memory_results, 1024 * 1024, axis_top_mb, bar_width, x, colors, memory_methods, show_oom=True, show_pgvector_words_na=True)
+    configure_metric_axis(ax_memory, "Memory (MB)", axis_top_mb, bar_width, x, memory_methods)
+
+    draw_metric_bars(ax_time, time_results, 1.0, axis_top_time_s, bar_width, x, colors, METHODS, show_optquery_na=True, show_pgvector_words_na=True)
+    configure_metric_axis(ax_time, "Time (s)", axis_top_time_s, bar_width, x, METHODS)
 
     fig.legend(
         handles=[
@@ -210,21 +315,15 @@ def plot_memory(pattern_length, output):
         ],
         labels=[method_label(method) for method in METHODS],
         loc="upper center",
-        ncol=4,
+        ncol=5,
         fontsize=35,
         handler_map={tuple: HandlerOverlayPatch()},
     )
 
-    # Annotate OOM bars
-    oom_text_transform = blended_transform_factory(ax.transData, ax.transAxes)
-    for ox in oom_positions:
-        ax.text(ox, 0.98, "OOM", ha="center", va="top", fontsize=24, fontweight="bold", color="red", transform=oom_text_transform)
-
-    plt.tight_layout(rect=[0, 0, 1, 0.75])
+    plt.tight_layout(rect=[0, 0, 1, 0.67])
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
     plt.savefig(output)
     print(f"Saved {output}")
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Plot build peak memory consumption for all methods and datasets.")

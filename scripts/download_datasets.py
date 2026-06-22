@@ -393,6 +393,164 @@ if __name__ == "__main__":
     else:
         log.info("ArXiv-small dataset already exists. Skipped.")
 
+    # Wikipedia
+    wikipedia_dir = "datasets/wikipedia"
+    wikipedia_vectors = os.path.join(wikipedia_dir, "vectors.txt")
+    wikipedia_strings = os.path.join(wikipedia_dir, "strings.txt")
+    wikipedia_rebuild = os.environ.get("WIKIPEDIA_REBUILD", "0") == "1"
+    wikipedia_ready = (
+        os.path.exists(wikipedia_vectors) and os.path.exists(wikipedia_strings)
+    )
+    if wikipedia_rebuild or not wikipedia_ready:
+        os.makedirs(wikipedia_dir, exist_ok=True)
+        log.info("Downloading and generating Wikipedia dataset...")
+        start = time.perf_counter()
+
+        max_articles = 10000
+        num_articles = int(os.environ.get("WIKIPEDIA_NUM_ARTICLES", "10000"))
+        chunk_size_words = int(os.environ.get("WIKIPEDIA_CHUNK_WORDS", "128"))
+        chunk_overlap_words = int(
+            os.environ.get("WIKIPEDIA_CHUNK_OVERLAP", "16")
+        )
+        min_chunk_words = int(
+            os.environ.get("WIKIPEDIA_MIN_CHUNK_WORDS", "32")
+        )
+        if not 0 < num_articles <= max_articles:
+            raise ValueError(
+                f"WIKIPEDIA_NUM_ARTICLES must be between 1 and {max_articles}"
+            )
+        if chunk_size_words <= 0:
+            raise ValueError("WIKIPEDIA_CHUNK_WORDS must be positive")
+        if not 0 <= chunk_overlap_words < chunk_size_words:
+            raise ValueError(
+                "WIKIPEDIA_CHUNK_OVERLAP must be nonnegative and smaller "
+                "than WIKIPEDIA_CHUNK_WORDS"
+            )
+        if not 0 < min_chunk_words <= chunk_size_words:
+            raise ValueError(
+                "WIKIPEDIA_MIN_CHUNK_WORDS must be positive and no larger "
+                "than WIKIPEDIA_CHUNK_WORDS"
+            )
+
+        dataset = load_dataset(
+            "wikimedia/wikipedia",
+            "20231101.en",
+            split="train",
+            streaming=True,
+        )
+        dataset = dataset.shuffle(seed=42, buffer_size=10000).take(num_articles)
+        log.info(
+            f"Streaming {num_articles} articles with {chunk_size_words}-word "
+            f"chunks and {chunk_overlap_words}-word overlap."
+        )
+
+        from sentence_transformers import SentenceTransformer
+
+        embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+        batch_size = 256
+        string_texts = []
+        embed_texts = []
+        article_count = 0
+        chunk_count = 0
+
+        def chunk_article(
+            text,
+            chunk_size=chunk_size_words,
+            overlap=chunk_overlap_words,
+        ):
+            words = text.split()
+            if not words:
+                return
+            step = max(1, chunk_size - overlap)
+            for start_idx in range(0, len(words), step):
+                chunk_words = words[start_idx : start_idx + chunk_size]
+                if len(chunk_words) >= min_chunk_words:
+                    yield " ".join(chunk_words)
+                if start_idx + chunk_size >= len(words):
+                    break
+
+        vectors_tmp = wikipedia_vectors + ".tmp"
+        strings_tmp = wikipedia_strings + ".tmp"
+        try:
+            with open(vectors_tmp, "w") as vec_file, open(
+                strings_tmp, "w"
+            ) as str_file:
+
+                def write_batch():
+                    batch_count = len(string_texts)
+                    if batch_count == 0:
+                        return 0
+                    vectors = embed_model.encode(
+                        embed_texts,
+                        batch_size=batch_size,
+                        show_progress_bar=False,
+                    )
+                    for text, vector in zip(string_texts, vectors):
+                        str_file.write(text + "\n")
+                        vec_file.write(
+                            " ".join(map(str, vector.tolist())) + "\n"
+                        )
+                    string_texts.clear()
+                    embed_texts.clear()
+                    return batch_count
+
+                for item in dataset:
+                    article_count += 1
+                    raw_text = item["text"].replace("\n", " ").strip()
+                    for chunk in chunk_article(raw_text):
+                        normalized = "".join(
+                            c
+                            for c in chunk
+                            if ("a" <= c <= "z") or ("A" <= c <= "Z")
+                        ).lower()
+                        if normalized:
+                            string_texts.append(normalized)
+                            embed_texts.append(chunk)
+                        if len(string_texts) >= batch_size:
+                            chunk_count += write_batch()
+                chunk_count += write_batch()
+
+            os.replace(vectors_tmp, wikipedia_vectors)
+            os.replace(strings_tmp, wikipedia_strings)
+        except BaseException:
+            for tmp_path in (vectors_tmp, strings_tmp):
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            raise
+
+        with open(
+            os.path.join(wikipedia_dir, "metadata.json"),
+            "w",
+            encoding="utf-8",
+        ) as metadata_file:
+            json.dump(
+                {
+                    "source": "wikimedia/wikipedia:20231101.en",
+                    "articles": article_count,
+                    "chunks": chunk_count,
+                    "chunk_words": chunk_size_words,
+                    "chunk_overlap_words": chunk_overlap_words,
+                    "minimum_chunk_words": min_chunk_words,
+                    "embedding_model": "all-MiniLM-L6-v2",
+                    "shuffle_seed": 42,
+                },
+                metadata_file,
+                indent=2,
+            )
+
+        log.info(
+            f"Wikipedia dataset processed: {article_count} articles, "
+            f"{chunk_count} chunks."
+        )
+        end = time.perf_counter()
+        elapsed = end - start
+        log.info(f"Time consumption: {format_time(elapsed)}")
+    else:
+        log.info(
+            "Wikipedia dataset already exists. "
+            "Set WIKIPEDIA_REBUILD=1 to rebuild it."
+        )
+
     # SIFT (TEXMEX)
     sift_vectors_path = "datasets/sift/vectors.txt"
     sift_strings_path = "datasets/sift/strings.txt"

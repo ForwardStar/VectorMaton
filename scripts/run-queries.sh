@@ -122,6 +122,9 @@ fi
 if [ ! -d "results/VectorMaton" ]; then
     mkdir results/VectorMaton
 fi
+if [ ! -d "results/BM25Filtering" ]; then
+    mkdir results/BM25Filtering
+fi
 
 if [ ! -d "results/ACORN-gamma" ]; then
     mkdir results/ACORN-gamma
@@ -140,10 +143,16 @@ run_acorn_variants() {
         if [ ! -d "results/ACORN-gamma/${dataset}" ]; then
             mkdir "results/ACORN-gamma/${dataset}"
         fi
+        if [ "$pattern_length" -eq 2 ]; then
+            ACORN_INDEX_FLAG="--save-index=results/ACORN-gamma/${dataset}/index"
+        else
+            ACORN_INDEX_FLAG="--load-index=results/ACORN-gamma/${dataset}/index"
+        fi
         OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
             --M=32 --gamma=32 --M-beta=64 \
+            ${ACORN_INDEX_FLAG} \
             --output="results/ACORN-gamma/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-gamma/${dataset}/${pattern_length}"
     fi
@@ -152,10 +161,16 @@ run_acorn_variants() {
         if [ ! -d "results/ACORN-1/${dataset}" ]; then
             mkdir "results/ACORN-1/${dataset}"
         fi
+        if [ "$pattern_length" -eq 2 ]; then
+            ACORN_INDEX_FLAG="--save-index=results/ACORN-1/${dataset}/index"
+        else
+            ACORN_INDEX_FLAG="--load-index=results/ACORN-1/${dataset}/index"
+        fi
         OMP_NUM_THREADS=1 ./build/test_acorn \
             "${strings_file}" "${vectors_file}" \
             strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt \
             --M=32 --gamma=1 --M-beta=32 \
+            ${ACORN_INDEX_FLAG} \
             --output="results/ACORN-1/${dataset}/${pattern_length}.csv" \
             > "results/ACORN-1/${dataset}/${pattern_length}"
     fi
@@ -210,6 +225,17 @@ do
             ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart > results/VectorMaton/spam/$s --statistics-file=results/VectorMaton/spam/$s.csv --save-index=results/VectorMaton/spam/index &
         else
             ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart > results/VectorMaton/spam/$s --statistics-file=results/VectorMaton/spam/$s.csv --load-index=results/VectorMaton/spam/index &
+        fi
+    fi
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/spam" ]; then
+            mkdir results/BM25Filtering/spam
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/spam/index --statistics-file=results/BM25Filtering/spam/$s.csv > results/BM25Filtering/spam/$s &
+        else
+            ./build/main datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/spam/index --statistics-file=results/BM25Filtering/spam/$s.csv > results/BM25Filtering/spam/$s &
         fi
     fi
     wait
@@ -291,19 +317,30 @@ do
             ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --load-index=results/VectorMaton/words/index > results/VectorMaton/words/$s --statistics-file=results/VectorMaton/words/$s.csv &
         fi
     fi
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/words" ]; then
+            mkdir results/BM25Filtering/words
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/words/index --statistics-file=results/BM25Filtering/words/$s.csv > results/BM25Filtering/words/$s &
+        else
+            ./build/main datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/words/index --statistics-file=results/BM25Filtering/words/$s.csv > results/BM25Filtering/words/$s &
+        fi
+    fi
     wait
     run_acorn_variants "words" datasets/words/strings.txt datasets/words/vectors.txt "$s"
     # pgvector
-    if should_run "pgvector"; then
-        if [ ! -d "results/pgvector/words" ]; then
-            mkdir results/pgvector/words
-        fi
-        if [ "$s" -eq 2 ]; then
-            python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
-        else
-            python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
-        fi
-    fi
+    # if should_run "pgvector"; then
+    #     if [ ! -d "results/pgvector/words" ]; then
+    #         mkdir results/pgvector/words
+    #     fi
+    #     if [ "$s" -eq 2 ]; then
+    #         python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
+    #     else
+    #         python3 test_pgvector.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
+    #     fi
+    # fi
     if should_run "ElasticSearch"; then
         if [ ! -d "results/ElasticSearch/words" ]; then
             mkdir results/ElasticSearch/words
@@ -366,7 +403,18 @@ do
         else
             ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --load-index=results/VectorMaton/mtg/index > results/VectorMaton/mtg/$s --statistics-file=results/VectorMaton/mtg/$s.csv &
         fi
-    fi
+    fi    
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/mtg" ]; then
+            mkdir results/BM25Filtering/mtg
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/mtg/index --statistics-file=results/BM25Filtering/mtg/$s.csv > results/BM25Filtering/mtg/$s &
+        else
+            ./build/main datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/mtg/index --statistics-file=results/BM25Filtering/mtg/$s.csv > results/BM25Filtering/mtg/$s &
+        fi
+    fi    
     wait
     run_acorn_variants "mtg" datasets/mtg/strings.txt datasets/mtg/vectors.txt "$s"
     # pgvector
@@ -442,7 +490,18 @@ do
         else
             ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --load-index=results/VectorMaton/arxiv-small/index > results/VectorMaton/arxiv-small/$s --statistics-file=results/VectorMaton/arxiv-small/$s.csv &
         fi
-    fi
+    fi    
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/arxiv-small" ]; then
+            mkdir results/BM25Filtering/arxiv-small
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/arxiv-small/index --statistics-file=results/BM25Filtering/arxiv-small/$s.csv > results/BM25Filtering/arxiv-small/$s &
+        else
+            ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/arxiv-small/index --statistics-file=results/BM25Filtering/arxiv-small/$s.csv > results/BM25Filtering/arxiv-small/$s &
+        fi
+    fi   
     wait
     run_acorn_variants "arxiv-small" datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt "$s"
     # pgvector
@@ -519,6 +578,17 @@ do
             ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --load-index=results/VectorMaton/swissprot/index > results/VectorMaton/swissprot/$s --statistics-file=results/VectorMaton/swissprot/$s.csv &
         fi
     fi
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/swissprot" ]; then
+            mkdir results/BM25Filtering/swissprot
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/swissprot/index --statistics-file=results/BM25Filtering/swissprot/$s.csv > results/BM25Filtering/swissprot/$s &
+        else
+            ./build/main datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/swissprot/index --statistics-file=results/BM25Filtering/swissprot/$s.csv > results/BM25Filtering/swissprot/$s &
+        fi
+    fi
     wait
     run_acorn_variants "swissprot" datasets/swissprot/strings.txt datasets/swissprot/vectors.txt "$s"
     # pgvector
@@ -593,6 +663,17 @@ do
             ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --save-index=results/VectorMaton/code_search_net/index > results/VectorMaton/code_search_net/$s --statistics-file=results/VectorMaton/code_search_net/$s.csv &
         else
             ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt VectorMaton-smart --load-index=results/VectorMaton/code_search_net/index > results/VectorMaton/code_search_net/$s --statistics-file=results/VectorMaton/code_search_net/$s.csv &
+        fi
+    fi
+    # BM25Filtering
+    if should_run "BM25Filtering"; then
+        if [ ! -d "results/BM25Filtering/code_search_net" ]; then
+            mkdir results/BM25Filtering/code_search_net
+        fi
+        if [ "$s" -eq 2 ]; then
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --save-index=results/BM25Filtering/code_search_net/index --statistics-file=results/BM25Filtering/code_search_net/$s.csv > results/BM25Filtering/code_search_net/$s &
+        else
+            ./build/main datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt BM25Filtering --load-index=results/BM25Filtering/code_search_net/index --statistics-file=results/BM25Filtering/code_search_net/$s.csv > results/BM25Filtering/code_search_net/$s &
         fi
     fi
     wait

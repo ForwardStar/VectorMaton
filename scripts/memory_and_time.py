@@ -126,6 +126,7 @@ for i, method in enumerate(methods):
     xs, ys = [], []
 
     for j, size in enumerate(results[method]):
+        # compute positions; if missing for OptQuery on certain datasets, mark as OOM later
         if size is not None:
             xs.append(j + (i - 0.5) * bar_width)
             ys.append(size / (1024 * 1024))  # MB
@@ -172,6 +173,35 @@ fig.legend(
     fontsize=45,
     handler_map={tuple: HandlerOverlayPatch()},
 )
+# Determine maximum observed memory (MB) to use for OOM bars
+max_mb = 0
+for vals in results.values():
+    for v in vals:
+        if v is not None:
+            max_mb = max(max_mb, v / (1024 * 1024))
+if max_mb <= 0:
+    max_mb = 1
+
+# datasets where OptQuery should be shown as OOM when missing
+oom_target_datasets = {"mtg", "arxiv-small", "swissprot", "code_search_net"}
+oom_positions = []
+
+# Re-draw OptQuery OOM bars if needed
+opt_idx = methods.index("OptQuery") if "OptQuery" in methods else None
+if opt_idx is not None:
+    i = opt_idx
+    xs, ys = [], []
+    for j, size in enumerate(results["OptQuery"]):
+        if size is None and datasets[j] in oom_target_datasets:
+            xs.append(j + (i - 0.5) * bar_width)
+            ys.append(max_mb)
+            oom_positions.append((xs[-1], ys[-1]))
+    if xs:
+        draw_bars(ax_mem, xs, ys, i, "OptQuery")
+
+# Annotate OOM bars
+for ox, oy in oom_positions:
+    ax_mem.text(ox, oy * 1.06, "OOM", ha="center", va="bottom", fontsize=18, fontweight="bold", color="red")
 
 plt.tight_layout(rect=[0, 0, 1, 0.8])
 os.makedirs("figures", exist_ok=True)
