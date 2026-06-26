@@ -170,7 +170,7 @@ Each experiment expects aligned string and vector files:
 Download and generate datasets:
 
 ```sh
-pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0
+pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0 sentence_transformers==5.6.0
 python3 scripts/download_datasets.py
 ```
 
@@ -316,6 +316,7 @@ You should follow the build instructions above and install python dependencies b
 Firstly download datasets:
 
 ```sh
+pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0 sentence_transformers==5.6.0
 python3 scripts/download_datasets.py
 ```
 
@@ -351,31 +352,32 @@ Figures are written under `figures/`; raw outputs are written under `results/`.
 
 ## Minimal native-only experiment example
 
-The external baselines require separate services or libraries: ACORN/FAISS, Elasticsearch, and PostgreSQL/pgvector. To run a smaller experiment pass with only the in-repository C++ methods, build the default targets and blacklist the external baselines in scripts that support method blacklists.
+The external baselines require separate services or libraries: ACORN/FAISS, Elasticsearch, and PostgreSQL/pgvector. To run a smaller experiment pass with only the in-repository C++ methods, build the default targets and blacklist the external baselines in scripts that support method blacklists. The example below also skips the large protein and code datasets (`swissprot` and `code_search_net`) so the run finishes sooner.
 
 ```sh
 git submodule update --init --recursive
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
+pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0 sentence_transformers==5.6.0
 python3 scripts/download_datasets.py
 
 sh scripts/run/run-queries.sh \
-  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch
+  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch \
+  --blacklist-dataset=swissprot,code_search_net
 
 sh scripts/run/run-scalability.sh
-sh scripts/run/run-parallel.sh
 sh scripts/run/run-sift.sh
 sh scripts/run/run-threshold.sh
-sh scripts/run/run-postfiltering.sh
+sh scripts/run/run-postfiltering.sh \
+  --blacklist-dataset=swissprot,code_search_net
 
 sh scripts/run/run-insertion.sh \
-  --methods "OptQuery BM25Filtering PreFiltering PostFiltering Hybrid VectorMaton-smart"
-```
+  --methods "OptQuery BM25Filtering PreFiltering PostFiltering Hybrid VectorMaton-smart" \
+  --datasets "spam words mtg arxiv-small"
 
-For the long-sequence experiment, the script generates prompt embeddings automatically if `string_prompt.txt` or `vectors_prompt.txt` is missing. This requires the Python dependencies used by `scripts/prompt_embedding.py`, including `sentence-transformers`.
-
-```sh
 sh scripts/run/run-long-sequence.sh \
   --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch
 ```
+
+This minimal pass intentionally omits `scripts/run/run-parallel.sh`, because that script is designed for the larger `swissprot` and `code_search_net` datasets.
