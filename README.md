@@ -52,12 +52,6 @@ If you prefer to link against a prebuilt library manually, include `source/` and
 
 ## Minimal demo
 
-`set_vectors` takes a one-dimensional `std::vector<float>` because VectorMaton stores vectors as a flattened row-major matrix. For `n` vectors with dimension `dim`, pass `n * dim` floats. Vector `i` occupies:
-
-```cpp
-vectors[i * dim + 0], vectors[i * dim + 1], ..., vectors[i * dim + dim - 1]
-```
-
 ```cpp
 #include "vectormaton.h"
 
