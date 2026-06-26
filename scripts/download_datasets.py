@@ -18,7 +18,6 @@ DATASET_NAMES = {
     "mtg",
     "code_search_net",
     "swissprot",
-    "arxiv",
     "arxiv-small",
     "wikipedia",
     "sift",
@@ -408,33 +407,6 @@ if __name__ == "__main__":
         log.info(f"Time consumption: {format_time(elapsed)}")
     else:
         log.info("SwissProt dataset already exists. Skipped.")
-
-    # ArXiv
-    if should_skip_dataset("arxiv"):
-        pass
-    elif not os.path.exists("datasets/arxiv"):
-        os.makedirs("datasets/arxiv")
-        log.info("Downloading and generating ArXiv dataset...")
-        start = time.perf_counter()
-        # Load dataset
-        dataset = load_dataset("Qdrant/arxiv-titles-instructorxl-embeddings", split="train", streaming=False)
-        log.info(f"Dataset loaded. Size = {dataset.num_rows} entries.")
-        with open("datasets/arxiv/vectors.txt", "w") as vec_file, open("datasets/arxiv/strings.txt", "w") as str_file:
-            for item in dataset:
-                s = item['title'].replace("\n", " ")
-                # Remove all non-alphabet symbols
-                s = ''.join(c for c in s if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))
-                # Convert to lowercase
-                s = s.lower()
-                v = item['vector']
-                if s != "":
-                    str_file.write(s + "\n")
-                    vec_file.write(" ".join(map(str, v)) + "\n")
-        end = time.perf_counter()
-        elapsed = end - start
-        log.info(f"Time consumption: {format_time(elapsed)}")
-    else:
-        log.info("ArXiv dataset already exists. Skipped.")
     
     # Arxiv-small
     if should_skip_dataset("arxiv-small"):
