@@ -4,7 +4,7 @@ import re
 
 import pandas as pd
 
-from plot_memory_consumption import (
+from plot_index_figure_12 import (
     DATASET_LABELS,
     DATASETS,
     METHOD_HATCHES,
@@ -15,6 +15,8 @@ from plot_memory_consumption import (
     method_colors,
     method_label,
 )
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 

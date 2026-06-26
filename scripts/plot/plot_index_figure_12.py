@@ -2,6 +2,8 @@ import argparse
 import os
 import re
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 from matplotlib import rcParams

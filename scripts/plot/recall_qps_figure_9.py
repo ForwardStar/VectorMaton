@@ -2,6 +2,8 @@ import sys
 import os
 import re
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
