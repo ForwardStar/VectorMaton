@@ -76,7 +76,7 @@ def plot_sift_panel_block(axes_block):
     markers = ["s", "d"]
     cs = plt.colormaps["tab10"]
     colors = [cs(i) for i in range(3)]
-    p_lens = [2, 3]
+    p_lens = [2, 4]
 
     for idx, p_len in enumerate(p_lens):
         ax = axes_block[idx]

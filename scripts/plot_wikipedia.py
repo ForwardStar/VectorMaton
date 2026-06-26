@@ -171,7 +171,7 @@ def context_excerpt(text, pattern, context_chars=110):
     return excerpt, match_start, match_start + len(pattern)
 
 
-def highlighted_lines(text, highlight_start, highlight_end, width=64):
+def highlighted_lines(text, highlight_start, highlight_end, width=128):
     lines = []
     for line_start in range(0, len(text), width):
         line = text[line_start : line_start + width]
@@ -245,10 +245,10 @@ def plot_top_chunks(ax, query_number=1, query_text=None):
 
     panel = VPacker(children=chunk_boxes, align="left", pad=0, sep=14)
     anchored_panel = AnchoredOffsetbox(
-        loc="upper left",
+        loc="upper center",
         child=panel,
         frameon=False,
-        bbox_to_anchor=(0, 0.84),
+        bbox_to_anchor=(0.5, 0.84),
         bbox_transform=ax.transAxes,
         borderpad=0,
     )
@@ -263,7 +263,7 @@ def plot_top_chunks(ax, query_number=1, query_text=None):
         fontsize=18,
         fontweight="bold",
         pad=0,
-        loc="left",
+        loc="center",
         y=0.93,
     )
     ax.set_axis_off()
@@ -337,11 +337,11 @@ def plot_wikipedia(ax):
     selectivity_text = "N/A" if selectivity is None else f"{selectivity:.3g}"
     ax.set_title(
         f"wikipedia",
-        fontsize=25,
+        fontsize=20,
         fontweight="bold",
     )
-    ax.set_xlabel("Recall @ 10", fontsize=25)
-    ax.set_ylabel("QPS", fontsize=25)
+    ax.set_xlabel("Recall @ 10", fontsize=20)
+    ax.set_ylabel("QPS", fontsize=20)
     ax.set_yscale("log")
     if qps_values:
         ax.set_ylim(bottom=min(qps_values) * 0.5, top=max(qps_values) * 2)
@@ -351,7 +351,7 @@ def plot_wikipedia(ax):
 
 if __name__ == "__main__":
     fig, axes = plt.subplots(
-        1, 2, figsize=(14, 5.5), gridspec_kw={"width_ratios": [1, 1.2]}
+        1, 2, figsize=(14, 4.5), gridspec_kw={"width_ratios": [1, 1.2]}
     )
     plot_wikipedia(axes[0])
     plot_top_chunks(
@@ -377,7 +377,16 @@ if __name__ == "__main__":
         markerscale=1.2,
         bbox_to_anchor=(0.5, 1.0),
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.78])
+    plt.tight_layout(rect=[0, 0, 1, 0.75])
+    left_position = axes[0].get_position()
+    axes[0].set_position(
+        [
+            left_position.x0 - 0.05,
+            left_position.y0,
+            left_position.width,
+            left_position.height,
+        ]
+    )
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_wikipedia.pdf", bbox_inches="tight")

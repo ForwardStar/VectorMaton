@@ -95,8 +95,9 @@ def collect_parallel_points(dataset):
     return xs, ys
 
 
-def main():
-    fig, axes = plt.subplots(1, 6, figsize=(30, 4.5), sharey=False)
+def plot_scalability(nrows, ncols, figsize, output_path):
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize, sharey=False)
+    axes = axes.reshape(-1)
     cs = plt.colormaps["tab10"]
     legend_handles = None
     legend_labels = None
@@ -161,10 +162,10 @@ def main():
                 fontsize=14,
             )
 
-        ax_size.set_title(f"{dataset_title} (Size)", fontsize=30, fontweight="bold")
-        ax_time.set_title(f"{dataset_title} (Time)", fontsize=30, fontweight="bold")
-        ax_size.set_xlabel("Total sequence length", fontsize=30)
-        ax_time.set_xlabel("Total sequence length", fontsize=30)
+        ax_size.set_title(f"{dataset_title} (Size)", fontsize=25, fontweight="bold")
+        ax_time.set_title(f"{dataset_title} (Time)", fontsize=25, fontweight="bold")
+        ax_size.set_xlabel("Total sequence length", fontsize=25)
+        ax_time.set_xlabel("Total sequence length", fontsize=25)
 
         for ax in (ax_size, ax_time):
             ax.grid(True, linestyle="--", alpha=0.7)
@@ -177,8 +178,8 @@ def main():
         if handles:
             legend_handles, legend_labels = handles, labels
 
-    axes[0].set_ylabel("Size (MB)", fontsize=30)
-    axes[len(DATASETS)].set_ylabel("Time (s)", fontsize=30)
+    axes[0].set_ylabel("Size (MB)", fontsize=25)
+    axes[len(DATASETS)].set_ylabel("Time (s)", fontsize=25)
 
     parallel_color = cs(8)
     parallel_start = 2 * len(DATASETS)
@@ -207,16 +208,16 @@ def main():
                 color=parallel_color,
             )
 
-        ax.set_title(f"{dataset_brief} (Parallel)", fontsize=30, fontweight="bold")
-        ax.set_xlabel("# Threads", fontsize=30)
+        ax.set_title(f"{dataset_brief} (Parallel)", fontsize=25, fontweight="bold")
+        ax.set_xlabel("# Threads", fontsize=25)
         if i == 0:
-            ax.set_ylabel("Time (s)", fontsize=30)
+            ax.set_ylabel("Time (s)", fontsize=25)
         ax.grid(True, linestyle="--", alpha=0.7)
-        ax.tick_params(axis="both", labelsize=25)
+        ax.tick_params(axis="both", labelsize=20)
         ax.set_xscale("log", base=2)
         ax.set_yscale("log", base=2)
         ax.set_xticks(THREADS)
-        ax.set_xticklabels([str(t) for t in THREADS], fontsize=25)
+        ax.set_xticklabels([str(t) for t in THREADS], fontsize=20)
 
     if legend_handles:
         fig.legend(
@@ -227,11 +228,27 @@ def main():
             handlelength=1.2,
             markerscale=1.5
         )
-        plt.tight_layout(rect=[0, 0, 1, 0.8])
+        fig.tight_layout(rect=[0, 0, 1, 0.9 if nrows > 1 else 0.8])
     else:
-        plt.tight_layout()
+        fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def main():
     os.makedirs("figures", exist_ok=True)
-    plt.savefig("figures/scalability_index_size_vs_m.pdf")
+    plot_scalability(
+        1,
+        6,
+        figsize=(30, 4.5),
+        output_path="figures/scalability_index_size_vs_m.pdf",
+    )
+    plot_scalability(
+        2,
+        3,
+        figsize=(18, 8),
+        output_path="figures/scalability_index_size_vs_m_2x3.pdf",
+    )
 
 
 if __name__ == "__main__":

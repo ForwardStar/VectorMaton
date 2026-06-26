@@ -266,9 +266,9 @@ def draw_metric_bars(
 def configure_metric_axis(ax, ylabel, axis_top, bar_width, x, methods):
     offset_center = (len(methods) - 1) / 2
     ax.set_xticks(x)
-    ax.set_xticklabels(DATASET_LABELS, fontsize=30)
-    ax.tick_params(axis="y", labelsize=30)
-    ax.set_ylabel(ylabel, fontsize=35)
+    ax.set_xticklabels(DATASET_LABELS, fontsize=25)
+    ax.tick_params(axis="y", labelsize=25)
+    ax.set_ylabel(ylabel, fontsize=25)
     # ax.set_xlabel("Dataset", fontsize=45, fontweight="bold")
     ax.set_yscale("log")
     x_margin = bar_width * 0.25
@@ -293,7 +293,7 @@ def plot_memory(pattern_length, output):
     bar_width = 0.10
     memory_methods = [method for method in METHODS if method != "ElasticSearch"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(36, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(36, 4))
     ax_memory, ax_time = axes
 
     axis_top_mb = max_observed(memory_results, 1024 * 1024) * 1.8
@@ -315,12 +315,15 @@ def plot_memory(pattern_length, output):
         ],
         labels=[method_label(method) for method in METHODS],
         loc="upper center",
-        ncol=5,
-        fontsize=35,
+        ncol=10,
+        fontsize=30,
+        handlelength=1.5,
+        handletextpad=0.4,
+        columnspacing=2,
         handler_map={tuple: HandlerOverlayPatch()},
     )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.67])
+    plt.tight_layout(rect=[0, 0, 1, 0.8])
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
     plt.savefig(output)
     print(f"Saved {output}")

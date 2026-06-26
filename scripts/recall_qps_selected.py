@@ -160,10 +160,10 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
         )
 
     selectivity = load_selectivity(dataset, p_len)
-    ax.set_title(f"{label}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=25, fontweight="bold")
-    ax.set_xlabel("Recall @ 10", fontsize=25)
+    ax.set_title(f"{label}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=20, fontweight="bold")
+    ax.set_xlabel("Recall @ 10", fontsize=20)
     if left_axis:
-        ax.set_ylabel("QPS", fontsize=25)
+        ax.set_ylabel("QPS", fontsize=20)
     ax.set_yscale("log")
     ax.grid(True, linestyle="--", alpha=0.7)
     ax.tick_params(axis="both", labelsize=20)
@@ -181,7 +181,7 @@ def plot_panel(ax, dataset, label, p_len, left_axis=False):
             ha="center",
             va="center",
             transform=ax.transAxes,
-            fontsize=25,
+            fontsize=20,
         )
 
 
@@ -201,7 +201,7 @@ def main():
     fig, axes = plt.subplots(
         n // 2,
         6,
-        figsize=(28, 1.7 * n),
+        figsize=(30, 1.6 * n),
         sharey=False,
     )
 
@@ -218,7 +218,9 @@ def main():
         for handle, label in zip(ax_handles, ax_labels):
             handle_by_label.setdefault(label, handle)
 
-    legend_labels = ["PreFiltering"] + [method_label(method) for method in METHODS]
+    legend_labels = ["OptQuery", "PreFiltering"] + [
+        method_label(method) for method in METHODS if method != "OptQuery"
+    ]
     labels = [label for label in legend_labels if label in handle_by_label]
     handles = [handle_by_label[label] for label in labels]
 
@@ -226,15 +228,32 @@ def main():
         handles,
         labels,
         loc="upper center",
-        ncol=5,
-        fontsize=30,
+        ncol=10,
+        fontsize=25,
         handlelength=1.2,
         markerscale=1.5,
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.86])
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_p5_p6_p7.pdf")
+
+    arxiv_fig, arxiv_axes = plt.subplots(
+        1,
+        3,
+        figsize=(15, 3.2),
+        sharey=False,
+    )
+    plot_3panel_block(
+        "arxiv-small",
+        "arxiv",
+        arxiv_axes,
+        left_block=True,
+    )
+
+    arxiv_fig.tight_layout()
+    arxiv_fig.savefig("figures/recall_qps_arxiv_p5_p6_p7.pdf")
+
 
 
 if __name__ == "__main__":

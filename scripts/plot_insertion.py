@@ -116,7 +116,7 @@ def plot_insertion(insertion_percentage, result_root, output):
     x = [i * group_gap for i in range(len(DATASETS))]
     bar_width = 0.10
 
-    fig, ax = plt.subplots(1, 1, figsize=(18, 4.5))
+    fig, ax = plt.subplots(1, 1, figsize=(13, 2))
 
     axis_top_us = max_observed(insertion_results, 1.0) * 1.8
     draw_metric_bars(
@@ -132,24 +132,28 @@ def plot_insertion(insertion_percentage, result_root, output):
         show_pgvector_words_na=True,
     )
     configure_metric_axis(ax, "Time (us)", axis_top_us, bar_width, x, METHODS)
-    ax.set_xticklabels(DATASET_LABELS, fontsize=35)
+    ax.set_xticklabels(DATASET_LABELS, fontsize=25)
+    ax.tick_params(axis="y", labelsize=25)
 
-    fig.legend(
-        handles=[
-            (
-                Patch(facecolor="none", edgecolor="black", linewidth=2.4),
-                Patch(facecolor="none", edgecolor=colors[method], linewidth=0.1, hatch=METHOD_HATCHES[method]),
-            )
-            for method in METHODS
-        ],
-        labels=[method_label(method) for method in METHODS],
-        loc="upper center",
-        ncol=4,
-        fontsize=30,
-        handler_map={tuple: HandlerOverlayPatch()},
-    )
+    # fig.legend(
+    #     handles=[
+    #         (
+    #             Patch(facecolor="none", edgecolor="black", linewidth=2.4),
+    #             Patch(facecolor="none", edgecolor=colors[method], linewidth=0.1, hatch=METHOD_HATCHES[method]),
+    #         )
+    #         for method in METHODS
+    #     ],
+    #     labels=[method_label(method) for method in METHODS],
+    #     loc="upper center",
+    #     ncol=4,
+    #     fontsize=25,
+    #     handlelength=1.5,
+    #     handletextpad=0.4,
+    #     columnspacing=2,
+    #     handler_map={tuple: HandlerOverlayPatch()},
+    # )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.68])
+    plt.tight_layout(rect=[0, 0, 1, 1])
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
     plt.savefig(output)
     print(f"Saved {output}")

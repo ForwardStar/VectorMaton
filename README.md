@@ -163,6 +163,12 @@ python3 generate_queries.py
 ```
 and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly sampled from the original dataset. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
 
+Analyze the generated query pattern distribution by:
+```sh
+python3 scripts/pattern_distribution.py --all-datasets --output-csv results/pattern_distribution.csv --plot-dir figures/pattern_distribution
+```
+This reports query repetition, dataset substring frequency skew, query selectivity, and overlap among the data strings matched by different query patterns. These statistics help explain when pre-filtering, post-filtering, and VectorMaton see easier or harder substring predicates.
+
 ## Running example
 Following is a minimal running example.
 

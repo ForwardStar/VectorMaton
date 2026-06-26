@@ -123,22 +123,21 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                 recalls[-1] = recall[sorted_indices]
                 qpss[-1] = qps[sorted_indices]
         
-        # For all methods except VectorMaton, filter out points with recall < (minimum recall of VectorMaton), keep at least half of the points
-        min_recall_vectormaton = float('inf')
+        # Filter out points below BM25Filtering's recall baseline.
+        min_recall_bm25 = None
         for i, method in enumerate(methods):
-            if method == "VectorMaton" and recalls[i] is not None:
-                min_recall_vectormaton = min(min_recall_vectormaton, np.min(recalls[i]))
+            if method == "BM25Filtering" and recalls[i] is not None and len(recalls[i]) > 0:
+                min_recall_bm25 = np.min(recalls[i])
+                break
 
-        for i, method in enumerate(methods):
-            if method != "VectorMaton" and recalls[i] is not None:
-                mask = recalls[i] >= min_recall_vectormaton
-                if np.sum(mask) > 0:
-                    # Keep at least half of the points
-                    indices = np.where(mask)[0]
-                    if len(indices) < len(recalls[i]) // 2:
-                        indices = np.argsort(recalls[i])[-(len(recalls[i]) // 2):]
-                    recalls[i] = recalls[i][indices]
-                    qpss[i] = qpss[i][indices]
+        if min_recall_bm25 is not None:
+            for i, method in enumerate(methods):
+                if method != "BM25Filtering" and recalls[i] is not None and len(recalls[i]) > 1:
+                    if np.max(recalls[i]) < min_recall_bm25:
+                        continue
+                    mask = recalls[i] >= min_recall_bm25
+                    recalls[i] = recalls[i][mask]
+                    qpss[i] = qpss[i][mask]
 
         filepath_prefiltering = os.path.join(
             "results", "PreFiltering", dataset, f"{p_len}"
@@ -171,10 +170,10 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
                 )
 
         selectivity = load_selectivity(dataset, p_len, methods)
-        ax.set_title(f"{ds_brief}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=25, fontweight='bold')
-        ax.set_xlabel("Recall @ 10", fontsize=25)
+        ax.set_title(f"{ds_brief}, |p| = {p_len} ({format_selectivity(selectivity)})", fontsize=20, fontweight='bold')
+        ax.set_xlabel("Recall @ 10", fontsize=20)
         if left_block and p_len == 2:
-            ax.set_ylabel("QPS", fontsize=25)
+            ax.set_ylabel("QPS", fontsize=20)
         ax.set_yscale("log")
         min_qps = float('inf')
         max_qps = float('-inf')
@@ -191,7 +190,7 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.tick_params(axis='both', labelsize=20)
 
-def add_block_caption(fig, axes_block, text, fontsize=26, pad=0.015):
+def add_block_caption(fig, axes_block, text, fontsize=20, pad=0.015):
     """
     Place caption centered below a group of 3 subplots.
     pad is the vertical gap in figure coordinates.
@@ -220,7 +219,7 @@ if __name__ == "__main__":
     n = len(datasets)
     fig, axes = plt.subplots(
         n // 2, 6,
-        figsize=(28, 1.7 * n),
+        figsize=(30, 1.6 * n),
         sharey=False
     )
 
@@ -235,16 +234,26 @@ if __name__ == "__main__":
 
 
     # Global legend (only once)
-    handles, labels = axes[0, 2].get_legend_handles_labels()
+    handle_by_label = {}
+    for ax in axes.flatten():
+        ax_handles, ax_labels = ax.get_legend_handles_labels()
+        for handle, label in zip(ax_handles, ax_labels):
+            handle_by_label.setdefault(label, handle)
+
+    legend_labels = ["OptQuery", "PreFiltering"] + [
+        method_label(method) for method in methods if method != "OptQuery"
+    ]
+    labels = [label for label in legend_labels if label in handle_by_label]
+    handles = [handle_by_label[label] for label in labels]
     fig.legend(
         handles, labels,
         loc="upper center",
-        ncol=5,
-        fontsize=30,
+        ncol=10,
+        fontsize=25,
         handlelength=1.2,
         markerscale=1.5
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.86])
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
 
     os.makedirs("figures", exist_ok=True)
     plt.savefig("figures/recall_qps_all_datasets.pdf")
