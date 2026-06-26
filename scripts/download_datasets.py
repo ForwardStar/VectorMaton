@@ -1,4 +1,5 @@
 import sys
+import argparse
 import datetime
 import os
 from datasets import load_dataset
@@ -10,6 +11,44 @@ import pandas as pd
 import json
 
 headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
+
+DATASET_NAMES = {
+    "spam",
+    "words",
+    "mtg",
+    "code_search_net",
+    "swissprot",
+    "arxiv",
+    "arxiv-small",
+    "wikipedia",
+    "sift",
+}
+
+
+def _normalize_dataset_name(name: str) -> str:
+    return name.strip().lower().replace("-", "_")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Download and generate datasets for VectorMaton experiments."
+    )
+    parser.add_argument(
+        "--blacklist",
+        "--blacklist-dataset",
+        dest="blacklist",
+        default="",
+        help=(
+            "Comma- or space-separated dataset names to skip, e.g. "
+            "'swissprot,code_search_net'."
+        ),
+    )
+    return parser.parse_args()
+
+
+def parse_blacklist(raw_blacklist: str):
+    tokens = raw_blacklist.replace(",", " ").split()
+    return {_normalize_dataset_name(token) for token in tokens}
 
 
 def _synthetic_alpha_string(seed: int, length: int = 50) -> str:
@@ -142,12 +181,31 @@ def format_time(seconds: float) -> str:
         return f"{seconds}s"
 
 if __name__ == "__main__":
+    args = parse_args()
+    blacklisted_datasets = parse_blacklist(args.blacklist)
     log = Logger(level="INFO")  # set threshold level
+    unknown_datasets = blacklisted_datasets - {
+        _normalize_dataset_name(name) for name in DATASET_NAMES
+    }
+    if unknown_datasets:
+        log.warning(
+            "Unknown datasets in blacklist: "
+            + ", ".join(sorted(unknown_datasets))
+        )
+
+    def should_skip_dataset(dataset_name: str) -> bool:
+        if _normalize_dataset_name(dataset_name) in blacklisted_datasets:
+            log.info(f"{dataset_name} dataset is blacklisted. Skipped.")
+            return True
+        return False
+
     if not os.path.exists("datasets"):
         os.makedirs("datasets")
 
     # Spam
-    if not os.path.exists("datasets/spam"):
+    if should_skip_dataset("spam"):
+        pass
+    elif not os.path.exists("datasets/spam"):
         os.makedirs("datasets/spam")
         log.info("Downloading and generating spam dataset...")
         start = time.perf_counter()
@@ -228,7 +286,9 @@ if __name__ == "__main__":
         log.info("Spam dataset already exists. Skipped.")
 
     # Words
-    if not os.path.exists("datasets/words"):
+    if should_skip_dataset("words"):
+        pass
+    elif not os.path.exists("datasets/words"):
         os.makedirs("datasets/words")
         log.info("Downloading and generating Words dataset...")
         start = time.perf_counter()
@@ -253,7 +313,9 @@ if __name__ == "__main__":
         log.info("Words dataset already exists. Skipped.")
 
     # MTG
-    if not os.path.exists("datasets/mtg"):
+    if should_skip_dataset("mtg"):
+        pass
+    elif not os.path.exists("datasets/mtg"):
         os.makedirs("datasets/mtg")
         log.info("Downloading and generating MTG dataset...")
         start = time.perf_counter()
@@ -280,7 +342,9 @@ if __name__ == "__main__":
         log.info("MTG dataset already exists. Skipped.")
 
     # CodeSearchNet
-    if not os.path.exists("datasets/code_search_net"):
+    if should_skip_dataset("code_search_net"):
+        pass
+    elif not os.path.exists("datasets/code_search_net"):
         os.makedirs("datasets/code_search_net")
         log.info("Downloading and generating CodeSearchNet dataset...")
         start = time.perf_counter()
@@ -313,7 +377,9 @@ if __name__ == "__main__":
         log.info("CodeSearchNet dataset already exists. Skipped.")
     
     # SwissProt
-    if not os.path.exists("datasets/swissprot"):
+    if should_skip_dataset("swissprot"):
+        pass
+    elif not os.path.exists("datasets/swissprot"):
         os.makedirs("datasets/swissprot")
         log.info("Downloading and generating SwissProt dataset...")
         start = time.perf_counter()
@@ -344,7 +410,9 @@ if __name__ == "__main__":
         log.info("SwissProt dataset already exists. Skipped.")
 
     # ArXiv
-    if not os.path.exists("datasets/arxiv"):
+    if should_skip_dataset("arxiv"):
+        pass
+    elif not os.path.exists("datasets/arxiv"):
         os.makedirs("datasets/arxiv")
         log.info("Downloading and generating ArXiv dataset...")
         start = time.perf_counter()
@@ -369,7 +437,9 @@ if __name__ == "__main__":
         log.info("ArXiv dataset already exists. Skipped.")
     
     # Arxiv-small
-    if not os.path.exists("datasets/arxiv-small"):
+    if should_skip_dataset("arxiv-small"):
+        pass
+    elif not os.path.exists("datasets/arxiv-small"):
         os.makedirs("datasets/arxiv-small")
         log.info("Downloading and generating ArXiv-small dataset...")
         start = time.perf_counter()
@@ -401,7 +471,9 @@ if __name__ == "__main__":
     wikipedia_ready = (
         os.path.exists(wikipedia_vectors) and os.path.exists(wikipedia_strings)
     )
-    if wikipedia_rebuild or not wikipedia_ready:
+    if should_skip_dataset("wikipedia"):
+        pass
+    elif wikipedia_rebuild or not wikipedia_ready:
         os.makedirs(wikipedia_dir, exist_ok=True)
         log.info("Downloading and generating Wikipedia dataset...")
         start = time.perf_counter()
@@ -554,7 +626,9 @@ if __name__ == "__main__":
     # SIFT (TEXMEX)
     sift_vectors_path = "datasets/sift/vectors.txt"
     sift_strings_path = "datasets/sift/strings.txt"
-    if not (os.path.exists(sift_vectors_path) and os.path.exists(sift_strings_path)):
+    if should_skip_dataset("sift"):
+        pass
+    elif not (os.path.exists(sift_vectors_path) and os.path.exists(sift_strings_path)):
         os.makedirs("datasets/sift", exist_ok=True)
         log.info("Downloading and generating SIFT dataset...")
         start = time.perf_counter()

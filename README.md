@@ -360,7 +360,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
 pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0 sentence_transformers==5.6.0
-python3 scripts/download_datasets.py
+python3 scripts/download_datasets.py --blacklist-dataset=swissprot,code_search_net
 
 sh scripts/run/run-queries.sh \
   --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch \
