@@ -34,8 +34,14 @@ def extract_avg_time_us_from_log(filepath):
     Example:
     avg (us): 5.2246e+06
     """
-    with open(filepath, "r", encoding="utf-8") as f:
-        content = f.read()
+    if not os.path.exists(filepath):
+        return None
+
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return None
 
     match = re.search(
         r"avg\s*\(us\)\s*:\s*([0-9.+\-eE]+)",
@@ -43,8 +49,7 @@ def extract_avg_time_us_from_log(filepath):
     )
 
     if not match:
-        return 1e10
-        raise ValueError(f"Could not find avg (us) in file: {filepath}")
+        return None
 
     return float(match.group(1))
 
@@ -150,13 +155,15 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
         cs = plt.colormaps['tab10']
         colors = [cs(i) for i in range(len(methods))]
 
-        if time_prefiltering is not None:
+        show_prefiltering = False
+        if time_prefiltering is not None and time_prefiltering > 0:
             qps_pref = 1_000_000 / time_prefiltering
             qps_min = float('inf')
             for qps in qpss:
                 if qps is not None and len(qps) > 0:
                     qps_min = min(qps_min, np.min(qps))
-            if qps_pref * 10 >= qps_min:
+            if qps_min == float('inf') or qps_pref * 10 >= qps_min:
+                show_prefiltering = True
                 ax.plot(1.0, qps_pref, marker='*', color='black',
                         label="PreFiltering", markersize=12, markerfacecolor='none')
 
@@ -183,12 +190,12 @@ def plot_3panel_block(dataset, methods, ds_brief, axes_block, left_block=False):
             if qps is not None and len(qps) > 0:
                 min_qps = min(min_qps, np.min(qps))
                 max_qps = max(max_qps, np.max(qps))
-        if time_prefiltering is not None:
+        if show_prefiltering:
             qps_pref = 1_000_000 / time_prefiltering
-            if qps_pref * 10 >= qps_min:
-                min_qps = min(min_qps, qps_pref)
-                max_qps = max(max_qps, qps_pref)
-        ax.set_ylim(bottom=min_qps * 0.5, top=max_qps * 2)
+            min_qps = min(min_qps, qps_pref)
+            max_qps = max(max_qps, qps_pref)
+        if min_qps != float('inf') and max_qps != float('-inf'):
+            ax.set_ylim(bottom=min_qps * 0.5, top=max_qps * 2)
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.tick_params(axis='both', labelsize=20)
 
