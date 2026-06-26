@@ -67,7 +67,7 @@ def download(url, path):
     retry_times = 0
     while True:
         try:
-            with urlopen(Request(url, headers=headers), timeout=3) as resp:
+            with urlopen(Request(url, headers=headers), timeout=5) as resp:
                 total = resp.info().get("content-length", None)
                 with tqdm(
                     unit="B",
