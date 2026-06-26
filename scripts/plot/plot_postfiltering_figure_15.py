@@ -44,7 +44,7 @@ def configure_fonts():
             break
 
 
-def load_parameter_study_curve(csv_path, ratio, min_recall):
+def load_postfiltering_case_study_curve(csv_path, ratio, min_recall):
     try:
         df = pd.read_csv(csv_path)
     except pd.errors.EmptyDataError:
@@ -75,7 +75,7 @@ def plot_dataset(ax, dataset, title, input_root):
 
     if os.path.exists(csv_path):
         for i, ratio in enumerate(RATIOS):
-            recall, qps = load_parameter_study_curve(csv_path, ratio, min_recall)
+            recall, qps = load_postfiltering_case_study_curve(csv_path, ratio, min_recall)
             if recall is None:
                 continue
 
@@ -105,21 +105,21 @@ def plot_dataset(ax, dataset, title, input_root):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Plot PostFiltering parameter-study recall/QPS curves for all datasets."
+        description="Plot PostFiltering case-study recall/QPS curves for all datasets."
     )
     parser.add_argument(
         "--input-root",
-        default=os.path.join("results", "PostFiltering", "parameter_study"),
-        help="Directory containing <dataset>/mixed_2_4.csv parameter-study files.",
+        default=os.path.join("results", "PostFiltering", "postfiltering_case_study"),
+        help="Directory containing <dataset>/mixed_2_4.csv PostFiltering case-study files.",
     )
     parser.add_argument(
         "--output",
-        default=os.path.join("figures", "parameter_study_recall_qps.pdf"),
+        default=os.path.join("figures", "postfiltering_case_study_recall_qps.pdf"),
         help="Output figure path.",
     )
     parser.add_argument(
         "--selected-output",
-        default=os.path.join("figures", "parameter_study_recall_qps_arxiv_prot_code.pdf"),
+        default=os.path.join("figures", "postfiltering_case_study_recall_qps_arxiv_prot_code.pdf"),
         help="Output path for the one-line arxiv/prot/code figure.",
     )
     return parser.parse_args()

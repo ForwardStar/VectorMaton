@@ -3,7 +3,7 @@ set -eu
 (set -o pipefail) >/dev/null 2>&1 && set -o pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/../.." && pwd)
 cd "${REPO_ROOT}"
 
 BLACKLIST_DATASET_RAW=""
@@ -50,7 +50,7 @@ run_dataset() {
         return
     fi
 
-    local result_dir="results/PostFiltering/parameter_study/$dataset"
+    local result_dir="results/PostFiltering/postfiltering_case_study/$dataset"
     local query_dir="${result_dir}/.tmp_queries/mixed_2_4"
     mkdir -p "${result_dir}"
     rm -rf "${query_dir}"
@@ -69,7 +69,7 @@ run_dataset() {
             --mixed-length
     )
 
-    ./build/parameter_study \
+    ./build/postfiltering_case_study \
         "datasets/$dataset/strings.txt" \
         "datasets/$dataset/vectors.txt" \
         "${query_dir}/strings_queries.txt" \

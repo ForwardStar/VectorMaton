@@ -18,7 +18,7 @@ for s in 2 3 4
 do
     python3 scripts/generate_queries.py "${STRINGS_FILE}" "${VECTORS_FILE}" "$s" 1000 10 -1 sift
 
-    ./build/main \
+    ./build/main_exp \
         "${STRINGS_FILE}" \
         "${VECTORS_FILE}" \
         strings_sift.txt \
@@ -28,7 +28,7 @@ do
         --write-ground-truth=ground_truth.txt \
         > "results/PreFiltering/${DATASET}/${s}" &
 
-    ./build/main \
+    ./build/main_exp \
         "${STRINGS_FILE}" \
         "${VECTORS_FILE}" \
         strings_sift.txt \
@@ -38,7 +38,7 @@ do
         --statistics-file="results/PostFiltering/${DATASET}/${s}.csv" \
         > "results/PostFiltering/${DATASET}/${s}" &
 
-    ./build/main \
+    ./build/main_exp \
         "${STRINGS_FILE}" \
         "${VECTORS_FILE}" \
         strings_sift.txt \

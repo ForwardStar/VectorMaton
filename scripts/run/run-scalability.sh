@@ -66,15 +66,15 @@ run_dataset() {
             data_size=1
         fi
 
-        ./build/main "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt VectorMaton-smart --data-size="${data_size}" > "${output_dir}/${pct}%"
+        ./build/main_exp "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt VectorMaton-smart --data-size="${data_size}" > "${output_dir}/${pct}%"
         if [ "${run_optquery}" = "true" ]; then
-            ./build/main "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt OptQuery --data-size="${data_size}" > "${optquery_output_dir}/${pct}%"
+            ./build/main_exp "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt OptQuery --data-size="${data_size}" > "${optquery_output_dir}/${pct}%"
         fi
     done
 
-    ./build/main "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt VectorMaton-smart > "${output_dir}/100%"
+    ./build/main_exp "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt VectorMaton-smart > "${output_dir}/100%"
     if [ "${run_optquery}" = "true" ]; then
-        ./build/main "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt OptQuery > "${optquery_output_dir}/100%"
+        ./build/main_exp "${strings_file}" "${vectors_file}" strings_scalability_queries.txt vectors_scalability_queries.txt k_scalability_queries.txt OptQuery > "${optquery_output_dir}/100%"
     fi
 }
 

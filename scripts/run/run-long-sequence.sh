@@ -53,7 +53,7 @@ should_run() {
 }
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/../.." && pwd)
 cd "${REPO_ROOT}"
 
 DATASET="wikipedia"
@@ -72,13 +72,13 @@ QUERY_VECTORS="${QUERY_VECTORS:-vectors_prompt.txt}"
 QUERY_K="${QUERY_K:-k_prompt.txt}"
 GROUND_TRUTH="ground_truth_${QUERY_SUFFIX}.txt"
 
-if [ ! -x "./build/main" ]; then
-    echo "Missing executable ./build/main (build the project first)." >&2
+if [ ! -x "./build/main_exp" ]; then
+    echo "Missing executable ./build/main_exp (build the project first)." >&2
     exit 1
 fi
 
-if [ ! -x "./build/test_acorn" ]; then
-    echo "Missing executable ./build/test_acorn (build the project first)." >&2
+if { should_run "ACORN-gamma" || should_run "ACORN-1"; } && [ ! -x "./build/acorn_exp" ]; then
+    echo "Missing executable ./build/acorn_exp (build the project first)." >&2
     exit 1
 fi
 
@@ -88,8 +88,12 @@ if [ ! -f "${STRINGS_FILE}" ] || [ ! -f "${VECTORS_FILE}" ]; then
 fi
 
 if [ ! -f "${QUERY_STRINGS}" ] || [ ! -f "${QUERY_VECTORS}" ]; then
-    echo "Missing prompt query files (expected ${QUERY_STRINGS} and ${QUERY_VECTORS})." >&2
-    echo "Run: python3 scripts/prompt_embedding.py" >&2
+    echo "Missing prompt query files (expected ${QUERY_STRINGS} and ${QUERY_VECTORS}); generating them with scripts/prompt_embedding.py"
+    python3 scripts/prompt_embedding.py
+fi
+
+if [ ! -f "${QUERY_STRINGS}" ] || [ ! -f "${QUERY_VECTORS}" ]; then
+    echo "Missing prompt query files after generation (expected ${QUERY_STRINGS} and ${QUERY_VECTORS})." >&2
     exit 1
 fi
 
@@ -153,7 +157,7 @@ run_acorn_variant() {
         acorn_index_flag="--load-index=${index_dir}"
     fi
 
-    OMP_NUM_THREADS=1 ./build/test_acorn \
+    OMP_NUM_THREADS=1 ./build/acorn_exp \
         "${STRINGS_FILE}" "${VECTORS_FILE}" \
         "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
         --M=32 --gamma="${gamma}" --M-beta="${m_beta}" \
@@ -168,7 +172,7 @@ for s in ${PATTERN_LENGTHS}; do
     awk -v k="${K_VALUE}" "{ print k }" "${QUERY_STRINGS}" > "${QUERY_K}"
 
     echo "==> Running PreFiltering for ground truth"
-    ./build/main \
+    ./build/main_exp \
         "${STRINGS_FILE}" "${VECTORS_FILE}" \
         "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" \
         PreFiltering \
@@ -178,7 +182,7 @@ for s in ${PATTERN_LENGTHS}; do
         > "${RESULT_ROOT}/PreFiltering/${DATASET}/${s}"
 
     if should_run "PostFiltering"; then
-        ./build/main \
+        ./build/main_exp \
             "${STRINGS_FILE}" "${VECTORS_FILE}" \
             "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" \
             PostFiltering \
@@ -189,7 +193,7 @@ for s in ${PATTERN_LENGTHS}; do
     fi
 
     if should_run "Hybrid"; then
-        ./build/main \
+        ./build/main_exp \
             "${STRINGS_FILE}" "${VECTORS_FILE}" \
             "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" \
             Hybrid \
@@ -200,7 +204,7 @@ for s in ${PATTERN_LENGTHS}; do
     fi
 
     if should_run "VectorMaton"; then
-        ./build/main \
+        ./build/main_exp \
             "${STRINGS_FILE}" "${VECTORS_FILE}" \
             "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" \
             VectorMaton-smart \
@@ -211,7 +215,7 @@ for s in ${PATTERN_LENGTHS}; do
     fi
 
     if should_run "BM25Filtering"; then
-        ./build/main \
+        ./build/main_exp \
             "${STRINGS_FILE}" "${VECTORS_FILE}" \
             "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" \
             BM25Filtering \
@@ -228,14 +232,14 @@ for s in ${PATTERN_LENGTHS}; do
 
     if should_run "pgvector"; then
         if [ "$s" -eq "$FIRST_PATTERN_LENGTH" ]; then
-            python3 test_pgvector.py \
+            python3 source/experiments/pgvector_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 --rebuild \
                 --write-output "${RESULT_ROOT}/pgvector/${DATASET}/${s}.queries" \
                 > "${RESULT_ROOT}/pgvector/${DATASET}/${s}" 2>&1
         else
-            python3 test_pgvector.py \
+            python3 source/experiments/pgvector_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 --write-output "${RESULT_ROOT}/pgvector/${DATASET}/${s}.queries" \
@@ -246,14 +250,14 @@ for s in ${PATTERN_LENGTHS}; do
 
     if should_run "ElasticSearch"; then
         if [ "$s" -eq "$FIRST_PATTERN_LENGTH" ]; then
-            python3 test_elasticsearch.py \
+            python3 source/experiments/elasticsearch_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 --rebuild ${ELASTICSEARCH_PID_ARG} \
                 --write-output "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}.queries" \
                 > "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}" 2>&1
         else
-            python3 test_elasticsearch.py \
+            python3 source/experiments/elasticsearch_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 ${ELASTICSEARCH_PID_ARG} \

@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/../.." && pwd)
 cd "${REPO_ROOT}"
 
 DATASET_DIR="${DATASET_DIR:-datasets/arxiv-small}"
@@ -18,8 +18,8 @@ STRINGS_FILE="${DATASET_DIR}/strings.txt"
 VECTORS_FILE="${DATASET_DIR}/vectors.txt"
 DATASET_NAME=$(basename "${DATASET_DIR}")
 
-if [ ! -x "./build/main" ]; then
-    echo "Missing executable ./build/main (build the project first)." >&2
+if [ ! -x "./build/main_exp" ]; then
+    echo "Missing executable ./build/main_exp (build the project first)." >&2
     exit 1
 fi
 
@@ -74,7 +74,7 @@ run_threshold() {
     mkdir -p "${OUT_DIR}"
 
     echo "==> Running ${METHOD} with --set-min-build-threshold=${threshold}"
-    ./build/main \
+    ./build/main_exp \
         "${STRINGS_FILE}" \
         "${VECTORS_FILE}" \
         "${QUERY_STRINGS}" \

@@ -18,7 +18,7 @@ for dataset in swissprot code_search_net; do
 
     for num_threads in ${THREADS}; do
         log_file="${output_dir}/${num_threads}.log"
-        ./build/main \
+        ./build/main_exp \
             "${strings_file}" \
             "${vectors_file}" \
             strings.txt \

@@ -1,224 +1,245 @@
 # VectorMaton
-An elegant index that supports hybrid queries of ANNs whose associated strings contain a queried substring. Each data in the vector database consists of a string and a vector. Each query contains a string, a vector, and an integer k to return approximated k-nearest neighbors. The query results will contain data that involves the queried string as a substring, and its vector is an approximated k-nearest neighbor of the queried vector under the substring constraint. In this project, we use Euclidean distance as the measure of closeness, but it can be simply extended to support other metrics.
 
-# Compile and run
-Parts of the project depend on ``openssl``. Install on Ubuntu:
-```sh
-sudo apt-get install libssl-dev
-```
+VectorMaton is a C++ index for hybrid approximate nearest-neighbor queries where each vector has an associated string and each query asks for vectors whose strings contain a query substring. A query contains a string, a vector, and an integer `k`; the result is up to `k` approximate nearest neighbors under the substring constraint. The current implementation uses Euclidean distance.
 
-Fetch the ``hnswlib`` submodule:
+## Build the library
+
+Fetch the submodules first. `hnswlib` is required by VectorMaton.
+
 ```sh
 git submodule update --init --recursive
 ```
 
-We developed and tested this vector database under ``GCC 10.5.0`` with ``O3`` optimization and ``OpenMP``. To compile the codes, simply run:
+Build the `vectormaton` CMake target:
+
 ```sh
-mkdir build && cd build
-cmake ..
-make
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target vectormaton -j
 ```
 
-This will generate executable files ``nsw_test``, ``hnsw_test``, ``sa_test``, ``vectormaton_test``, ``main`` and ``parameter_study``. In particular, ``vectormaton_test`` corresponds to ``source/test_vectormaton.cpp``, which provides a demo on how to use the index.
+This generates:
 
-The ``main`` is our experimental program. Run with:
-```sh
-./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <OptQuery|PreFiltering|PostFiltering|Hybrid|BM25Filtering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
+```text
+build/libvectormaton.a
 ```
 
-It will output recall and time consumption statistics of the corresponding method.
+The project is developed with C++17, GCC 10.5.0, `-O3`, and OpenMP.
 
-Arguments:
-- ``string_data_file``: data strings, one string per line.
-- ``vector_data_file``: data vectors, one whitespace-separated vector per line.
-- ``string_query_file``: query strings, one string per line.
-- ``vector_query_file``: query vectors, one whitespace-separated vector per line.
-- ``k_query_file``: query ``k`` values, one integer per line.
-- ``method``: one of ``OptQuery``, ``PreFiltering``, ``PostFiltering``, ``Hybrid``, ``VectorMaton-full``, ``VectorMaton-smart`` or ``VectorMaton-parallel``.
+## Link in your project
 
-Optional flags:
-- ``--debug``: show debug messages.
-- ``--data-size=<n>``: use only the first ``n`` data vectors and strings.
-- ``--statistics-file=output_statistics.csv``: write recall/time statistics to a CSV file. For ef-search based methods, the CSV includes ``ef_search,time_us,recall,exact,average_selectivity``; ``average_selectivity`` is the average fraction of data strings that satisfy the query substring predicate, computed during ExactSearch.
-- ``--load-index=index_files_folder``: load a previously saved index from disk.
-- ``--save-index=index_files_folder``: save the built index to disk.
-- ``--num-threads=<n>``: set the number of threads for ``VectorMaton-parallel``.
-- ``--write-ground-truth=ground_truth.txt``: write exact ground-truth results to a file.
-- ``--set-min-build-threshold=<n>``: set the minimum candidate-set size required before VectorMaton builds an HNSW sub-index.
-- ``--insert-percentage=<p>``: reserve the last ``p`` percent of the dataset for insertion-performance evaluation.
+The simplest CMake integration is to add this repository as a subdirectory and link the exported `vectormaton` target:
 
-The ``parameter_study`` executable runs one PostFiltering parameter-study benchmark over already generated query files:
-```sh
-./build/parameter_study <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> PostFiltering --statistics-file=output.csv
-```
-For each ``ef_search``, it evaluates ``search_k`` ratios ``0.2``, ``0.4``, ``0.6``, ``0.8`` and ``1.0``. The helper script ``scripts/run-postfiltering.sh`` repeats the dataset/query schedule used by ``scripts/run-queries.sh`` for this parameter study and writes results to ``results/PostFiltering/parameter_study/<dataset>/<p>.csv``.
-
-# Link VectorMaton in your project
-
-VectorMaton is currently provided as C++ source files rather than as an installed library. The simplest way to use it from another CMake project is to add the source files directly to your target and include this repository plus ``third_party/hnswlib``.
-
-Example CMake configuration:
 ```cmake
-set(VECTORMATON_ROOT /path/to/VectorMaton)
+cmake_minimum_required(VERSION 3.10)
+project(my_app CXX)
 
-add_executable(my_app
-    main.cpp
-    ${VECTORMATON_ROOT}/source/sa.cpp
-    ${VECTORMATON_ROOT}/source/vectormaton.cpp
-)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(my_app PRIVATE
-    ${VECTORMATON_ROOT}/source
-    ${VECTORMATON_ROOT}/third_party/hnswlib
-)
+add_subdirectory(/path/to/VectorMaton external/vectormaton)
 
-find_package(OpenMP REQUIRED)
-find_package(OpenSSL REQUIRED)
-target_link_libraries(my_app PRIVATE
-    OpenMP::OpenMP_CXX
-    OpenSSL::SSL
-    OpenSSL::Crypto
-)
-
-target_compile_features(my_app PRIVATE cxx_std_17)
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE vectormaton)
 ```
 
-Minimal API example:
+The `vectormaton` target publishes the required include directories and OpenMP linkage. In your C++ file, include:
+
+```cpp
+#include "vectormaton.h"
+```
+
+If you prefer to link against a prebuilt library manually, include `source/` and `third_party/hnswlib`, link `build/libvectormaton.a`, and link OpenMP.
+
+## Minimal demo
+
+`set_vectors` takes a one-dimensional `std::vector<float>` because VectorMaton stores vectors as a flattened row-major matrix. For `n` vectors with dimension `dim`, pass `n * dim` floats. Vector `i` occupies:
+
+```cpp
+vectors[i * dim + 0], vectors[i * dim + 1], ..., vectors[i * dim + dim - 1]
+```
+
 ```cpp
 #include "vectormaton.h"
 
+#include <iostream>
 #include <string>
 #include <vector>
 
 int main() {
     const int dim = 3;
+    // Five 3-dimensional vectors flattened row by row.
     std::vector<float> vectors = {
-        0.0f, 0.0f, 0.0f,
-        1.0f, 1.0f, 1.0f,
-        2.0f, 2.0f, 2.0f,
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f,
+        7.0f, 8.0f, 9.0f,
+        10.0f, 11.0f, 12.0f,
+        13.0f, 14.0f, 15.0f,
     };
     std::vector<std::string> strings = {
         "banana",
-        "bandana",
-        "ananas",
+        "anana",
+        "nana",
+        "ana",
+        "na",
     };
 
     VectorMaton index;
+    index.set_min_build_threshold(0);
     index.set_vectors(vectors, dim);
     index.set_strings(strings);
-    index.set_min_build_threshold(200);
     index.build_smart();
     index.set_ef(64);
 
-    std::vector<float> query_vector = {0.5f, 0.5f, 0.5f};
-    std::vector<int> ids = index.query(query_vector.data(), "ana", 2);
+    float query_vector[3] = {9.0f, 10.0f, 11.0f};
+    std::vector<int> result = index.query(query_vector, "ana", 2);
+
+    for (int id : result) {
+        std::cout << id << "\n";
+    }
+
+    index.save_index("vectormaton_index");
+
+    VectorMaton loaded;
+    loaded.set_vectors(vectors, dim);
+    loaded.set_strings(strings);
+    loaded.load_index("vectormaton_index");
+
+    index.insert({16.0f, 17.0f, 18.0f}, "bandana");
 }
 ```
 
-Main APIs:
-- ``set_vectors(const std::vector<float>& vectors, int dimension)``: stores row-major vectors. The number of elements is ``vectors.size() / dimension``.
-- ``set_strings(const std::vector<std::string>& strings)``: stores the string attached to each vector. The i-th string corresponds to the i-th vector.
-- ``set_min_build_threshold(int threshold)``: controls the minimum candidate-set size of a state to build and maintain an HNSW index; if the state has less candidates, queries on this state will do brute-force search rather than HNSW search.
-- ``build_smart()``: builds the space-optimized VectorMaton index using inheritance between suffix-automaton states.
-- ``build_full()``: builds an HNSW sub-index for every suffix-automaton state.
-- ``build_parallel(int cores)``: parallel version of the smart build.
-- ``set_ef(int ef)``: sets HNSW ``ef_search`` for all built sub-indexes.
-- ``query(const float* vec, const std::string& s, int k)``: returns up to ``k`` zero-based vector IDs whose strings contain ``s`` and whose vectors are approximate nearest neighbors of ``vec`` under the substring constraint.
-- ``insert(const std::vector<float>& vec, const std::string& str)``: appends one vector/string pair to an existing index.
-- ``save_index(const char* output_folder)`` and ``load_index(const char* input_folder)``: persist and reload VectorMaton index files. Call ``set_vectors`` before ``load_index`` so HNSW distance computations can reference the vector payload.
-- ``size()``: returns the estimated VectorMaton index-structure size in bytes.
-- ``vertex_num()``: returns the total number of HNSW vertices stored across built sub-indexes.
+A fuller executable demo lives in `source/tests/test_vectormaton.cpp` and is built as `vectormaton_test`.
 
-# Experiments
+## API
 
-## Datasets
-Since there are no existing vector datasets associated with strings, we include synthetic datasets for experiments. For most datasets, the strings are original natural language texts and the vectors are their embeddings generated by pre-trained language models. For SIFT, the vectors are original SIFT vectors and the strings are synthetic. The datasets include:
-- [Spam](https://spamassassin.apache.org/old/publiccorpus): a datasets of spam email and their embeddings; to be specific, each data consists of an email title as its string and the email content embedding as its vector;
-- [Words](https://huggingface.co/datasets/efarrall/word_embeddings): a dataset of words and their embeddings; to be specific, each data consists of a word of letters as its string and the embedding of this word as its vector;
-- [MTG](https://huggingface.co/datasets/TrevorJS/mtg-scryfall-cropped-art-embeddings-siglip-so400m-patch14-384): a dataset of images and their embeddings; to be specific, each data consists of an image description as its string and image embedding as its vector;
-- [CodeSearchNet](https://huggingface.co/datasets/irds/codesearchnet): a dataset of code snippets and their embeddings; to be specific, each data consists of a function name as its string and a code embedding vector (generated by CodeBERT) as its vector;
-- [SwissProt](https://huggingface.co/datasets/khairi/uniprot-swissprot): a manually curated section of the UniProt protein sequence database; to be specific, each data consists of a protein sequence and its structural embedding vector (generated by ProtBERT) as its vector;
-- [ArXiv](https://huggingface.co/datasets/Qdrant/arxiv-titles-instructorxl-embeddings): a dataset of paper titles and their embeddings; to be specific, each data consists of a paper title as its string and a text embedding vector (generated by InstructorXL) as its vector;
-- [ArXiv-Small](https://huggingface.co/datasets/malteos/aspect-paper-embeddings): a dataset of paper titles and their embeddings; to be specific, each data consists of a paper title as its string and a text embedding vector (generated by all-mpnet-base-v2) as its vector;
-- [SIFT](http://corpus-texmex.irisa.fr/): a classic ANN benchmark dataset of image descriptors; to be specific, each data consists of a synthetic lowercase string (generated by this repo for substring filtering experiments) and a SIFT base vector as its vector.
+- `set_vectors(const std::vector<float>& vectors, int dimension)`: stores a flattened row-major vector matrix. If you have `n` vectors and each vector has `dimension` coordinates, `vectors` must contain `n * dimension` floats. The coordinate `j` of vector `i` is stored at `vectors[i * dimension + j]`, so the number of indexed vectors is `vectors.size() / dimension`.
+- `set_strings(const std::vector<std::string>& strings)`: stores the string attached to each vector. The i-th string corresponds to the i-th vector.
+- `set_min_build_threshold(int threshold)`: sets the minimum candidate-set size required before VectorMaton builds an HNSW sub-index. Smaller candidate sets are searched by brute force, while larger ones use the HNSW structure.
+- `build_smart()`: builds the space-optimized VectorMaton index using inheritance between suffix-automaton states (index-reuse strategy).
+- `build_full()`: builds the VectorMaton index without index-reuse strategy.
+- `build_parallel(int cores)`: parallel version of the smart build.
+- `set_ef(int ef)`: sets HNSW `ef_search` for built HNSWs.
+- `query(const float* vec, const std::string& s, int k)`: returns up to `k` zero-based vector IDs whose strings contain `s` and whose vectors are approximate nearest neighbors of `vec` under the substring constraint.
+- `insert(const std::vector<float>& vec, const std::string& str)`: appends one vector/string pair to an existing index.
+- `save_index(const char* output_folder)`: writes VectorMaton index files to disk.
+- `load_index(const char* input_folder)`: loads VectorMaton index files. Call `set_vectors` and `set_strings` before `load_index` so HNSW distance computations can reference the vector payload.
+- `size()`: returns the estimated VectorMaton index size in bytes.
+- `vertex_num()`: returns the total number of HNSW vertices stored across built sub-indexes.
 
-We provide a Python script ``scripts/download_datasets.py`` to download and generate aforementioned datasets. The generated datasets are stored in the ``datasets/`` folder. Each dataset contains a file ``vectors.txt`` and a file ``strings.txt``, where the i-th line of ``vectors.txt`` and the i-th line of ``strings.txt`` correspond to the vector and string of the i-th data, respectively. To execute the script, please first install the required ``datasets``, ``numpy``, ``transformers`` and ``torch`` packages via:
+## Build tests and experiments
+
+Build all default targets:
+
 ```sh
-pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
 ```
 
-Note that: at the time of our development, some datasets are not compatible with ``datasets`` library version later than 3.6.0, so please make sure to install the exact version above.
+Default C++ targets:
 
-Then run:
+- `libvectormaton.a`: the static library target.
+- `sa_test`, `queue_test`, `hnsw_test`, `vectormaton_test`: small tests and demos.
+- `main_exp`: the main experiment executable from `source/experiments/main_exp.cpp`.
+- `postfiltering_case_study`: the PostFiltering case-study executable from `source/experiments/postfiltering_case_study.cpp`.
+
+Run the VectorMaton demo:
+
 ```sh
+./build/vectormaton_test
+```
+
+## Experiment inputs
+
+Each experiment expects aligned string and vector files:
+
+- `strings.txt`: one string per line.
+- `vectors.txt`: one whitespace-separated vector per line.
+- Query `strings.txt`, query `vectors.txt`, and `k.txt`: one query string, query vector, and integer `k` per line.
+
+Download and generate datasets:
+
+```sh
+pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0
 python3 scripts/download_datasets.py
 ```
 
-Note that the script may take hours to finish, as it needs to download the dataset and compute the embeddings. The script does not support checkpointing for single dataset, so if it is interrupted, you need to delete that dataset folder and restart it. The script will skip the dataset generation if the dataset already exists.
+Generate queries:
 
-## Queries
-Generate queries by:
 ```sh
-python3 generate_queries.py
-```
-and input the selected datasets, queried string length, etc. The queried strings are randomly sampled from the substrings of the original dataset. The queried vectors are randomly sampled from the original dataset. Generated quries are written into ``strings.txt``, ``vectors.txt`` and ``k.txt``.
-
-Analyze the generated query pattern distribution by:
-```sh
-python3 scripts/pattern_distribution.py --all-datasets --output-csv results/pattern_distribution.csv --plot-dir figures/pattern_distribution
-```
-This reports query repetition, dataset substring frequency skew, query selectivity, and overlap among the data strings matched by different query patterns. These statistics help explain when pre-filtering, post-filtering, and VectorMaton see easier or harder substring predicates.
-
-## Running example
-Following is a minimal running example.
-
-Firstly, compile the project:
-```sh
-> git submodule update --init --recursive
-> mkdir build && cd build
-> cmake ..
-> make
+python3 scripts/generate_queries.py
 ```
 
-Then download datasets by:
+The query generator asks for the dataset, query substring length, number of queries, `k`, and optional data-size limit. Generated query files are written to the working directory.
+
+Analyze query-pattern distributions:
+
 ```sh
-> python3 scripts/download_datasets.py
+python3 scripts/plot/pattern_distribution_figure_11.py --all-datasets --output-csv results/pattern_distribution.csv --plot-dir figures/pattern_distribution
 ```
 
-Then generate query data:
+## Run the main experiment
+
+`main_exp` evaluates the native VectorMaton methods and baseline methods implemented in `source/baselines`.
+
 ```sh
-> python3 generate_queries.py
-Available datasets:
-0: arxiv-small
-1: swissprot
-2: code_search_net
-3: arxiv
-Enter the index of the dataset to use: 0
-Enter the desired string length for queries: 3
-Enter the number of queries to generate: 1000
-Enter value k for k-NN search: 10
-Enter the number of elements you want to select from the dataset (-1 for all): -1
+./build/main_exp \
+  <string_data_file> <vector_data_file> \
+  <string_query_file> <vector_query_file> \
+  <k_query_file> \
+  <OptQuery|PreFiltering|PostFiltering|Hybrid|BM25Filtering|VectorMaton-full|VectorMaton-smart|VectorMaton-parallel>
 ```
 
-Finally, run PreFiltering on the query data:
-```sh
-> ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt PreFiltering
-```
-Or run BM25Filtering instead:
-```sh
-> ./build/main datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings.txt vectors.txt k.txt BM25Filtering
-```
-## Optional ACORN baseline
+Example:
 
-This repository can also build a standalone ACORN baseline wrapper, ``test_acorn``. ACORN is built from the fork at [ForwardStar/ACORN](https://github.com/ForwardStar/ACORN), which is based on FAISS.
+```sh
+./build/main_exp \
+  datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt \
+  strings.txt vectors.txt k.txt \
+  VectorMaton-smart \
+  --statistics-file=results/vectormaton_smart.csv
+```
 
-First fetch the ACORN submodule:
+Optional flags:
+
+- `--debug`: show debug messages.
+- `--data-size=<n>`: use only the first `n` data vectors and strings.
+- `--statistics-file=output_statistics.csv`: write recall/time statistics to CSV.
+- `--load-index=index_files_folder`: load a previously saved index from disk.
+- `--save-index=index_files_folder`: save the built index to disk.
+- `--num-threads=<n>`: set the number of threads for `VectorMaton-parallel`.
+- `--write-ground-truth=ground_truth.txt`: write exact ground-truth results to a file.
+- `--set-min-build-threshold=<n>`: set the minimum candidate-set size required before VectorMaton builds an HNSW sub-index.
+- `--insert-percentage=<p>`: reserve the last `p` percent of the dataset for insertion-performance evaluation.
+- `--write-output=output.txt`: write query result IDs.
+
+## Run PostFiltering case study
+
+```sh
+./build/postfiltering_case_study \
+  <string_data_file> <vector_data_file> \
+  <string_query_file> <vector_query_file> \
+  <k_query_file> \
+  PostFiltering \
+  --statistics-file=output.csv
+```
+
+For each `ef_search`, this evaluates `search_k` ratios (how many candidates are kept before filtering) `0.2`, `0.4`, `0.6`, `0.8`, and `1.0`.
+
+## External experiments in `source/experiments`
+
+The external baseline drivers are:
+
+- `source/experiments/acorn_exp.cpp`: optional ACORN wrapper, built as `acorn_exp`.
+- `source/experiments/elasticsearch_exp.py`: Elasticsearch baseline.
+- `source/experiments/pgvector_exp.py`: PostgreSQL/pgvector baseline.
+
+### ACORN
+
+ACORN is built from the `third_party/ACORN` submodule, a fork based on FAISS.
+
 ```sh
 git submodule update --init --recursive third_party/ACORN
-```
 
-Build ACORN/FAISS locally. The benchmark links against the local ``faiss`` library target; it does not require installing FAISS system-wide.
-```sh
 cmake -S third_party/ACORN \
       -B third_party/ACORN/build \
       -DFAISS_ENABLE_GPU=OFF \
@@ -229,17 +250,15 @@ cmake -S third_party/ACORN \
       -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_BUILD_TYPE=Release
 cmake --build third_party/ACORN/build -j --target faiss
+
+cmake -S . -B build -DENABLE_ACORN=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target acorn_exp -j
 ```
 
-Then enable and build the VectorMaton ACORN wrapper:
-```sh
-cmake -S . -B build -DENABLE_ACORN=ON
-cmake --build build --target test_acorn
-```
+Run ACORN with the same dataset/query files used by other experiments:
 
-Run ACORN with the same dataset/query files used by the other experiments:
 ```sh
-./build/test_acorn \
+./build/acorn_exp \
   <string_data_file> <vector_data_file> \
   <string_query_file> <vector_query_file> \
   <k_query_file> <ground_truth_file> \
@@ -248,92 +267,104 @@ Run ACORN with the same dataset/query files used by the other experiments:
 ```
 
 The output CSV contains:
+
 ```text
 ef_search,M,gamma,M_beta,time_us,recall,build_peak_memory_bytes,index_size_bytes
 ```
 
-During ACORN indexing, the wrapper also builds a ``GeneralizedSuffixAutomaton`` over the data strings. Query-time ACORN filter bitmaps are built from GSA match ID lists instead of scanning every data string. A data point is eligible iff its string contains the query string as a substring. The metadata vector passed to ACORN is currently a placeholder because this benchmark's predicates are substring predicates rather than categorical attributes.
+### Elasticsearch
 
-## All external baselines
-The scripts ``test_elasticsearch.py`` and ``test_pgvector.py`` evaluate external baseline systems. The optional ``test_acorn`` executable evaluates ACORN. Elasticsearch and PostgreSQL/pgvector must already be running locally. ACORN is linked as a local FAISS-based library as described above. We test it with ElasticSearch 9.3.0 and Postgresql 17.6.
+Install and start Elasticsearch separately, then run:
 
-For ElasticSearch, we download it from [the official website](https://www.elastic.co/downloads/elasticsearch) and unpack it. Configure the JVM heap memory to 128GB by writing:
-```
--Xms128g
--Xmx128g
-```
-
-to ``/path/to/elasticsearch-9.3.0/config/jvm.options.d/heap.options``. After that, launch it simply by:
 ```sh
-/path/to/elasticsearch-9.3.0/bin/elasticsearch
+python3 source/experiments/elasticsearch_exp.py \
+  <string_data_file> <vector_data_file> \
+  <string_query_file> <vector_query_file> \
+  <k_query_file> <ground_truth_file> \
+  --rebuild
 ```
 
-And reset the password to ``123456``:
+The experiments were tested with Elasticsearch 9.3.0. A large heap and at least 150 GB of free disk space are recommended for the full experiment schedule.
+
+### PostgreSQL/pgvector
+
+Install and start PostgreSQL with pgvector separately, then run:
+
 ```sh
-/path/to/elasticsearch-9.3.0/bin/elasticsearch-reset-password -u elastic -i
+python3 source/experiments/pgvector_exp.py \
+  <string_data_file> <vector_data_file> \
+  <string_query_file> <vector_query_file> \
+  <k_query_file> <ground_truth_file> \
+  --rebuild
 ```
 
-Note that ElasticSearch requires **at least 150GB free disk space** during the whole experimental process. Failure the meet the condition will result in connection lost.
+## Reproduce experiment suites
 
-For PostgreSQL, we install it by Anaconda:
-```sh
-conda create -n pg_env -c conda-forge postgresql
-conda activate pg_env
-```
+You should follow the build instructions above and install python dependencies before running the experiment scripts. The scripts assume the current working directory is the repository root.
 
-Initialize its data folder:
-```sh
-rm -rf ./pgdata
-initdb -D ./pgdata
-```
+Firstly download datasets:
 
-Then launch it by:
-```sh
-pg_ctl -D ./pgdata -l logfile start
-```
-
-## Reproduce the minimal experimental results
-**TODO**
-
-## Reproduce the full experimental results
-**TODO: update the guide**
-
-Firstly, fetch the submodules and compile VectorMaton (and resolve dependency issues if needed):
-```sh
-git submodule update --init --recursive
-mkdir build && cd build
-cmake ..
-make -j
-cd ..
-```
-
-Also, follow the above instructions to prepare for external baselines ElasticSearch and PostgreSQL.
-
-Then prepare dataset (may need hours to finish):
 ```sh
 python3 scripts/download_datasets.py
 ```
 
-Finally, run all experiments:
+Then run the scripts:
+
 ```sh
-sh scripts/run-queries.sh
-sh scripts/run-scalability.sh
-sh scripts/run-parallel.sh
-sh scripts/run-sift.sh
-sh scripts/run-threshold.sh
-sh scripts/run-postfiltering.sh
+sh scripts/run/run-queries.sh
+sh scripts/run/run-scalability.sh
+sh scripts/run/run-parallel.sh
+sh scripts/run/run-sift.sh
+sh scripts/run/run-threshold.sh
+sh scripts/run/run-postfiltering.sh
+sh scripts/run/run-insertion.sh
+sh scripts/run/run-long-sequence.sh
 ```
 
-Plot by:
+Plot results:
+
 ```sh
-python3 scripts/recall_qps.py
-python3 scripts/recall_qps_selected.py
-python3 scripts/plot_memory_consumption.py
-python3 scripts/memory_and_time.py
-python3 scripts/plot_scalability.py
-python3 scripts/plot_threshold.py
-python3 scripts/plot_sift.py
-python3 scripts/plot_postfiltering.py
+python3 scripts/plot/recall_qps_figure_9.py
+python3 scripts/plot/recall_qps_figure_10.py
+python3 scripts/plot/pattern_distribution_figure_11.py
+python3 scripts/plot/plot_index_figure_12.py
+python3 scripts/plot/plot_scalability_figure_13.py
+python3 scripts/plot/plot_insertion_figure_14.py
+python3 scripts/plot/plot_postfiltering_figure_15.py
+python3 scripts/plot/plot_wikipedia_figure_16.py
+python3 scripts/plot/plot_sift_figure_2.py
+python3 scripts/plot/plot_threshold.py
 ```
 
-You will see results in the ``figures`` folder.
+Figures are written under `figures/`; raw outputs are written under `results/`.
+
+## Minimal native-only experiment example
+
+The external baselines require separate services or libraries: ACORN/FAISS, Elasticsearch, and PostgreSQL/pgvector. To run a smaller experiment pass with only the in-repository C++ methods, build the default targets and blacklist the external baselines in scripts that support method blacklists.
+
+```sh
+git submodule update --init --recursive
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+
+python3 scripts/download_datasets.py
+
+sh scripts/run/run-queries.sh \
+  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch
+
+sh scripts/run/run-scalability.sh
+sh scripts/run/run-parallel.sh
+sh scripts/run/run-sift.sh
+sh scripts/run/run-threshold.sh
+sh scripts/run/run-postfiltering.sh
+
+sh scripts/run/run-insertion.sh \
+  --methods "OptQuery BM25Filtering PreFiltering PostFiltering Hybrid VectorMaton-smart"
+```
+
+For the long-sequence experiment, the script generates prompt embeddings automatically if `string_prompt.txt` or `vectors_prompt.txt` is missing. This requires the Python dependencies used by `scripts/prompt_embedding.py`, including `sentence-transformers`.
+
+```sh
+sh scripts/run/run-long-sequence.sh \
+  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch
+```

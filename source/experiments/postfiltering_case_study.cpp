@@ -170,7 +170,7 @@ bool run_postfiltering_study(
     pf.build();
     LOG_INFO("PostFiltering index built took ", timeFormatting(currentTime() - start_time).str());
 
-    std::filesystem::path output_file = statistics_file.empty() ? "parameter_study.csv" : statistics_file;
+    std::filesystem::path output_file = statistics_file.empty() ? "postfiltering_case_study.csv" : statistics_file;
     if (output_file.has_parent_path()) {
         std::filesystem::create_directories(output_file.parent_path());
     }
@@ -204,7 +204,7 @@ bool run_postfiltering_study(
 
 int main(int argc, char* argv[]) {
     if (argc < 7 || std::strcmp(argv[6], "PostFiltering") != 0) {
-        LOG_ERROR("Usage: ./parameter_study <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> PostFiltering [--statistics-file=output.csv]");
+        LOG_ERROR("Usage: ./postfiltering_case_study <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> PostFiltering [--statistics-file=output.csv]");
         return 1;
     }
 

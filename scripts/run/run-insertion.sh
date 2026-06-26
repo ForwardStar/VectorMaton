@@ -3,7 +3,7 @@ set -eu
 (set -o pipefail) >/dev/null 2>&1 && set -o pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+REPO_ROOT=$(CDPATH= cd -- "${SCRIPT_DIR}/../.." && pwd)
 cd "${REPO_ROOT}"
 
 RESULT_ROOT="${RESULT_ROOT:-results/insertion}"
@@ -118,13 +118,13 @@ needs_ground_truth() {
         method_enabled "ElasticSearch"
 }
 
-if [ ! -x "./build/main" ]; then
-    echo "Missing executable ./build/main (build the project first)." >&2
+if [ ! -x "./build/main_exp" ]; then
+    echo "Missing executable ./build/main_exp (build the project first)." >&2
     exit 1
 fi
 
-if { method_enabled "ACORN-gamma" || method_enabled "ACORN-1"; } && [ ! -x "./build/test_acorn" ]; then
-    echo "Missing executable ./build/test_acorn (build the project first)." >&2
+if { method_enabled "ACORN-gamma" || method_enabled "ACORN-1"; } && [ ! -x "./build/acorn_exp" ]; then
+    echo "Missing executable ./build/acorn_exp (build the project first)." >&2
     exit 1
 fi
 
@@ -166,7 +166,7 @@ run_main_method() {
     fi
 
     echo "==> ${dataset}: ${method}, insertion=${pct}%"
-    ./build/main \
+    ./build/main_exp \
         "${strings_file}" \
         "${vectors_file}" \
         "${query_strings}" \
@@ -191,7 +191,7 @@ generate_ground_truth_only() {
     local log_file="${RESULT_ROOT}/.tmp_queries/${dataset}/ground_truth_insert.log"
 
     echo "==> ${dataset}: generating ground truth, insertion=${pct}%"
-    ./build/main \
+    ./build/main_exp \
         "${strings_file}" \
         "${vectors_file}" \
         "${query_strings}" \
@@ -226,7 +226,7 @@ run_acorn() {
     mkdir -p "${method_dir}"
 
     echo "==> ${dataset}: ${variant}, insertion=${pct}%"
-    OMP_NUM_THREADS=1 ./build/test_acorn \
+    OMP_NUM_THREADS=1 ./build/acorn_exp \
         "${strings_file}" \
         "${vectors_file}" \
         "${query_strings}" \
@@ -256,7 +256,7 @@ run_pgvector() {
     mkdir -p "${method_dir}"
 
     echo "==> ${dataset}: pgvector, insertion=${pct}%"
-    python3 test_pgvector.py \
+    python3 source/experiments/pgvector_exp.py \
         "${strings_file}" \
         "${vectors_file}" \
         "${query_strings}" \
@@ -286,7 +286,7 @@ run_elasticsearch() {
     mkdir -p "${method_dir}"
 
     echo "==> ${dataset}: ElasticSearch, insertion=${pct}%"
-    python3 test_elasticsearch.py \
+    python3 source/experiments/elasticsearch_exp.py \
         "${strings_file}" \
         "${vectors_file}" \
         "${query_strings}" \

@@ -19,7 +19,7 @@ static void logPeakMemoryConsumption(const std::string& method_name, long long p
 
 int main(int argc, char * argv[]) {
     if (argc < 7) {
-        LOG_ERROR("Usage: ./main <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/Hybrid/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...] [--write-output=output.txt]");
+        LOG_ERROR("Usage: ./main_exp <string_data_file> <vector_data_file> <string_query_file> <vector_query_file> <k_query_file> <PreFiltering/PostFiltering/Hybrid/VectorMaton-full/VectorMaton-smart> [--debug] [--data-size=N] [--statistics-file=output_statistics.csv] [--load-index=index_files_folder] [--save-index=index_files_folder] [--num-threads=...] [--write-ground-truth=ground_truth.txt] [--set-min-build-threshold=...] [--insert-percentage=...] [--write-output=output.txt]");
         return 1;
     }
 
