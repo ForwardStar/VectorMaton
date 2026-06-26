@@ -2,6 +2,23 @@
 
 VectorMaton is a C++ index for hybrid approximate nearest-neighbor queries where each vector has an associated string and each query asks for vectors whose strings contain a query substring. A query contains a string, a vector, and an integer `k`; the result is up to `k` approximate nearest neighbors under the substring constraint. The current implementation uses Euclidean distance.
 
+## Table of contents
+
+- [Build the library](#build-the-library)
+- [Link in your project](#link-in-your-project)
+- [Minimal demo](#minimal-demo)
+- [API](#api)
+- [Build tests and experiments](#build-tests-and-experiments)
+- [Experiment inputs](#experiment-inputs)
+- [Run the main experiment](#run-the-main-experiment)
+- [Run PostFiltering case study](#run-postfiltering-case-study)
+- [External experiments in `source/experiments`](#external-experiments-in-sourceexperiments)
+  - [ACORN](#acorn)
+  - [Elasticsearch](#elasticsearch)
+  - [PostgreSQL/pgvector](#postgresqlpgvector)
+- [Reproduce experiment suites](#reproduce-experiment-suites)
+- [Minimal native-only experiment example](#minimal-native-only-experiment-example)
+
 ## Build the library
 
 Fetch the submodules first. `hnswlib` is required by VectorMaton.
