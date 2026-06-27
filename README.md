@@ -165,7 +165,7 @@ Each experiment expects aligned string and vector files:
 
 - `strings.txt`: one string per line.
 - `vectors.txt`: one whitespace-separated vector per line.
-- Query `strings.txt`, query `vectors.txt`, and `k.txt`: one query string, query vector, and integer `k` per line.
+- `k.txt`: one integer `k` per line.
 
 Download and generate datasets:
 
