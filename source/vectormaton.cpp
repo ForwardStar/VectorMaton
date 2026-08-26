@@ -119,25 +119,26 @@ void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) 
         std::vector<uint32_t> complete_ids;
         int source = clone_source[state - old_state_count];
         if (source != -1) {
-            complete_ids = candidate_ids[source];
+            const auto& source_ids = candidate_ids[source];
             if (uses_inheritance && inherit_states[source] != -1) {
                 const auto& inherited_ids = candidate_ids[inherit_states[source]];
-                std::vector<uint32_t> merged_ids;
-                merged_ids.reserve(complete_ids.size() + inherited_ids.size());
+                complete_ids.reserve(source_ids.size() + inherited_ids.size() + 1);
                 std::set_union(
-                        complete_ids.begin(), complete_ids.end(),
+                        source_ids.begin(), source_ids.end(),
                         inherited_ids.begin(), inherited_ids.end(),
-                        std::back_inserter(merged_ids));
-                complete_ids = std::move(merged_ids);
+                        std::back_inserter(complete_ids));
+            }
+            else {
+                complete_ids.reserve(source_ids.size() + 1);
+                complete_ids.insert(complete_ids.end(), source_ids.begin(), source_ids.end());
             }
         }
-        std::vector<uint32_t> merged_ids;
-        merged_ids.reserve(complete_ids.size() + gsa.st[state].ids.size());
-        std::set_union(
-                complete_ids.begin(), complete_ids.end(),
-                gsa.st[state].ids.begin(), gsa.st[state].ids.end(),
-                std::back_inserter(merged_ids));
-        complete_ids = std::move(merged_ids);
+        // All historical GSA ID lists were released after construction, so a
+        // new state's temporary ID list can contain only this insertion's ID.
+        if (!gsa.st[state].ids.empty() &&
+                (complete_ids.empty() || complete_ids.back() != new_id)) {
+            complete_ids.emplace_back(new_id);
+        }
         candidate_ids[state] = std::move(complete_ids);
         release_ids(gsa.st[state].ids);
         build_graph_if_needed(static_cast<int>(state));
