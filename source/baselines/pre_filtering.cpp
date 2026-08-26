@@ -53,7 +53,9 @@ size_t PreFiltering::size() {
     for (int i = 0; i < num_elements; i++) {
         total_size += sizeof(std::string) + strs[i].capacity(); // size of each string
         total_size += sizeof(float) * dim; // size of each vector
-        total_size += sizeof(uint32_t) * gsa.st[i].ids.capacity(); // size of each GSA state's id vector
+    }
+    for (const auto& state : gsa.st) {
+        total_size += sizeof(uint32_t) * state.ids.capacity(); // size of each GSA state's id vector
     }
     return total_size;
 }

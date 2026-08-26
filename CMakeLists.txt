@@ -57,16 +57,18 @@ add_executable(sa_test source/tests/test_sa.cpp)
 add_executable(queue_test source/mpmc_queue.h source/tests/test_queue.cpp)
 add_executable(hnsw_test source/headers.h source/tests/test_hnsw.cpp)
 add_executable(vectormaton_test source/tests/test_vectormaton.cpp)
+add_executable(pre_filtering_test source/tests/test_pre_filtering.cpp source/baselines/pre_filtering.cpp)
 add_executable(main_exp source/headers.h source/experiments/main_exp.cpp ${VECTORMATON_BASELINE_SOURCES})
 add_executable(postfiltering_case_study source/headers.h source/experiments/postfiltering_case_study.cpp source/baselines/exact.h source/baselines/exact.cpp source/baselines/post_filtering.h source/baselines/post_filtering.cpp)
 
-foreach(target sa_test queue_test hnsw_test vectormaton_test main_exp postfiltering_case_study)
+foreach(target sa_test queue_test hnsw_test vectormaton_test pre_filtering_test main_exp postfiltering_case_study)
     target_include_directories(${target} PRIVATE ${VECTORMATON_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE OpenMP::OpenMP_CXX)
 endforeach()
 
 target_link_libraries(sa_test PRIVATE vectormaton)
 target_link_libraries(vectormaton_test PRIVATE vectormaton)
+target_link_libraries(pre_filtering_test PRIVATE vectormaton)
 target_link_libraries(main_exp PRIVATE vectormaton)
 
 

@@ -30,7 +30,20 @@ int main() {
         std::cout << "}\n";
     };
 
+    // Regression: build_full must serialize an explicit "no inheritance"
+    // entry for every state.
+    db.save_index("test_vectormaton_full");
+    VectorMaton full_loaded;
+    full_loaded.set_vectors(vecs, 3);
+    full_loaded.set_strings(strings);
+    full_loaded.load_index("test_vectormaton_full");
+    assert(full_loaded.inherit_states.size() == full_loaded.gsa.st.size());
+    assert(std::all_of(full_loaded.inherit_states.begin(),
+                       full_loaded.inherit_states.end(),
+                       [](int state) { return state == -1; }));
+
     float query_vec1[3] = {9.0, 10.0, 11.0};
+    assert(full_loaded.query(query_vec1, "ana", 2).size() == 2);
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'ana'." << std::endl;
     print_res(db.query(query_vec1, "ana", 2)); // {2, 3}
     std::cout << "2-NNs of {9.0, 10.0, 11.0} associated with 'nana'." << std::endl;
