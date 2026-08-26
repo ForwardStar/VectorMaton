@@ -24,6 +24,7 @@ public:
     };
     std::vector<State> st;
     std::vector<uint32_t> affected_states; // states affected by the last added string, used for insertion
+    std::vector<std::pair<uint32_t, uint32_t>> cloned_states; // (clone state, source state) from the last added string
         
     // Used for reverse topological sort.
     std::atomic<int>* deg = nullptr;

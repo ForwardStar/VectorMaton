@@ -27,6 +27,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <iterator>
 #include <omp.h>
 #include "hnswlib/hnswlib.h"
 

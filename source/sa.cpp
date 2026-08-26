@@ -87,6 +87,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             for (auto old_id : st[x].ids) { // copy ids
                 st[cur].ids.emplace_back(old_id);
             }
+            cloned_states.emplace_back(cur, x);
             affected_states.emplace_back(cur);
             int p = last;
             while (p != -1 && get_next(p, c) == x) {
@@ -132,6 +133,7 @@ void GeneralizedSuffixAutomaton::sa_extend(char c, uint32_t id) {
             for (auto old_id : st[q].ids) { // copy ids
                 st[clone].ids.emplace_back(old_id);
             }
+            cloned_states.emplace_back(clone, q);
 
             while (p != -1 && get_next(p, c) == q) {
                 set_next(p, c, clone);
@@ -155,6 +157,7 @@ void GeneralizedSuffixAutomaton::add_string(uint32_t id, const std::string &s) {
     last = 0;
     st[0].ids.emplace_back(id);
     affected_states.clear();
+    cloned_states.clear();
     affected_states.emplace_back(0);
     for (char c : s) {
         if (c >= 'a' && c <= 'z') {

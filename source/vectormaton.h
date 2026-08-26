@@ -11,6 +11,10 @@ class VectorMaton {
         std::vector<std::string> strs;
         int dim = 0, num_elements = 0;
         int min_build_threshold = 800; // minimum number of vectors to build HNSW/NSW
+        uint32_t insertion_generation = 0;
+        std::vector<uint32_t> affected_generation;
+        std::vector<uint32_t> local_membership_generation;
+        std::vector<uint8_t> local_membership_value;
         void build_gsa();
         void clear_gsa();
 

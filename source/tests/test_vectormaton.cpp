@@ -112,5 +112,46 @@ int main() {
     std::cout << "After insertion of {12.0, 13.0, 14.0} with string 'ana':" << std::endl;
     print_res(pdb4.query(query_vec1, "ana", 3)); // {2, 3, 5}
 
+    // Regression: an old state may have an empty local difference set because
+    // all of its IDs are covered by its inherited index. It is not a new state.
+    VectorMaton repeated;
+    repeated.set_min_build_threshold(1);
+    repeated.set_vectors({0.0f, 0.0f}, 2);
+    repeated.set_strings({"ab"});
+    repeated.build_smart();
+    repeated.insert({1.0f, 1.0f}, "ab");
+    float repeated_query[2] = {1.0f, 1.0f};
+    auto repeated_results = repeated.query(repeated_query, "a", 2);
+    assert(repeated_results.size() == 2);
+    assert(std::unordered_set<int>(repeated_results.begin(), repeated_results.end()).size() == 2);
+    assert(std::find(repeated_results.begin(), repeated_results.end(), 0) != repeated_results.end());
+    assert(std::find(repeated_results.begin(), repeated_results.end(), 1) != repeated_results.end());
+
+    int a_state = repeated.gsa.query("a");
+    int inherited_state = repeated.inherit_states[a_state];
+    assert(inherited_state != -1);
+    std::unordered_set<uint32_t> local_ids(
+            repeated.candidate_ids[a_state].begin(), repeated.candidate_ids[a_state].end());
+    for (uint32_t id : repeated.candidate_ids[inherited_state]) {
+        assert(local_ids.find(id) == local_ids.end());
+    }
+
+    // Regression: a state cloned during insertion must retain historical IDs
+    // even though the build released the temporary GSA ID lists.
+    VectorMaton cloned;
+    cloned.set_min_build_threshold(100);
+    cloned.set_vectors({0, 1, 2, 3, 4}, 1);
+    cloned.set_strings({"bbcb", "ccbc", "bcacb", "b", "aabc"});
+    cloned.build_smart();
+    cloned.insert({5}, "bccb");
+    cloned.insert({6}, "c");
+    cloned.insert({7}, "babb");
+    float clone_query[1] = {7};
+    auto clone_results = cloned.query(clone_query, "ab", 10);
+    std::unordered_set<int> clone_result_ids(clone_results.begin(), clone_results.end());
+    assert(clone_result_ids.size() == 2);
+    assert(clone_result_ids.find(4) != clone_result_ids.end());
+    assert(clone_result_ids.find(7) != clone_result_ids.end());
+
     return 0;
 }

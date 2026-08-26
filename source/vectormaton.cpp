@@ -48,86 +48,143 @@ void VectorMaton::clear_gsa() {
 
 void VectorMaton::insert(const std::vector<float>& vec, const std::string& str) {
     if (static_cast<int>(vec.size()) != dim) return;
+    const size_t old_state_count = gsa.st.size();
+    const bool uses_inheritance = !inherit_states.empty();
+    const uint32_t new_id = static_cast<uint32_t>(num_elements);
+
     vecs.insert(vecs.end(), vec.begin(), vec.end());
     strs.emplace_back(str);
     num_elements++;
-    gsa.add_string(num_elements - 1, str);
-    // Expand inherit_states, size_ids, candidate_ids and hnsws for the new states
+    gsa.add_string(new_id, str);
+
+    // Expand the state-index metadata. New ESAM states do not inherit an
+    // existing index; their complete associated ID set is indexed locally.
     while (candidate_ids.size() < gsa.st.size()) {
-        int new_state = candidate_ids.size(), num_ids = gsa.st[new_state].ids.size();
-        if (inherit_states.size() > 0) inherit_states.emplace_back(-1);
+        if (uses_inheritance) inherit_states.emplace_back(-1);
         candidate_ids.emplace_back(std::vector<uint32_t>());
         hnsws.emplace_back(nullptr);
     }
-    for (int state : gsa.affected_states) {
-        if (candidate_ids[state].empty()) {
-            // For brand new states, construct index directly (without inheriting from children)
-            candidate_ids[state].resize(gsa.st[state].ids.size());
-            for (int j = 0; j < candidate_ids[state].size(); j++) {
-                candidate_ids[state][j] = gsa.st[state].ids[j];
-            }
-            release_ids(gsa.st[state].ids);
-            if (candidate_ids[state].size() >= min_build_threshold) {
-                int M = 16, ef_construction = 200;
-                hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
-                for (int id : candidate_ids[state]) {
-                    hnsws[state]->addPoint(id);
-                }
-            }
+
+    // Generation stamps deduplicate affected states without clearing an
+    // O(number of ESAM states) bitmap on every insertion.
+    affected_generation.resize(gsa.st.size(), 0);
+    local_membership_generation.resize(gsa.st.size(), 0);
+    local_membership_value.resize(gsa.st.size(), 0);
+    insertion_generation++;
+    
+    std::vector<uint32_t> unique_affected_states;
+    unique_affected_states.reserve(gsa.affected_states.size());
+    for (uint32_t state : gsa.affected_states) {
+        if (state < affected_generation.size() &&
+                affected_generation[state] != insertion_generation) {
+            affected_generation[state] = insertion_generation;
+            unique_affected_states.emplace_back(state);
         }
-        else if (inherit_states.size() == 0 || inherit_states[state] == -1) {
-            // For old states without inheritance, if it is not processed before, add the new vector to candidate list and index
-            if (candidate_ids[state].back() != num_elements - 1) {
-                candidate_ids[state].emplace_back(num_elements - 1);
-                release_ids(gsa.st[state].ids);
-                if (hnsws[state]) {
-                    hnsws[state]->external_data_ = reinterpret_cast<const char*>(vecs.data());
-                    hnsws[state]->resizeIndex(candidate_ids[state].size());
-                    hnsws[state]->addPoint(num_elements - 1);
-                }
-                else if (candidate_ids[state].size() >= min_build_threshold) {
-                    int M = 16, ef_construction = 200;
-                    hnsws[state] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
-                    for (int id : candidate_ids[state]) {
-                        hnsws[state]->addPoint(id);
-                    }
-                }
+    }
+
+    auto build_graph_if_needed = [&](int state) {
+        if (hnsws[state] || candidate_ids[state].size() < static_cast<size_t>(min_build_threshold)) return;
+        int M = 16, ef_construction = 200;
+        hnsws[state] = new hnswlib::HierarchicalNSW<float>(
+                space, candidate_ids[state].size(), vecs.data(), M, ef_construction);
+        for (uint32_t id : candidate_ids[state]) hnsws[state]->addPoint(id);
+    };
+
+    auto append_to_local_index = [&](int state) {
+        if (!candidate_ids[state].empty() && candidate_ids[state].back() == new_id) return;
+        candidate_ids[state].emplace_back(new_id);
+        if (hnsws[state]) {
+            hnsws[state]->external_data_ = reinterpret_cast<const char*>(vecs.data());
+            if (candidate_ids[state].size() > hnsws[state]->max_elements_) {
+                hnsws[state]->resizeIndex(candidate_ids[state].size());
             }
+            hnsws[state]->addPoint(new_id);
         }
         else {
-            // For old states with inheritance, if it is not processed before, process it and its inherited states recursively
-            if (candidate_ids[state].back() != num_elements - 1) {
-                int now = state;
-                std::vector<int> to_process = {now};
-                while (inherit_states[now] != -1 && gsa.st[now].ids.size() > 0 && gsa.st[now].ids.back() == num_elements - 1) {
-                    now = inherit_states[now];
-                    to_process.emplace_back(now);
-                }
-                for (int i = to_process.size() - 1; i >= 0; i--) {
-                    int s = to_process[i];
-                    if (gsa.st[s].ids.size() > 0 && gsa.st[s].ids.back() == num_elements - 1) {
-                        release_ids(gsa.st[s].ids);
-                        if (inherit_states[s] != -1 && candidate_ids[inherit_states[s]].size() > 0 && candidate_ids[inherit_states[s]].back() == num_elements - 1) {
-                            continue;
-                        }
-                        candidate_ids[s].emplace_back(num_elements - 1);
-                        if (hnsws[s]) {
-                            hnsws[s]->external_data_ = reinterpret_cast<const char*>(vecs.data());
-                            hnsws[s]->resizeIndex(candidate_ids[s].size());
-                            hnsws[s]->addPoint(num_elements - 1);
-                        }
-                        else if (candidate_ids[s].size() >= min_build_threshold) {
-                            int M = 16, ef_construction = 200;
-                            hnsws[s] = new hnswlib::HierarchicalNSW<float>(space, candidate_ids[s].size(), vecs.data(), M, ef_construction);
-                            for (int id : candidate_ids[s]) {
-                                hnsws[s]->addPoint(id);
-                            }
-                        }
-                    }
-                }
+            build_graph_if_needed(state);
+        }
+    };
+
+    std::vector<int> clone_source(gsa.st.size() - old_state_count, -1);
+    for (const auto& [clone, source] : gsa.cloned_states) {
+        if (clone >= old_state_count && clone < gsa.st.size()) {
+            clone_source[clone - old_state_count] = static_cast<int>(source);
+        }
+    }
+
+    // A genuinely new state indexes its complete ID set locally. In particular,
+    // an empty candidate set on an old state must not be used as a new-state test:
+    // it can be the valid difference V(state) - I(inherit(state)).
+    for (size_t state = old_state_count; state < gsa.st.size(); state++) {
+        std::vector<uint32_t> complete_ids;
+        int source = clone_source[state - old_state_count];
+        if (source != -1) {
+            complete_ids = candidate_ids[source];
+            if (uses_inheritance && inherit_states[source] != -1) {
+                const auto& inherited_ids = candidate_ids[inherit_states[source]];
+                std::vector<uint32_t> merged_ids;
+                merged_ids.reserve(complete_ids.size() + inherited_ids.size());
+                std::set_union(
+                        complete_ids.begin(), complete_ids.end(),
+                        inherited_ids.begin(), inherited_ids.end(),
+                        std::back_inserter(merged_ids));
+                complete_ids = std::move(merged_ids);
             }
         }
-        
+        std::vector<uint32_t> merged_ids;
+        merged_ids.reserve(complete_ids.size() + gsa.st[state].ids.size());
+        std::set_union(
+                complete_ids.begin(), complete_ids.end(),
+                gsa.st[state].ids.begin(), gsa.st[state].ids.end(),
+                std::back_inserter(merged_ids));
+        complete_ids = std::move(merged_ids);
+        candidate_ids[state] = std::move(complete_ids);
+        release_ids(gsa.st[state].ids);
+        build_graph_if_needed(static_cast<int>(state));
+    }
+
+    // local_contains_new[state] records whether the new ID belongs to I(state),
+    // the state's local difference index. If an inherited local index contains
+    // it, the parent must not store it locally; otherwise the parent must store
+    // it to preserve the exact cover.
+    for (size_t state = old_state_count; state < gsa.st.size(); state++) {
+        local_membership_generation[state] = insertion_generation;
+        local_membership_value[state] =
+                (!candidate_ids[state].empty() && candidate_ids[state].back() == new_id) ? 1 : 0;
+    }
+    auto belongs_in_local = [&](int start_state) {
+        int state = start_state;
+        std::vector<int> path;
+        while (local_membership_generation[state] != insertion_generation) {
+            if (affected_generation[state] != insertion_generation) {
+                local_membership_generation[state] = insertion_generation;
+                local_membership_value[state] = 0;
+                break;
+            }
+            int inherited = uses_inheritance ? inherit_states[state] : -1;
+            if (inherited == -1) {
+                local_membership_generation[state] = insertion_generation;
+                local_membership_value[state] = 1;
+                break;
+            }
+            path.emplace_back(state);
+            state = inherited;
+        }
+        bool belongs = local_membership_value[state] == 1;
+        for (auto it = path.rbegin(); it != path.rend(); ++it) {
+            belongs = !belongs;
+            local_membership_generation[*it] = insertion_generation;
+            local_membership_value[*it] = belongs ? 1 : 0;
+        }
+        return local_membership_value[start_state] == 1;
+    };
+
+    for (uint32_t state : unique_affected_states) {
+        if (state >= old_state_count) continue;
+        if (belongs_in_local(static_cast<int>(state))) {
+            append_to_local_index(static_cast<int>(state));
+        }
+        release_ids(gsa.st[state].ids);
         updatePeakMemoryUsage(peak_memory_usage);
     }
 }
