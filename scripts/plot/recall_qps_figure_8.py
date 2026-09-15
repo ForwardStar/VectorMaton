@@ -1,4 +1,6 @@
 import sys
+"""Generate Figure 8 from the technical report."""
+
 import os
 import re
 import pandas as pd

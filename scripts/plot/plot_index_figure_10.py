@@ -1,3 +1,5 @@
+"""Generate Figure 10 from the technical report."""
+
 import argparse
 import os
 import re

@@ -182,12 +182,6 @@ python3 scripts/generate_queries.py
 
 The query generator asks for the dataset, query substring length, number of queries, `k`, and optional data-size limit. Generated query files are written to the working directory.
 
-Analyze query-pattern distributions:
-
-```sh
-python3 scripts/plot/pattern_distribution_figure_11.py --all-datasets --output-csv results/pattern_distribution.csv --plot-dir figures/pattern_distribution
-```
-
 ## Run the main experiment
 
 `main_exp` evaluates the native VectorMaton methods and baseline methods implemented in `source/baselines`.
@@ -336,16 +330,16 @@ sh scripts/run/run-long-sequence.sh
 Plot results:
 
 ```sh
-python3 scripts/plot/recall_qps_figure_9.py
-python3 scripts/plot/recall_qps_figure_10.py
-python3 scripts/plot/pattern_distribution_figure_11.py
-python3 scripts/plot/plot_index_figure_12.py
-python3 scripts/plot/plot_scalability_figure_13.py
-python3 scripts/plot/plot_insertion_figure_14.py
-python3 scripts/plot/plot_postfiltering_figure_15.py
-python3 scripts/plot/plot_wikipedia_figure_16.py
 python3 scripts/plot/plot_sift_figure_2.py
-python3 scripts/plot/plot_threshold.py
+python3 scripts/plot/recall_qps_figure_8.py
+python3 scripts/plot/recall_qps_figures_9_15.py
+python3 scripts/plot/plot_index_figure_10.py
+python3 scripts/plot/plot_scalability_figure_11.py
+python3 scripts/plot/plot_insertion_figure_12.py
+python3 scripts/plot/plot_postfiltering_figure_13.py
+python3 scripts/plot/plot_wikipedia_figure_14.py
+python3 scripts/plot/pattern_distribution_figure_16.py
+python3 scripts/plot/plot_threshold_figure_17.py
 ```
 
 Figures are written under `figures/`; raw outputs are written under `results/`.

@@ -1,3 +1,5 @@
+"""Generate Figure 17 from the technical report."""
+
 import argparse
 import csv
 import os

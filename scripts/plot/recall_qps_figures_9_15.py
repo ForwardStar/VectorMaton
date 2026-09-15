@@ -1,3 +1,5 @@
+"""Generate Figures 9 and 15 from the technical report."""
+
 import os
 import re
 

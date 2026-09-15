@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Generate Figure 16 from the technical report."""
+
 import argparse
 from pathlib import Path
 

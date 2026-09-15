@@ -1,10 +1,12 @@
+"""Generate Figure 12 from the technical report."""
+
 import argparse
 import os
 import re
 
 import pandas as pd
 
-from plot_index_figure_12 import (
+from plot_index_figure_10 import (
     DATASET_LABELS,
     DATASETS,
     METHOD_HATCHES,
