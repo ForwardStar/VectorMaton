@@ -2,6 +2,8 @@
 
 VectorMaton is a C++ index for hybrid approximate nearest-neighbor queries where each vector has an associated string and each query asks for vectors whose strings contain a query substring. A query contains a string, a vector, and an integer `k`; the result is up to `k` approximate nearest neighbors under the substring constraint. The current implementation uses Euclidean distance.
 
+The corresponding paper: "VectorMaton: Efficient Vector Search with Pattern Constraints via an Enhanced Suffix Automaton", has been accepted by PVLDB 2027. The full technical report is available [here](https://github.com/ForwardStar/VectorMaton/blob/main/technical_report.pdf).
+
 ## Table of contents
 
 - [Build the library](#build-the-library)
