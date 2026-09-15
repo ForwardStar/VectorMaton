@@ -1,8 +1,30 @@
+<div align="center">
+
 # VectorMaton
 
-VectorMaton is a C++ index for hybrid approximate nearest-neighbor queries where each vector has an associated string and each query asks for vectors whose strings contain a query substring. A query contains a string, a vector, and an integer `k`; the result is up to `k` approximate nearest neighbors under the substring constraint. The current implementation uses Euclidean distance.
+### Pattern-aware vector search, indexed as one.
 
-The corresponding paper: "VectorMaton: Efficient Vector Search with Pattern Constraints via an Enhanced Suffix Automaton", has been accepted by PVLDB 2027. The full technical report is available [here](https://github.com/ForwardStar/VectorMaton/blob/main/technical_report.pdf).
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/17)
+[![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake&logoColor=white)](https://cmake.org/)
+[![OpenMP](https://img.shields.io/badge/parallel-OpenMP-009639)](https://www.openmp.org/)
+[![PVLDB 2027](https://img.shields.io/badge/PVLDB-2027-7B2CBF)](https://www.vldb.org/pvldb/)
+
+**Fast approximate nearest-neighbor search with substring constraints.**
+
+</div>
+
+VectorMaton is a C++ index for data where every vector has an associated string. It combines vector similarity with pattern matching, so a query can ask:
+
+> Find the `k` vectors nearest to **q** whose associated strings contain pattern **p**.
+
+| Input | Query | Result |
+| :--- | :---: | ---: |
+| `(vector, string)` pairs | `(query vector, substring, k)` | Up to `k` constrained approximate nearest neighbors |
+
+Built around an enhanced suffix automaton and HNSW, VectorMaton reuses vector indexes across related pattern states to support efficient, space-conscious hybrid search. The current implementation uses Euclidean distance and includes parallel index construction, dynamic insertion, and index persistence.
+
+> [!NOTE]
+> **Research paper:** *VectorMaton: Efficient Vector Search with Pattern Constraints via an Enhanced Suffix Automaton* — accepted by **PVLDB 2027**. Read the [full technical report](technical_report.pdf).
 
 ## Table of contents
 
