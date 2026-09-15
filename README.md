@@ -7,7 +7,7 @@
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/17)
 [![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake&logoColor=white)](https://cmake.org/)
 [![OpenMP](https://img.shields.io/badge/parallel-OpenMP-009639)](https://www.openmp.org/)
-[![PVLDB 2027](https://img.shields.io/badge/PVLDB-2027-7B2CBF)](https://www.vldb.org/pvldb/)
+[![PVLDB 2026](https://img.shields.io/badge/PVLDB-2026-7B2CBF)](https://www.vldb.org/pvldb/)
 
 **Fast approximate nearest-neighbor search with substring constraints.**
 
@@ -24,7 +24,7 @@ VectorMaton is a C++ index for data where every vector has an associated string.
 Built around an enhanced suffix automaton and HNSW, VectorMaton reuses vector indexes across related pattern states to support efficient, space-conscious hybrid search. The current implementation uses Euclidean distance and includes parallel index construction, dynamic insertion, and index persistence.
 
 > [!NOTE]
-> **Research paper:** *VectorMaton: Efficient Vector Search with Pattern Constraints via an Enhanced Suffix Automaton* — accepted by **PVLDB 2027**. Read the [full technical report](technical_report.pdf).
+> **Research paper:** *VectorMaton: Efficient Vector Search with Pattern Constraints via an Enhanced Suffix Automaton* — accepted by **PVLDB 2026** (Volume 19). Read the [full technical report](technical_report.pdf).
 
 ## Table of contents
 
