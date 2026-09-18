@@ -80,7 +80,7 @@ should_run_dataset() {
 }
 
 ELASTICSEARCH_PID_ARG=""
-if [ -z "$ELASTICSEARCH_PID" ] && should_run "ElasticSearch"; then
+if [ -z "$ELASTICSEARCH_PID" ] && should_run "Elasticsearch"; then
     ELASTICSEARCH_PIDS="$(pgrep -af org.elasticsearch.bootstrap.Elasticsearch | awk '{print $1}' || true)"
     ELASTICSEARCH_PID_COUNT="$(printf '%s\n' "$ELASTICSEARCH_PIDS" | sed '/^$/d' | wc -l)"
     if [ "$ELASTICSEARCH_PID_COUNT" -eq 1 ]; then
@@ -116,8 +116,8 @@ fi
 if [ ! -d "results/pgvector" ]; then
     mkdir results/pgvector
 fi
-if [ ! -d "results/ElasticSearch" ]; then
-    mkdir results/ElasticSearch
+if [ ! -d "results/Elasticsearch" ]; then
+    mkdir results/Elasticsearch
 fi
 if [ ! -d "results/VectorMaton" ]; then
     mkdir results/VectorMaton
@@ -252,14 +252,14 @@ do
         fi
     fi
     # Elasticsearch
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/spam" ]; then
-            mkdir results/ElasticSearch/spam
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/spam" ]; then
+            mkdir results/Elasticsearch/spam
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/spam/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/spam/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/spam/strings.txt datasets/spam/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/spam/$s.csv
         fi
     fi
 done
@@ -341,14 +341,14 @@ do
     #         python3 source/experiments/pgvector_exp.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/words/$s.csv
     #     fi
     # fi
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/words" ]; then
-            mkdir results/ElasticSearch/words
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/words" ]; then
+            mkdir results/Elasticsearch/words
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/words/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/words/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/words/strings.txt datasets/words/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/words/$s.csv
         fi
     fi
 done
@@ -428,14 +428,14 @@ do
             python3 source/experiments/pgvector_exp.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/mtg/$s.csv
         fi
     fi
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/mtg" ]; then
-            mkdir results/ElasticSearch/mtg
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/mtg" ]; then
+            mkdir results/Elasticsearch/mtg
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/mtg/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/mtg/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/mtg/strings.txt datasets/mtg/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/mtg/$s.csv
         fi
     fi
 done
@@ -515,14 +515,14 @@ do
             python3 source/experiments/pgvector_exp.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/arxiv-small/$s.csv
         fi
     fi
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/arxiv-small" ]; then
-            mkdir results/ElasticSearch/arxiv-small
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/arxiv-small" ]; then
+            mkdir results/Elasticsearch/arxiv-small
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/arxiv-small/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/arxiv-small/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/arxiv-small/strings.txt datasets/arxiv-small/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/arxiv-small/$s.csv
         fi
     fi
 done
@@ -602,14 +602,14 @@ do
             python3 source/experiments/pgvector_exp.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/swissprot/$s.csv
         fi
     fi
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/swissprot" ]; then
-            mkdir results/ElasticSearch/swissprot
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/swissprot" ]; then
+            mkdir results/Elasticsearch/swissprot
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/swissprot/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/swissprot/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/swissprot/strings.txt datasets/swissprot/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/swissprot/$s.csv
         fi
     fi
 done
@@ -689,14 +689,14 @@ do
             python3 source/experiments/pgvector_exp.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt && mv pgvector_hnsw_stats.csv results/pgvector/code_search_net/$s.csv
         fi
     fi
-    if should_run "ElasticSearch"; then
-        if [ ! -d "results/ElasticSearch/code_search_net" ]; then
-            mkdir results/ElasticSearch/code_search_net
+    if should_run "Elasticsearch"; then
+        if [ ! -d "results/Elasticsearch/code_search_net" ]; then
+            mkdir results/Elasticsearch/code_search_net
         fi
         if [ "$s" -eq 2 ]; then
-            python3 source/experiments/elasticsearch_exp.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt --rebuild $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/code_search_net/$s.csv
         else
-            python3 source/experiments/elasticsearch_exp.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/ElasticSearch/code_search_net/$s.csv
+            python3 source/experiments/elasticsearch_exp.py datasets/code_search_net/strings.txt datasets/code_search_net/vectors.txt strings_queries.txt vectors_queries.txt k_queries.txt ground_truth.txt $ELASTICSEARCH_PID_ARG && mv elasticsearch_hnsw_stats.csv results/Elasticsearch/code_search_net/$s.csv
         fi
     fi
 done

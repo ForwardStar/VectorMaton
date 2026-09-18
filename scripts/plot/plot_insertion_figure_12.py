@@ -29,7 +29,7 @@ METHODS = [
     "PostFiltering",
     "Hybrid",
     "pgvector",
-    "ElasticSearch",
+    "Elasticsearch",
     "BM25Filtering",
     "VectorMaton",
 ]

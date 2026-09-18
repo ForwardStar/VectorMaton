@@ -11,7 +11,7 @@ QUERY_STRING_LEN="${QUERY_STRING_LEN:-2}"
 NUM_QUERIES="${NUM_QUERIES:-10}"
 K_VALUE="${K_VALUE:-10}"
 INSERTION_PERCENTAGES="${INSERTION_PERCENTAGES:-20}"
-METHODS="${METHODS:-OptQuery BM25Filtering PreFiltering PostFiltering Hybrid VectorMaton-smart pgvector ElasticSearch}"
+METHODS="${METHODS:-OptQuery BM25Filtering PreFiltering PostFiltering Hybrid VectorMaton-smart pgvector Elasticsearch}"
 DATASETS="${DATASETS:-}"
 
 usage() {
@@ -115,7 +115,7 @@ needs_ground_truth() {
     method_enabled "ACORN-gamma" ||
         method_enabled "ACORN-1" ||
         method_enabled "pgvector" ||
-        method_enabled "ElasticSearch"
+        method_enabled "Elasticsearch"
 }
 
 if [ ! -x "./build/main_exp" ]; then
@@ -279,13 +279,13 @@ run_elasticsearch() {
     local query_k="$7"
     local ground_truth_file="$8"
 
-    local method_dir="${RESULT_ROOT}/ElasticSearch/${dataset}"
+    local method_dir="${RESULT_ROOT}/Elasticsearch/${dataset}"
     local tag="insert_${pct}"
     local index_pct
     index_pct=$(printf "%s" "${pct}" | tr '.+' '__')
     mkdir -p "${method_dir}"
 
-    echo "==> ${dataset}: ElasticSearch, insertion=${pct}%"
+    echo "==> ${dataset}: Elasticsearch, insertion=${pct}%"
     python3 source/experiments/elasticsearch_exp.py \
         "${strings_file}" \
         "${vectors_file}" \
@@ -409,7 +409,7 @@ run_dataset() {
                         "${query_k}" \
                         "${ground_truth_file}"
                     ;;
-                ElasticSearch)
+                Elasticsearch)
                     run_elasticsearch \
                         "${dataset}" \
                         "${pct}" \

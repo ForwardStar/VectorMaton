@@ -223,7 +223,7 @@ def add_block_caption(fig, axes_block, text, fontsize=20, pad=0.015):
     )
 
 if __name__ == "__main__":
-    methods = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
+    methods = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "Elasticsearch", "BM25Filtering", "VectorMaton"]
     datasets = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
     ds_briefs = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 

@@ -23,7 +23,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
         rcParams["mathtext.rm"] = font_name
 
 
-METHODS = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
+METHODS = ["OptQuery", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "Elasticsearch", "BM25Filtering", "VectorMaton"]
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DS_BRIEFS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
 P_LENGTHS = [5, 6, 7]

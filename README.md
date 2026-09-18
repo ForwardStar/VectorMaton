@@ -381,7 +381,7 @@ pip install datasets==3.6.0 numpy==1.26.4 transformers==4.56.0 torch==2.8.0 sent
 python3 scripts/download_datasets.py --blacklist-dataset=swissprot,code_search_net
 
 sh scripts/run/run-queries.sh \
-  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch \
+  --blacklist=ACORN-gamma,ACORN-1,pgvector,Elasticsearch \
   --blacklist-dataset=swissprot,code_search_net
 
 sh scripts/run/run-scalability.sh
@@ -395,7 +395,7 @@ sh scripts/run/run-insertion.sh \
   --datasets "spam words mtg arxiv-small"
 
 sh scripts/run/run-long-sequence.sh \
-  --blacklist=ACORN-gamma,ACORN-1,pgvector,ElasticSearch
+  --blacklist=ACORN-gamma,ACORN-1,pgvector,Elasticsearch
 ```
 
 This minimal pass intentionally omits `scripts/run/run-parallel.sh`, because that script is designed for the larger `swissprot` and `code_search_net` datasets.

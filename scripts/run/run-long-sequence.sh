@@ -98,7 +98,7 @@ if [ ! -f "${QUERY_STRINGS}" ] || [ ! -f "${QUERY_VECTORS}" ]; then
 fi
 
 ELASTICSEARCH_PID_ARG=""
-if [ -z "$ELASTICSEARCH_PID" ] && should_run "ElasticSearch"; then
+if [ -z "$ELASTICSEARCH_PID" ] && should_run "Elasticsearch"; then
     ELASTICSEARCH_PIDS="$(pgrep -af org.elasticsearch.bootstrap.Elasticsearch | awk '{print $1}' || true)"
     ELASTICSEARCH_PID_COUNT="$(printf '%s\n' "$ELASTICSEARCH_PIDS" | sed '/^$/d' | wc -l)"
     if [ "$ELASTICSEARCH_PID_COUNT" -eq 1 ]; then
@@ -125,7 +125,7 @@ mkdir -p \
     "${RESULT_ROOT}/ACORN-gamma/${DATASET}" \
     "${RESULT_ROOT}/ACORN-1/${DATASET}" \
     "${RESULT_ROOT}/pgvector/${DATASET}" \
-    "${RESULT_ROOT}/ElasticSearch/${DATASET}"
+    "${RESULT_ROOT}/Elasticsearch/${DATASET}"
 
 index_flag() {
     local method="$1"
@@ -248,23 +248,23 @@ for s in ${PATTERN_LENGTHS}; do
         mv pgvector_hnsw_stats.csv "${RESULT_ROOT}/pgvector/${DATASET}/${s}.csv"
     fi
 
-    if should_run "ElasticSearch"; then
+    if should_run "Elasticsearch"; then
         if [ "$s" -eq "$FIRST_PATTERN_LENGTH" ]; then
             python3 source/experiments/elasticsearch_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 --rebuild ${ELASTICSEARCH_PID_ARG} \
-                --write-output "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}.queries" \
-                > "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}" 2>&1
+                --write-output "${RESULT_ROOT}/Elasticsearch/${DATASET}/${s}.queries" \
+                > "${RESULT_ROOT}/Elasticsearch/${DATASET}/${s}" 2>&1
         else
             python3 source/experiments/elasticsearch_exp.py \
                 "${STRINGS_FILE}" "${VECTORS_FILE}" \
                 "${QUERY_STRINGS}" "${QUERY_VECTORS}" "${QUERY_K}" "${GROUND_TRUTH}" \
                 ${ELASTICSEARCH_PID_ARG} \
-                --write-output "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}.queries" \
-                > "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}" 2>&1
+                --write-output "${RESULT_ROOT}/Elasticsearch/${DATASET}/${s}.queries" \
+                > "${RESULT_ROOT}/Elasticsearch/${DATASET}/${s}" 2>&1
         fi
-        mv elasticsearch_hnsw_stats.csv "${RESULT_ROOT}/ElasticSearch/${DATASET}/${s}.csv"
+        mv elasticsearch_hnsw_stats.csv "${RESULT_ROOT}/Elasticsearch/${DATASET}/${s}.csv"
     fi
 done
 

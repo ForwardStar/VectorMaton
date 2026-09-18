@@ -21,7 +21,7 @@ ALL_METHODS = [
     "ACORN-1",
     "ACORN-gamma",
     "pgvector",
-    "ElasticSearch",
+    "Elasticsearch",
     "BM25Filtering",
     "VectorMaton",
 ]

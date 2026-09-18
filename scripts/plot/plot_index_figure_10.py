@@ -29,7 +29,7 @@ for font in fm.findSystemFonts(fontpaths=None, fontext="ttf"):
 
 DATASETS = ["spam", "words", "mtg", "arxiv-small", "swissprot", "code_search_net"]
 DATASET_LABELS = ["spam", "words", "mtg", "arxiv", "prot", "code"]
-METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch", "BM25Filtering", "VectorMaton"]
+METHODS = ["OptQuery", "PreFiltering", "PostFiltering", "Hybrid", "ACORN-1", "ACORN-gamma", "pgvector", "Elasticsearch", "BM25Filtering", "VectorMaton"]
 METHOD_LABELS = {"ACORN-gamma": "ACORN-γ"}
 METHOD_HATCHES = {
     "OptQuery": "\\",
@@ -39,7 +39,7 @@ METHOD_HATCHES = {
     "ACORN-1": "*",
     "ACORN-gamma": "x",
     "pgvector": "-",
-    "ElasticSearch": "/",
+    "Elasticsearch": "/",
     "BM25Filtering": "|",
     "VectorMaton": ".",
 }
@@ -91,7 +91,7 @@ def method_colors():
         "ACORN-1": cs(3),
         "ACORN-gamma": cs(4),
         "pgvector": cs(5),
-        "ElasticSearch": cs(6),
+        "Elasticsearch": cs(6),
         "BM25Filtering": cs(7),
         "VectorMaton": cs(8),
     }
@@ -170,7 +170,7 @@ def load_csv_build_time_seconds(path):
 
 
 def load_memory_bytes(method, dataset, pattern_length):
-    if method in {"ACORN-1", "ACORN-gamma", "pgvector", "ElasticSearch"}:
+    if method in {"ACORN-1", "ACORN-gamma", "pgvector", "Elasticsearch"}:
         path = os.path.join("results", method, dataset, f"{pattern_length}.csv")
         return load_csv_memory_bytes(path)
 
@@ -295,7 +295,7 @@ def plot_memory(pattern_length, output):
     group_gap = 1.2
     x = [i * group_gap for i in range(len(DATASETS))]
     bar_width = 0.10
-    memory_methods = [method for method in METHODS if method != "ElasticSearch"]
+    memory_methods = [method for method in METHODS if method != "Elasticsearch"]
 
     fig, axes = plt.subplots(1, 2, figsize=(36, 4))
     ax_memory, ax_time = axes
