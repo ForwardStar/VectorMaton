@@ -1,4 +1,4 @@
-"""Generate Figure 14 from the technical report."""
+"""Generate Figure 13 from the technical report."""
 
 import os
 import re

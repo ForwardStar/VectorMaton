@@ -1,4 +1,4 @@
-"""Generate Figure 13 from the technical report."""
+"""Generate Figure 17 from the technical report."""
 
 import argparse
 import os

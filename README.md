@@ -356,14 +356,14 @@ Plot results:
 ```sh
 python3 scripts/plot/plot_sift_figure_2.py
 python3 scripts/plot/recall_qps_figure_8.py
-python3 scripts/plot/recall_qps_figures_9_15.py
+python3 scripts/plot/recall_qps_figures_9_14.py
 python3 scripts/plot/plot_index_figure_10.py
 python3 scripts/plot/plot_scalability_figure_11.py
 python3 scripts/plot/plot_insertion_figure_12.py
-python3 scripts/plot/plot_postfiltering_figure_13.py
-python3 scripts/plot/plot_wikipedia_figure_14.py
-python3 scripts/plot/pattern_distribution_figure_16.py
-python3 scripts/plot/plot_threshold_figure_17.py
+python3 scripts/plot/plot_wikipedia_figure_13.py
+python3 scripts/plot/pattern_distribution_figure_15.py
+python3 scripts/plot/plot_threshold_figure_16.py
+python3 scripts/plot/plot_postfiltering_figure_17.py
 ```
 
 Figures are written under `figures/`; raw outputs are written under `results/`.
